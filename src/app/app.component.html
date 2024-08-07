@@ -29,21 +29,21 @@
   <div class="os-main-content" data-test="meetingStarted">
     <header class="header">
       <div class="left-header" data-test="left-header">
-        <button class="grid-view" matTooltip="View">
-          <i class="far fa-th-large"></i>
+        <button
+          data-cy="raise-hand"
+          *ngIf="localParticipant.isLocal"
+          (click)="toggleRaiseHand()"
+          matTooltip="
+            localParticipant.handRaised ? 'Lower Hand' : 'Raise Hand'
+          "
+        >
+          <i
+            class="fas fa-hand-paper"
+            [ngClass]="{ 'hand-raised': localParticipant.handRaised }"
+          ></i>
         </button>
-        <button *ngIf="localParticipant.isLocal" (click)="toggleRaiseHand()">
-          {{ localParticipant.handRaised ? "Lower Hand" : "Raise Hand" }}
-        </button>
-        <!-- <div *ngIf="isScreenRecording" class="screen-recording">
-          <i class="far fa-record-vinyl"></i>
-          <div class="timer">{{ recordingTime }}</div>
-        </div> -->
       </div>
       <div class="right-header">
-        <button class="menu" matTooltip="Menu">
-          <span class="material-symbols-outlined"> segment </span>
-        </button>
         <button
           class="people"
           matTooltip="Participants"
@@ -66,9 +66,7 @@
             {{ (unreadMessagesCount$ | async) || 0 }}
           </span>
         </button> -->
-        <button class="emojis" matTooltip="React">
-          <span class="material-symbols-outlined"> emoji_language </span>
-        </button>
+
         <button class="more" matTooltip="More">
           <i class="fas fa-ellipsis-h"></i>
         </button>
@@ -93,7 +91,7 @@
           ></i>
         </button>
 
-        <button class="share" (click)="toggleScreenShare()">
+        <!-- <button class="share" (click)="toggleScreenShare()">
           <span
             class="material-symbols-outlined"
             *ngIf="!(isScreenSharing$ | async)"
@@ -107,12 +105,38 @@
           >
             stop_screen_share
           </span>
+        </button> -->
+        <button class="share" (click)="toggleScreenShare()">
+          <span
+            class="material-symbols-outlined"
+            *ngIf="!livekitService.isScreenSharingEnabled"
+          >
+            screen_share
+          </span>
+          <span
+            class="material-symbols-outlined"
+            *ngIf="livekitService.isScreenSharingEnabled"
+            [ngStyle]="{ color: (iconColor$ | async) }"
+          >
+            stop_screen_share
+          </span>
         </button>
+        <!-- <button class="share" (click)="toggleScreenShare()">
+          <ng-container *ngIf="isScreenSharing$ | async as isScreenSharing">
+            <span class="material-symbols-outlined" *ngIf="!isScreenSharing">
+              screen_share
+            </span>
+            <span
+              class="material-symbols-outlined"
+              *ngIf="isScreenSharing"
+              [ngStyle]="{ color: (iconColor$ | async) }"
+            >
+              stop_screen_share
+            </span>
+          </ng-container>
+        </button> -->
 
         <button class="leave-btn" (click)="leaveBtn()">
-          <div class="phone-icon">
-            <!-- <span class="material-symbols-outlined"> call_end </span> -->
-          </div>
           <h2>Leave</h2>
           <div class="chevron-icon"><i class="fas fa-chevron-down"></i></div>
         </button>
@@ -121,40 +145,46 @@
 
     <ng-container
       *ngIf="
-        (isScreenSharing$ | async) === true ||
-        this.livekitService.remoteScreenShare === true
+        livekitService.isScreenSharingEnabled === true ||
+        livekitService.remoteScreenShare === true
       "
     >
-      <div class="lk-focus-layout-wrapper">
-        <div class="lk-focus-layout"></div>
+      <div
+        class="lk-focus-layout-wrapper"
+        [ngClass]="{
+          'screen-share-layout-wrapper': livekitService.isExpanded === true
+        }"
+      >
+        <div
+          class="lk-focus-layout"
+          [ngClass]="{ expanded: livekitService.isExpanded }"
+          [ngClass]="{
+            'screen-share-layout': livekitService.isExpanded === true
+          }"
+          [style.grid-template-columns]="ScreenGalleryGridColumnStyle"
+        ></div>
       </div>
     </ng-container>
+
     <div
       class="lk-grid-layout-wrapper"
       [ngClass]="{
         'screen-share-layout-wrapper':
-          (isScreenSharing$ | async) === true ||
-          this.livekitService.remoteScreenShare === true
+          livekitService.isScreenSharingEnabled === true ||
+          livekitService.remoteScreenShare === true
       }"
     >
       <div
         class="lk-grid-layout"
         [ngClass]="{
           'screen-share-layout':
-            (isScreenSharing$ | async) === true ||
-            this.livekitService.remoteScreenShare === true
+            livekitService.isScreenSharingEnabled === true ||
+            livekitService.remoteScreenShare === true
         }"
         [style.grid-template-columns]="GalleryGridColumnStyle"
       ></div>
     </div>
     <!-- modal to show a person is already sharing screen  -->
-
-    <div id="myModal" class="modal">
-      <div class="modal-content">
-        <span class="close">&times;</span>
-        <p>Another participant is already sharing its screen.</p>
-      </div>
-    </div>
   </div>
 
   <div class="closeChatSideWindow" (click)="closeChatSideWindow()">
@@ -206,44 +236,41 @@
                 </div>
               </div>
             </div>
-            <div class="new-footer-card">
-              <form [formGroup]="chatForm" (ngSubmit)="sendMessage()" class="">
-                <div class="dropdwn">
-                  <label for="participant">To: </label>
-                  <div class="select-dropdown">
-                    <select formControlName="participant">
-                      <option disabled selected value="">
-                        Select One Option
-                      </option>
-                      <option value="1">EveryOne</option>
-                      <option
-                        *ngFor="let participant of remoteParticipantNames"
-                        [value]="participant.identity"
-                      >
-                        {{ participant.identity }}
-                      </option>
-                    </select>
+          </div>
+          <div class="new-footer-card">
+            <form [formGroup]="chatForm" (ngSubmit)="sendMessage()" class="">
+              <div class="dropdwn">
+                <label for="participant">To: </label>
+                <div class="select-dropdown">
+                  <select formControlName="participant">
+                    <option selected value="">EveryOne</option>
+                    <option
+                      *ngFor="let participant of remoteParticipantNames"
+                      [value]="participant.identity"
+                    >
+                      {{ participant.identity }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <div class="footer-flex">
+                <!-- <div class="add"><i class="fas fa-plus"></i></div> -->
+                <div class="search">
+                  <input
+                    type="text"
+                    class="sendTerm"
+                    placeholder="send a message"
+                    formControlName="message"
+                  />
+                  <div class="emoji">
+                    <i class="fas fa-face-smile"></i>
                   </div>
                 </div>
-                <div class="footer-flex">
-                  <!-- <div class="add"><i class="fas fa-plus"></i></div> -->
-                  <div class="search">
-                    <input
-                      type="text"
-                      class="sendTerm"
-                      placeholder="send a message"
-                      formControlName="message"
-                    />
-                    <div class="emoji">
-                      <i class="fas fa-face-smile"></i>
-                    </div>
-                  </div>
-                  <button type="submit" class="sendButton">
-                    <i class="send fas fa-paper-plane"></i>
-                  </button>
-                </div>
-              </form>
-            </div>
+                <button type="submit" class="sendButton">
+                  <i class="send fas fa-paper-plane"></i>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
@@ -269,7 +296,9 @@
               </div>
               <div class="name">{{ localParticipant.identity }}(You)</div>
 
-              <span *ngIf="localParticipant.handRaised" class="raised-hand-icon"
+              <span
+                *ngIf="handRaiseStates[localParticipant?.identity]"
+                class="raised-hand-icon"
                 >✋</span
               >
             </div>
@@ -311,7 +340,9 @@
                 <p>{{ extractInitials(participant.identity) }}</p>
               </div>
               <div class="name">{{ participant.identity }}</div>
-              <span *ngIf="participant.handRaised" class="raised-hand-icon"
+              <span
+                *ngIf="handRaiseStates[participant?.identity]"
+                class="raised-hand-icon"
                 >✋</span
               >
             </div>
@@ -341,23 +372,3 @@
     </div>
   </div>
 </ng-container>
-
-<!-- html structure for creating video elments  -->
-<!-- <div class="lk-grid-layout-wrapper">
-  <div
-    id="remoteVideoContainer"
-    class="lk-grid-layout"
-    [style.grid-template-columns]="GalleryGridColumnStyle"
-  >
-    <div class="" *ngIf="attachedTrack">
-      <video id="videoElement" class="lk-participant-tile video-element">
-        {{ attachedTrack }}
-      </video>
-      <div class="lk-participant-metadata">
-        <div class="lk-participant-metadata-item">
-          <span class="lk-participant-name">Participant Name</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</div> -->

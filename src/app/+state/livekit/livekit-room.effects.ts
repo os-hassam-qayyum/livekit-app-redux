@@ -36,10 +36,10 @@ export class LiveKitRoomEffects {
       ofType(LiveKitRoomActions.toggleScreenShare),
       mergeMap(() =>
         from(this.livekitService.toggleScreenShare()).pipe(
-          // tap((isScreenSharing) =>
-          //   console.log('Effect: Result from service', isScreenSharing)
-          // ),
-          map((isScreenSharing: any) =>
+          tap((isScreenSharing) =>
+            console.log('Effect: Result from service', isScreenSharing)
+          ),
+          map((isScreenSharing: boolean) =>
             LiveKitRoomActions.toggleScreenShareSuccess({ isScreenSharing })
           ),
           catchError((error) =>

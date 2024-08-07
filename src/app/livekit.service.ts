@@ -50,9 +50,6 @@ export class LivekitService {
    */
   isScreenSharingEnabled = false;
 
-  private screenSharingInProgress = false;
-  private isOtherParticipantSharing = false;
-
   /**
    * Event emitter for when the video status changes.
    * @type {EventEmitter<boolean>}
@@ -88,7 +85,7 @@ export class LivekitService {
    * @private
    * @type {TextEncoder}
    */
-  private encoder = new TextEncoder();
+  // private encoder = new TextEncoder();
 
   /**
    * A text decoder instance for decoding text.
@@ -127,6 +124,8 @@ export class LivekitService {
    * @type {EventEmitter<boolean>}
    */
   microphoneStatusChanged = new EventEmitter<boolean>();
+  screenShareCount = 0;
+  isExpanded: boolean = false;
 
   /**
    * Event emitter for when a message is received.
@@ -197,6 +196,7 @@ export class LivekitService {
     };
     await this.publishHandRaiseLowerMessage(message);
   }
+
   /**
    * Raises the hand for a given participant and publishes a hand raise message.
    *
@@ -300,16 +300,13 @@ export class LivekitService {
     const remoteParticipants = Array.from(
       this.room.remoteParticipants.values()
     );
-    console.log('above data', remoteParticipants);
     remoteParticipants.forEach((participant) => {
-      console.log('warda', participant);
       this.createAvatar(participant);
       const eachRemoteParticipant = Array.from(
         participant.trackPublications.values()
       );
       eachRemoteParticipant.forEach((publication) => {
         publication.setSubscribed(true);
-        console.log('warda Rasool', participant);
       });
     });
   }
@@ -321,7 +318,7 @@ export class LivekitService {
   audioVideoHandler() {
     this.room = new Room();
     this.participants = this.room.numParticipants;
-    console.log('prrr now', this.participants);
+    console.log('total participants', this.participants);
     /**
      * Event triggered when the room is connected.
      * Creates an avatar for the local participant.
@@ -436,7 +433,9 @@ export class LivekitService {
       RoomEvent.LocalTrackUnpublished,
       (publication: LocalTrackPublication, participant: LocalParticipant) => {
         if (publication.source === Track.Source.ScreenShare) {
+          this.isScreenSharingEnabled = false;
           this.remoteScreenShare = false;
+          this.screenShareCount--;
         }
       }
     );
@@ -455,6 +454,7 @@ export class LivekitService {
       (publication: RemoteTrackPublication, participant: RemoteParticipant) => {
         if (publication.source === Track.Source.ScreenShare) {
           this.remoteScreenShare = false;
+          this.screenShareCount--;
         }
       }
     );
@@ -486,13 +486,13 @@ export class LivekitService {
             element.setAttribute(
               'style',
               `
-               border-radius: 0.5rem; 
-               width: 100%; 
-               height: 100%; 
-               object-fit: cover; 
-               object-position: center; 
-               background-color: #000; 
-             `
+                 border-radius: 0.5rem; 
+                 width: 100%; 
+                 height: 100%; 
+                 object-fit: cover; 
+                 object-position: center; 
+                 background-color: #000; 
+               `
             );
 
             // Create metadata container if it doesn't already exist
@@ -503,17 +503,17 @@ export class LivekitService {
               el3.setAttribute(
                 'style',
                 `
-                 position: absolute;
-                 right: 0.25rem;
-                 bottom: 0.25rem;
-                 left: 0.25rem;
-                 display: flex;
-                 flex-direction: row;
-                 align-items: center;
-                 justify-content: space-between;
-                 gap: 0.5rem;
-                 line-height: 1;
-               `
+                   position: absolute;
+                   right: 0.25rem;
+                   bottom: 0.25rem;
+                   left: 0.25rem;
+                   display: flex;
+                   flex-direction: row;
+                   align-items: center;
+                   justify-content: space-between;
+                   gap: 0.5rem;
+                   line-height: 1;
+                 `
               );
 
               const el4 = document.createElement('div');
@@ -521,12 +521,12 @@ export class LivekitService {
               el4.setAttribute(
                 'style',
                 `
-                 display: flex;
-                 align-items: center;
-                 padding: 0.25rem;
-                 background-color: rgba(0, 0, 0, 0.5);
-                 border-radius: calc(var(--lk-border-radius) / 2);
-               `
+                   display: flex;
+                   align-items: center;
+                   padding: 0.25rem;
+                   background-color: rgba(0, 0, 0, 0.5);
+                   border-radius: calc(var(--lk-border-radius) / 2);
+                 `
               );
 
               const el5 = document.createElement('span');
@@ -534,9 +534,9 @@ export class LivekitService {
               el5.setAttribute(
                 'style',
                 `
-                 font-size: 0.875rem;
-                 color: white;
-               `
+                   font-size: 0.875rem;
+                   color: white;
+                 `
               );
               el5.innerText = participant.identity;
 
@@ -555,19 +555,20 @@ export class LivekitService {
         this.screenShareTrackSubscribed.emit(publication.track);
         if (publication.source === Track.Source.ScreenShare) {
           this.remoteScreenShare = true;
+          this.screenShareCount++;
           setTimeout(() => {
             const el2 = document.createElement('div');
             el2.setAttribute('class', 'lk-participant-tile');
             el2.setAttribute(
               'style',
               ` --lk-speaking-indicator-width: 2.5px;
-           position: relative;
-           display: flex;
-           flex-direction: column;
-           height:100%;
-           gap: 0.375rem;
-           overflow: hidden;
-           border-radius: 0.5rem;`
+             position: relative;
+             display: flex;
+             flex-direction: column;
+             height:100%;
+             gap: 0.375rem;
+             overflow: hidden;
+             border-radius: 0.5rem;`
             );
             const screenShareTrack = publication.track?.attach();
             if (screenShareTrack) {
@@ -584,39 +585,48 @@ export class LivekitService {
               el3.setAttribute(
                 'style',
                 `position: absolute;
-             right: 0.25rem;
-             bottom: 0.25rem;
-             left: 0.25rem;
-             display: flex;
-             flex-direction: row;
-             align-items: center;
-             justify-content: space-between;
-             gap: 0.5rem;
-             line-height: 1;`
+               right: 0.25rem;
+               bottom: 0.25rem;
+               left: 0.25rem;
+               display: flex;
+               flex-direction: row;
+               align-items: center;
+               justify-content: space-between;
+               gap: 0.5rem;
+               line-height: 1;`
               );
               const el4 = document.createElement('div');
               el4.setAttribute('class', 'lk-participant-metadata-item');
               el4.setAttribute(
                 'style',
                 `display: flex;
-             align-items: center;
-             padding: 0.25rem;
-             background-color: rgba(0, 0, 0, 0.5);
-             border-radius: 0.25rem;`
+               align-items: center;
+               padding: 0.25rem;
+               background-color: rgba(0, 0, 0, 0.5);
+               border-radius: 0.25rem;`
               );
               const el5 = document.createElement('span');
               el5.setAttribute('class', 'lk-participant-name');
               el5.setAttribute(
                 'style',
                 ` font-size: 0.875rem;
-             color: white;
-             `
+               color: white;
+               `
               );
               el2.appendChild(screenShareTrack);
               el2.appendChild(el3);
               el3.appendChild(el4);
               el4.appendChild(el5);
               el5.innerText = participant.identity;
+              const button = document.createElement('button');
+              button.setAttribute('class', 'lk-participant-button');
+              button.innerHTML = `<i class="fas fa-expand-alt"></i>`;
+              button.onclick = () => {
+                this.toggleExpand(el2, participant.identity);
+                console.log(`Button clicked for ${participant.identity}!`);
+              };
+
+              el3.appendChild(button);
               container?.appendChild(el2);
             } else {
               console.error('Remote screen share container not found');
@@ -784,23 +794,8 @@ export class LivekitService {
     publication: RemoteTrackPublication,
     participant: RemoteParticipant
   ) {
-    console.log('testing', publication);
     if (track.kind === 'video' && track.source === Track.Source.Camera) {
-      // const container = document.getElementById('remoteVideoContainer');
-      // if (container) {
-      //   const element = track.attach();
-      //   element.setAttribute('class', 'lk-participant-tile');
-      //   element.setAttribute(
-      //     'style',
-      //     'position: relative;  display: flex ;flex-direction: column ;gap: 0.375rem ; overflow: hidden ;border-radius: 0.5rem '
-      //   );
-      //   container.appendChild(element);
-      // } else {
-      //   console.error('Remote video container not found');
-      // }
-      // ===================================
       const existingElement = document.getElementById(`${participant.sid}`);
-      console.log('testing avatar below', existingElement);
 
       if (existingElement) {
         // Remove the avatar image if it exists
@@ -825,15 +820,15 @@ export class LivekitService {
           el3.setAttribute(
             'style',
             `position: absolute;
-     right: 0.25rem;
-     bottom: 0.25rem;
-     left: 0.25rem;
-     display: flex;
-     flex-direction: row;
-     align-items: center;
-     justify-content: space-between;
-     gap: 0.5rem;
-     line-height: 1;`
+       right: 0.25rem;
+       bottom: 0.25rem;
+       left: 0.25rem;
+       display: flex;
+       flex-direction: row;
+       align-items: center;
+       justify-content: space-between;
+       gap: 0.5rem;
+       line-height: 1;`
           );
 
           const el4 = document.createElement('div');
@@ -841,10 +836,10 @@ export class LivekitService {
           el4.setAttribute(
             'style',
             `display: flex;
-     align-items: center;
-     padding: 0.25rem;
-     background-color: rgba(0, 0, 0, 0.5);
-     border-radius: calc(var(--lk-border-radius) / 2);`
+       align-items: center;
+       padding: 0.25rem;
+       background-color: rgba(0, 0, 0, 0.5);
+       border-radius: calc(var(--lk-border-radius) / 2);`
           );
 
           const el5 = document.createElement('span');
@@ -852,7 +847,7 @@ export class LivekitService {
           el5.setAttribute(
             'style',
             `font-size: 0.875rem;
-     color: white;`
+       color: white;`
           );
           el5.innerText = participant.identity;
 
@@ -906,24 +901,31 @@ export class LivekitService {
     this.screenShareTrackSubscribed.emit(track);
     if (track.source === Track.Source.ScreenShare && track.kind === 'video') {
       this.remoteScreenShare = true;
+      this.screenShareCount++;
       setTimeout(() => {
         const el2 = document.createElement('div');
         el2.setAttribute('class', 'lk-participant-tile');
         el2.setAttribute(
           'style',
           ` --lk-speaking-indicator-width: 2.5px;
-       position: relative;
-       display: flex;
-       flex-direction: column;
-       height:100%;
-       gap: 0.375rem;
-       overflow: hidden;
-       border-radius: 0.5rem;`
+         position: relative;
+         display: flex;
+         flex-direction: column;
+         height:100%;
+         gap: 0.375rem;
+         overflow: hidden;
+         border-radius: 0.5rem;`
         );
         const screenShareTrack = publication.track?.attach();
         if (screenShareTrack) {
           const container = document.querySelector('.lk-focus-layout');
-          console.log('screenshare container', container);
+          const lkFocusLayoutContainer =
+            document.querySelector('.lk-focus-layout');
+          const newScreenShareContainer = document.querySelector(
+            '#newScreenShareContainer'
+          );
+
+          // console.log('screenshare container', container);
           // el2.appendChild(container);
 
           screenShareTrack.setAttribute(
@@ -935,40 +937,54 @@ export class LivekitService {
           el3.setAttribute(
             'style',
             `position: absolute;
-         right: 0.25rem;
-         bottom: 0.25rem;
-         left: 0.25rem;
-         display: flex;
-         flex-direction: row;
-         align-items: center;
-         justify-content: space-between;
-         gap: 0.5rem;
-         line-height: 1;`
+           right: 0.25rem;
+           bottom: 0.25rem;
+           left: 0.25rem;
+           display: flex;
+           flex-direction: row;
+           align-items: center;
+           justify-content: space-between;
+           gap: 0.5rem;
+           line-height: 1;`
           );
           const el4 = document.createElement('div');
           el4.setAttribute('class', 'lk-participant-metadata-item');
           el4.setAttribute(
             'style',
             `display: flex;
-         align-items: center;
-         padding: 0.25rem;
-         background-color: rgba(0, 0, 0, 0.5);
-         border-radius: 0.25rem;`
+           align-items: center;
+           padding: 0.25rem;
+           background-color: rgba(0, 0, 0, 0.5);
+           border-radius: 0.25rem;`
           );
           const el5 = document.createElement('span');
           el5.setAttribute('class', 'lk-participant-name');
           el5.setAttribute(
             'style',
             ` font-size: 0.875rem;
-         color: white;
-         `
+           color: white;
+           `
           );
           el2.appendChild(screenShareTrack);
           el2.appendChild(el3);
           el3.appendChild(el4);
           el4.appendChild(el5);
           el5.innerText = participant.identity;
-          container?.appendChild(el2);
+          // container?.appendChild(el2);
+
+          const button = document.createElement('button');
+          button.setAttribute('class', 'lk-participant-button');
+          button.innerHTML = `<i class="fas fa-expand-alt"></i>`;
+          button.onclick = () => {
+            this.toggleExpand(el2, participant.identity);
+            // el2.appendChild(button);
+
+            console.log(`Button clicked for ${participant.identity}!`);
+          };
+
+          el3.appendChild(button);
+          lkFocusLayoutContainer?.appendChild(el2);
+          newScreenShareContainer?.appendChild(el2.cloneNode(true));
         } else {
           console.error('Remote screen share container not found');
         }
@@ -1034,7 +1050,6 @@ export class LivekitService {
    * @throws {Error} Throws an error if the room is not enabled.
    */
   toggleVideo(): Observable<boolean> {
-    console.log('hello');
     if (!this.room) {
       throw new Error('Room not enabled.');
     }
@@ -1058,18 +1073,18 @@ export class LivekitService {
    *
    * @returns {Promise<MediaStream | undefined>} A promise that resolves to the media stream if successful, or undefined if an error occurs.
    */
-  async startCamera(): Promise<MediaStream | undefined> {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-      });
-      return stream;
-    } catch (error) {
-      console.error('Error accessing the camera:', error);
-      this.openSnackBar(`Error accessing the camera, ${error}`);
-      return undefined;
-    }
-  }
+  // async startCamera(): Promise<MediaStream | undefined> {
+  //   try {
+  //     const stream = await navigator.mediaDevices.getUserMedia({
+  //       video: true,
+  //     });
+  //     return stream;
+  //   } catch (error) {
+  //     console.error('Error accessing the camera:', error);
+  //     this.openSnackBar(`Error accessing the camera, ${error}`);
+  //     return undefined;
+  //   }
+  // }
 
   /**
    * Toggles screen sharing for the local participant in the room.
@@ -1082,57 +1097,23 @@ export class LivekitService {
    * @returns {Promise<boolean>} A promise that resolves to the new screen sharing status (true if enabled, false if disabled).
    * @throws {Error} Throws an error if there is an issue toggling the screen share.
    */
+
   async toggleScreenShare(): Promise<boolean> {
-    try {
-      if (this.isScreenSharingEnabled) {
-        await this.room.localParticipant.setScreenShareEnabled(false);
-        this.isScreenSharingEnabled = false;
-        const container = document.querySelector('.lk-focus-layout');
-        if (container) {
-          container.remove();
-        } else {
-          console.error('Local screen share container not found');
-        }
+    if (this.isScreenSharingEnabled) {
+      await this.room.localParticipant.setScreenShareEnabled(false);
+      this.isScreenSharingEnabled = false;
+      const container = document.querySelector('.lk-focus-layout');
+      if (container) {
+        container.remove();
       } else {
-        this.remoteParticipantSharingScreen = false;
-        this.room.remoteParticipants.forEach((participant) => {
-          participant.trackPublications.forEach((publication) => {
-            if (
-              publication.track &&
-              publication.track.source === Track.Source.ScreenShare
-            ) {
-              this.remoteParticipantSharingScreen = true;
-            }
-          });
-        });
-
-        if (this.remoteParticipantSharingScreen) {
-          const modal = document.getElementById('myModal') as HTMLElement;
-          const closeBtn = modal?.querySelector('.close') as HTMLElement;
-
-          modal?.setAttribute('style', 'display:block');
-
-          closeBtn.onclick = function () {
-            modal?.setAttribute('style', 'display:none');
-          };
-
-          window.onclick = function (event) {
-            if (event.target == modal) {
-              modal?.setAttribute('style', 'display:none');
-            }
-          };
-        } else {
-          await this.room.localParticipant.setScreenShareEnabled(true);
-          this.isScreenSharingEnabled = true;
-        }
+        console.error('Local screen share container not found');
       }
-      return this.isScreenSharingEnabled;
-    } catch (error) {
-      console.error('Error toggling screen share:', error);
-      throw error;
+    } else {
+      await this.room.localParticipant.setScreenShareEnabled(true);
+      this.isScreenSharingEnabled = true;
     }
+    return this.isScreenSharingEnabled; // Return the updated screen sharing status
   }
-
   /**
    * Opens a snackbar with a given message.
    *
@@ -1166,16 +1147,15 @@ export class LivekitService {
     el2.setAttribute(
       'style',
       `
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      gap: 0.375rem;
-      border-radius: 0.5rem;
-      width: 100%;
-      background-color: #000;
-    `
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+        border-radius: 0.5rem;
+        width: 100%;
+        background-color: #000;
+      `
     );
-
     setTimeout(() => {
       const container = document.querySelector('.lk-grid-layout');
       if (container) {
@@ -1185,69 +1165,171 @@ export class LivekitService {
         el3.setAttribute(
           'style',
           `
-          position: absolute;
-          right: 0.25rem;
-          bottom: 0.25rem;
-          left: 0.25rem;
-          display: flex;
-          flex-direction: row;
-          align-items: center;
-          justify-content: space-between;
-          gap: 0.5rem;
-          line-height: 1;
-        `
+            position: absolute;
+            right: 0.25rem;
+            bottom: 0.25rem;
+            left: 0.25rem;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            line-height: 1;
+          `
         );
-
         // Create metadata item
         const el4 = document.createElement('div');
         el4.setAttribute('class', 'lk-participant-metadata-item');
         el4.setAttribute(
           'style',
           `
-          display: flex;
-          align-items: center;
-          padding: 0.25rem;
-          background-color: rgba(0, 0, 0, 0.5);
-          border-radius: calc(var(--lk-border-radius) / 2);
-        `
+            display: flex;
+            align-items: center;
+            padding: 0.25rem;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: calc(var(--lk-border-radius) / 2);
+          `
         );
-
         // Create participant name element
         const el5 = document.createElement('span');
         el5.setAttribute('class', 'lk-participant-name');
         el5.setAttribute(
           'style',
           `
-           font-size: 0.875rem;
-           color: white;
-         `
+             font-size: 0.875rem;
+             color: white;
+           `
         );
         el5.innerText = participant.identity;
-
         // Append elements
         el4.appendChild(el5);
         el3.appendChild(el4);
         el2.appendChild(el3);
-
         // Create avatar image
         const imgElement = document.createElement('img');
         imgElement.setAttribute('src', '../assets/avatar.png');
         imgElement.style.cssText = `
-         position: absolute;
-         top: 50%;
-         left: 50%;
-         transform: translate(-50%, -50%);
-         width: 60px;
-         height: 60px;
-         border-radius: 50%;
-         object-fit: cover;
-         object-position: center;
-       `;
+           position: absolute;
+           top: 50%;
+           left: 50%;
+           transform: translate(-50%, -50%);
+           width: 60px;
+           height: 60px;
+           border-radius: 50%;
+           object-fit: cover;
+           object-position: center;
+         `;
         el2.appendChild(imgElement);
-
         // Append participant tile to container
         container.appendChild(el2);
       }
     }, 100);
+  }
+
+  toggleExpand(element: any, participantId: any) {
+    const originalTileElStyle = `--lk-speaking-indicator-width: 2.5px;
+         position: relative;
+         display: flex;
+         flex-direction: column;
+         height:100%;
+         gap: 0.375rem;
+         overflow: hidden;
+         border-radius: 0.5rem;`;
+    const allElements = document.querySelectorAll('.lk-focus-layout');
+    const tileElements = document.querySelectorAll('.lk-participant-tile');
+
+    // Check if the element is currently expanded
+    const isExpanded = element.getAttribute('data-expanded') === 'true';
+
+    if (isExpanded) {
+      // If the element is expanded, collapse it by resetting the styles
+      // const originalStyle = element.getAttribute('data-original-style');
+      element.setAttribute('style', originalTileElStyle);
+      element.setAttribute('data-expanded', 'false');
+    } else {
+      // Save the original style
+      // const originalStyle = element.getAttribute('style') || '';
+      element.setAttribute('data-original-style', originalTileElStyle);
+
+      // If the element is not expanded, expand it by setting the expanded styles
+      element.setAttribute(
+        'style',
+        `
+         position: fixed;
+         bottom: 0;
+         left: 50%;
+         transform: translateX(-50%);
+         width: 55vw;
+         height: 90vh;
+         z-index: 10;
+       `
+      );
+      element.setAttribute('data-expanded', 'true');
+    }
+
+    // Make all other elements small and save their original styles
+
+    allElements.forEach((el) => {
+      if (el !== element) {
+        const originalFocusLayoutStyle =
+          el.getAttribute('data-original-style') ||
+          el.getAttribute('style') ||
+          '';
+        el.setAttribute('data-original-style', originalFocusLayoutStyle);
+
+        if (!isExpanded) {
+          el.setAttribute(
+            'style',
+            `
+             --lk-speaking-indicator-width: 1px;
+             position: relative;
+             display: flex;
+             flex-direction: column !important;
+             height: 50%;
+             width: 100%;
+             gap: 0.1rem;
+             overflow: auto;
+             border-radius: 0.25rem;
+           `
+          );
+          el.setAttribute('data-expanded', 'false');
+        } else {
+          el.setAttribute('style', originalFocusLayoutStyle);
+          el.setAttribute('data-expanded', 'false');
+        }
+      }
+    });
+    tileElements.forEach((el) => {
+      if (el !== element) {
+        // const originalStyle =
+        //   el.getAttribute('data-original-style') ||
+        //   el.getAttribute('style') ||
+        //   '';
+        el.setAttribute('data-original-style', originalTileElStyle);
+
+        if (!isExpanded) {
+          el.setAttribute(
+            'style',
+            `
+             --lk-speaking-indicator-width: 1px;
+               position: relative;
+             display: flex;
+             flex-direction: column;
+             gap: 0.375rem;
+             border-radius: 0.5rem;
+             height: 50%;
+             width: 28%;
+             overflow: auto;
+             border-radius: 0.25rem;
+           `
+          );
+          el.setAttribute('data-expanded', 'false');
+        } else {
+          console.log('original', originalTileElStyle);
+          el.setAttribute('style', originalTileElStyle);
+          el.setAttribute('data-expanded', 'false');
+        }
+      }
+    });
   }
 }

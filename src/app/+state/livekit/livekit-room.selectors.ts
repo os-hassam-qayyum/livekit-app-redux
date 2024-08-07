@@ -1,7 +1,6 @@
 import { createSelector, createFeatureSelector } from '@ngrx/store';
 import { LiveKitRoomState } from './livekit-room.reducer';
 
-// Feature selector
 export const selectLiveKitRoomState =
   createFeatureSelector<LiveKitRoomState>('liveKitRoom');
 
@@ -13,14 +12,6 @@ export const selectIsMeetingStarted = createSelector(
     return state.isMeetingStarted;
   }
 );
-
-// export const selectStream = createSelector(
-//   selectLiveKitRoomState,
-//   (state: LiveKitRoomState) => {
-//     console.log('stream is ', state);
-//     return state.stream;
-//   }
-// );
 
 export const selectIsVideoOn = createSelector(
   selectLiveKitRoomState,
