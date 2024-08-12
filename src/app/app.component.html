@@ -29,6 +29,15 @@
   <div class="os-main-content" data-test="meetingStarted">
     <header class="header">
       <div class="left-header" data-test="left-header">
+        <div
+          class="websocket-status"
+          [ngClass]="{
+            'status-connected': webSocketStatus === 'connected',
+            'status-reconnecting': webSocketStatus === 'reconnecting',
+            'status-disconnected': webSocketStatus === 'disconnected'
+          }"
+        ></div>
+        <span>{{ webSocketStatus | titlecase }}</span>
         <button
           data-cy="raise-hand"
           *ngIf="localParticipant.isLocal"

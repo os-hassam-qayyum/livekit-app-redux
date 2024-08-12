@@ -14,12 +14,22 @@ import {
   Participant,
   VideoQuality,
 } from 'livekit-client';
-import { Observable, from } from 'rxjs';
+import { BehaviorSubject, Observable, from } from 'rxjs';
+import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 
 @Injectable({
   providedIn: 'root',
 })
 export class LivekitService {
+  private webSocketUrl = 'wss://ws.postman-echo.com/raw';
+  private socket$: WebSocketSubject<any> | undefined;
+  // Declare the BehaviorSubject for WebSocket status
+  private webSocketStatusSubject = new BehaviorSubject<
+    'connected' | 'disconnected' | 'reconnecting'
+  >('disconnected');
+  public webSocketStatus$: Observable<
+    'connected' | 'disconnected' | 'reconnecting'
+  > = this.webSocketStatusSubject.asObservable();
   /**
    * Represents the current room for the video conference.
    * @type {Room}
@@ -175,8 +185,90 @@ export class LivekitService {
     // this.audioVideoHandler();
     await this.room.connect(wsURL, token);
     console.log('Connected to room', this.room);
+    this.connectWebSocket();
     this.updateParticipantNames();
     this.remoteParticipantAfterLocal();
+  }
+
+  // connectToWebSocket() {
+  //   console.log('Attempting to connect to WebSocket...');
+  //   this.socket$ = webSocket('wss://ws.postman-echo.com/raw');
+
+  //   this.socket$.subscribe({
+  //     next: (message) => {
+  //       console.log('Message received:', message);
+  //       this.connectionStatus$.next('online');
+  //       console.log('WebSocket connection is online');
+  //     },
+  //     error: (err) => {
+  //       console.error('WebSocket error:', err);
+  //       this.connectionStatus$.next('offline');
+  //       console.log('WebSocket connection is offline');
+  //       setTimeout(() => this.connectToWebSocket(), 5000); // Reconnect after 5 seconds
+  //     },
+  //     complete: () => {
+  //       console.log('WebSocket connection closed');
+  //       this.connectionStatus$.next('offline');
+  //     },
+  //   });
+  //   console.log('WebSocket connection is reconnecting');
+  //   this.connectionStatus$.next('reconnecting');
+  // }
+
+  // connectWebSocket() {
+  //   // Start the WebSocket connection
+  //   this.socket$ = webSocket('wss://ws.postman-echo.com/raw');
+
+  //   this.socket$.subscribe({
+  //     next: (msg) => {
+  //       console.log('Message received:', msg);
+  //       this.updateWebSocketStatus('connected');
+  //     },
+  //     error: (err) => {
+  //       console.error('WebSocket error:', err);
+  //       this.updateWebSocketStatus('reconnecting');
+  //     },
+  //     complete: () => {
+  //       console.log('WebSocket connection closed');
+  //       this.updateWebSocketStatus('disconnected');
+  //     },
+  //   });
+
+  //   console.log('WebSocket connection initialized');
+  // }
+  connectWebSocket() {
+    if (!this.socket$ || this.socket$.closed) {
+      this.socket$ = webSocket({
+        url: this.webSocketUrl,
+        closeObserver: {
+          next: () => {
+            this.webSocketStatusSubject.next('disconnected');
+            console.log('WebSocket connection closed');
+          },
+        },
+        openObserver: {
+          next: () => {
+            this.webSocketStatusSubject.next('connected');
+            console.log('WebSocket connection established');
+          },
+        },
+      });
+
+      this.socket$.subscribe(
+        (msg) => console.log('Received message:', msg),
+        (err) => {
+          console.error('WebSocket error:', err);
+          this.webSocketStatusSubject.next('reconnecting');
+          this.connectWebSocket(); // Reconnect on error
+        },
+        () => {
+          console.log('WebSocket completed');
+          this.webSocketStatusSubject.next('disconnected');
+        }
+      );
+    } else {
+      console.log('WebSocket connection already established');
+    }
   }
 
   /**

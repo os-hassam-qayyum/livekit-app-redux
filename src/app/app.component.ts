@@ -65,6 +65,9 @@ export class AppComponent {
   handRaiseStates: { [identity: string]: boolean } = {};
   allMessages: any[] = [];
   room!: Room;
+  webSocketStatus: 'connected' | 'reconnecting' | 'disconnected' =
+    'disconnected';
+  private statusSubscription!: Subscription;
 
   constructor(
     private formBuilder: FormBuilder,
@@ -93,6 +96,13 @@ export class AppComponent {
     this.isMicOn$ = this.store.pipe(select(selectIsMicOn));
 
     // ==============================
+    this.statusSubscription = this.livekitService.webSocketStatus$.subscribe(
+      (status) => {
+        this.webSocketStatus = status;
+        console.log('WebSocket status updated:', status); // Log the current WebSocket status
+      }
+    );
+
     this.startForm = this.formBuilder.group({
       token: [''],
     });
@@ -100,6 +110,8 @@ export class AppComponent {
       message: [''],
       participant: [''],
     });
+    // Call startMeeting in ngOnInit
+    this.startMeeting();
     this.chatSideWindowVisible$.subscribe((visible) => {
       if (visible) {
         this.unreadMessagesCount = 0;
@@ -172,6 +184,12 @@ export class AppComponent {
       (window as any).livekitService = this.livekitService;
     }
   }
+  ngOnDestroy(): void {
+    // Unsubscribe to avoid memory leaks
+    if (this.statusSubscription) {
+      this.statusSubscription.unsubscribe();
+    }
+  }
 
   /**
    * Initiates the start of a meeting by dispatching a `startMeeting` action
@@ -190,7 +208,7 @@ export class AppComponent {
   async startMeeting() {
     const dynamicToken = this.startForm.value.token;
     console.log('token is', dynamicToken);
-    const wsURL = 'wss://warda-ldb690y8.livekit.cloud';
+    const wsURL = 'wss://hassam-app-fu1y3ybu.livekit.cloud';
     const token = dynamicToken;
     this.store.dispatch(LiveKitRoomActions.startMeeting({ wsURL, token }));
   }
