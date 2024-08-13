@@ -143,38 +143,24 @@ input {
     gap: 30px;
   }
   .websocket-status {
-    width: 15px;
-    height: 15px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
 
     &.status-connected {
       background-color: green;
+      animation: pulseConnected 2s infinite;
     }
     &.status-reconnecting {
       background-color: yellow;
+      animation: pulseReconnecting 2s infinite;
     }
 
     &.status-disconnected {
       background-color: red;
+      animation: pulseDisconnected 2s infinite;
     }
   }
-
-  //   .connection-indicator {
-  //     width: 15px;
-  //     height: 15px;
-  //     border-radius: 50%;
-  //     &.online {
-  //       background-color: green;
-  //     }
-
-  //     &.offline {
-  //       background-color: red;
-  //     }
-
-  //     &.reconnecting {
-  //       background-color: yellow;
-  //     }
-  //   }
 
   .right-header {
     display: flex;
@@ -1190,5 +1176,41 @@ input {
   100% {
     transform: translateX(0);
     opacity: 1;
+  }
+}
+
+@keyframes pulseConnected {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 128, 0, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 128, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 128, 0, 0);
+  }
+}
+
+@keyframes pulseReconnecting {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 0, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 255, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 0, 0);
+  }
+}
+
+@keyframes pulseDisconnected {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
   }
 }

@@ -190,52 +190,6 @@ export class LivekitService {
     this.remoteParticipantAfterLocal();
   }
 
-  // connectToWebSocket() {
-  //   console.log('Attempting to connect to WebSocket...');
-  //   this.socket$ = webSocket('wss://ws.postman-echo.com/raw');
-
-  //   this.socket$.subscribe({
-  //     next: (message) => {
-  //       console.log('Message received:', message);
-  //       this.connectionStatus$.next('online');
-  //       console.log('WebSocket connection is online');
-  //     },
-  //     error: (err) => {
-  //       console.error('WebSocket error:', err);
-  //       this.connectionStatus$.next('offline');
-  //       console.log('WebSocket connection is offline');
-  //       setTimeout(() => this.connectToWebSocket(), 5000); // Reconnect after 5 seconds
-  //     },
-  //     complete: () => {
-  //       console.log('WebSocket connection closed');
-  //       this.connectionStatus$.next('offline');
-  //     },
-  //   });
-  //   console.log('WebSocket connection is reconnecting');
-  //   this.connectionStatus$.next('reconnecting');
-  // }
-
-  // connectWebSocket() {
-  //   // Start the WebSocket connection
-  //   this.socket$ = webSocket('wss://ws.postman-echo.com/raw');
-
-  //   this.socket$.subscribe({
-  //     next: (msg) => {
-  //       console.log('Message received:', msg);
-  //       this.updateWebSocketStatus('connected');
-  //     },
-  //     error: (err) => {
-  //       console.error('WebSocket error:', err);
-  //       this.updateWebSocketStatus('reconnecting');
-  //     },
-  //     complete: () => {
-  //       console.log('WebSocket connection closed');
-  //       this.updateWebSocketStatus('disconnected');
-  //     },
-  //   });
-
-  //   console.log('WebSocket connection initialized');
-  // }
   connectWebSocket() {
     if (!this.socket$ || this.socket$.closed) {
       this.socket$ = webSocket({
@@ -259,7 +213,8 @@ export class LivekitService {
         (err) => {
           console.error('WebSocket error:', err);
           this.webSocketStatusSubject.next('reconnecting');
-          this.connectWebSocket(); // Reconnect on error
+          console.log('reconnecting...................');
+          setTimeout(() => this.connectWebSocket(), 5000);
         },
         () => {
           console.log('WebSocket completed');
