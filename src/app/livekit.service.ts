@@ -14,7 +14,7 @@ import {
   Participant,
   VideoQuality,
 } from 'livekit-client';
-import { BehaviorSubject, Observable, from } from 'rxjs';
+import { BehaviorSubject, Observable, RetryConfig, from, retry } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 
 @Injectable({
@@ -198,6 +198,7 @@ export class LivekitService {
           next: () => {
             this.webSocketStatusSubject.next('disconnected');
             console.log('WebSocket connection closed');
+            this.triggerReconnectingState();
           },
         },
         openObserver: {
@@ -207,23 +208,39 @@ export class LivekitService {
           },
         },
       });
-
+      const retryConfig: RetryConfig = {
+        delay: 3000,
+      };
       this.socket$.subscribe(
         (msg) => console.log('Received message:', msg),
         (err) => {
           console.error('WebSocket error:', err);
           this.webSocketStatusSubject.next('reconnecting');
           console.log('reconnecting...................');
-          setTimeout(() => this.connectWebSocket(), 5000);
+          this.triggerReconnectingState();
+          // setTimeout(() => this.connectWebSocket(), 5000);
         },
         () => {
           console.log('WebSocket completed');
           this.webSocketStatusSubject.next('disconnected');
+          this.triggerReconnectingState();
         }
       );
     } else {
       console.log('WebSocket connection already established');
     }
+  }
+
+  private triggerReconnectingState() {
+    // Set the status to reconnecting immediately
+    this.webSocketStatusSubject.next('reconnecting');
+    console.log('Reconnecting in 5 seconds...');
+
+    // Wait for 5 seconds before trying to reconnect
+    setTimeout(() => {
+      console.log('Attempting to reconnect WebSocket...');
+      this.connectWebSocket();
+    }, 5000);
   }
 
   /**
