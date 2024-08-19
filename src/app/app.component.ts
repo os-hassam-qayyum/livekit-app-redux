@@ -77,6 +77,7 @@ export class AppComponent {
   ) {}
 
   ngOnInit() {
+    this.livekitService.connectWebSocket();
     this.livekitService.audioVideoHandler();
     this.isMeetingStarted$ = this.store.pipe(select(selectIsMeetingStarted));
     this.isScreenSharing$ = this.store.pipe(select(selectIsScreenSharing));
@@ -96,12 +97,12 @@ export class AppComponent {
     this.isMicOn$ = this.store.pipe(select(selectIsMicOn));
 
     // ==============================
-    this.statusSubscription = this.livekitService.webSocketStatus$.subscribe(
-      (status) => {
-        this.webSocketStatus = status;
-        console.log('WebSocket status updated:', status); // Log the current WebSocket status
-      }
-    );
+    // this.statusSubscription = this.livekitService.webSocketStatus$.subscribe(
+    //   (status) => {
+    //     this.webSocketStatus = status;
+    //     console.log('WebSocket status updated:', status); // Log the current WebSocket status
+    //   }
+    // );
 
     this.startForm = this.formBuilder.group({
       token: [''],
@@ -111,7 +112,7 @@ export class AppComponent {
       participant: [''],
     });
     // Call startMeeting in ngOnInit
-    this.startMeeting();
+    // this.startMeeting();
     this.chatSideWindowVisible$.subscribe((visible) => {
       if (visible) {
         this.unreadMessagesCount = 0;

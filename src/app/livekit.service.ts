@@ -30,6 +30,8 @@ export class LivekitService {
   public webSocketStatus$: Observable<
     'connected' | 'disconnected' | 'reconnecting'
   > = this.webSocketStatusSubject.asObservable();
+  private maxReconnectAttempts = 10;
+  private reconnectAttempts = 0;
   /**
    * Represents the current room for the video conference.
    * @type {Room}
@@ -198,6 +200,7 @@ export class LivekitService {
           next: () => {
             this.webSocketStatusSubject.next('disconnected');
             console.log('WebSocket connection closed');
+            this.socket$ = undefined;
             this.triggerReconnectingState();
           },
         },
@@ -205,12 +208,11 @@ export class LivekitService {
           next: () => {
             this.webSocketStatusSubject.next('connected');
             console.log('WebSocket connection established');
+            this.reconnectAttempts = 0;
           },
         },
       });
-      const retryConfig: RetryConfig = {
-        delay: 3000,
-      };
+
       this.socket$.subscribe(
         (msg) => console.log('Received message:', msg),
         (err) => {
@@ -218,7 +220,7 @@ export class LivekitService {
           this.webSocketStatusSubject.next('reconnecting');
           console.log('reconnecting...................');
           this.triggerReconnectingState();
-          // setTimeout(() => this.connectWebSocket(), 5000);
+          this.socket$ = undefined;
         },
         () => {
           console.log('WebSocket completed');
@@ -232,16 +234,46 @@ export class LivekitService {
   }
 
   private triggerReconnectingState() {
-    // Set the status to reconnecting immediately
-    this.webSocketStatusSubject.next('reconnecting');
-    console.log('Reconnecting in 5 seconds...');
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      const delay = this.calculateBackoffDelay(this.reconnectAttempts);
+      this.webSocketStatusSubject.next('reconnecting');
+      console.log(
+        `Reconnecting in ${delay / 1000} seconds... (Attempt ${
+          this.reconnectAttempts + 1
+        })`
+      );
 
-    // Wait for 5 seconds before trying to reconnect
-    setTimeout(() => {
-      console.log('Attempting to reconnect WebSocket...');
-      this.connectWebSocket();
-    }, 5000);
+      setTimeout(() => {
+        this.reconnectAttempts++;
+        console.log('Attempting to reconnect WebSocket...');
+        this.connectWebSocket();
+      }, delay);
+    } else {
+      console.log('Max reconnect attempts reached. Giving up.');
+      this.webSocketStatusSubject.next('disconnected');
+    }
   }
+  private calculateBackoffDelay(attempt: number): number {
+    const baseDelay = 1000; // Start with 1 second
+    const maxDelay = 30000; // Cap the delay at 30 seconds
+    const exponentialBackoffDelay = Math.min(
+      baseDelay * Math.pow(2, attempt),
+      maxDelay
+    );
+    return exponentialBackoffDelay;
+  }
+
+  // private triggerReconnectingState() {
+  //   // Set the status to reconnecting immediately
+  //   this.webSocketStatusSubject.next('reconnecting');
+  //   console.log('Reconnecting in 5 seconds...');
+
+  //   // Wait for 5 seconds before trying to reconnect
+  //   setTimeout(() => {
+  //     console.log('Attempting to reconnect WebSocket...');
+  //     this.connectWebSocket();
+  //   }, 5000);
+  // }
 
   /**
    * Raises the hand for a given participant and publishes a hand raise message.

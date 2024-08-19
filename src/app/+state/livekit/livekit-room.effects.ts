@@ -114,7 +114,7 @@ export class LiveKitRoomEffects {
             return LiveKitRoomActions.leaveMeetingSuccess();
           }),
           catchError((error) =>
-            of(LiveKitRoomActions.leaveMeetingFailure({ error }))
+            of(LiveKitRoomActions.leaveMeetingFailure({ error: error.message }))
           )
         )
       )
