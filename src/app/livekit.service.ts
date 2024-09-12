@@ -1,27 +1,31 @@
 import { EventEmitter, Injectable } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { HttpClient } from '@angular/common/http';
 import {
-  Room,
-  RemoteTrack,
-  RemoteParticipant,
-  RoomEvent,
   DataPacket_Kind,
-  LocalTrackPublication,
   LocalParticipant,
-  Track,
-  RemoteTrackPublication,
-  TrackPublication,
+  LocalTrackPublication,
   Participant,
+  RemoteParticipant,
+  RemoteTrack,
+  RemoteTrackPublication,
+  Room,
+  RoomEvent,
+  Track,
+  TrackPublication,
   VideoQuality,
 } from 'livekit-client';
-import { BehaviorSubject, Observable, RetryConfig, from, retry } from 'rxjs';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { BehaviorSubject, Observable, RetryConfig, from, of } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 
 @Injectable({
   providedIn: 'root',
 })
 export class LivekitService {
-  private webSocketUrl = 'wss://ws.postman-echo.com/raw';
+  // websocket variables
+  // private webSocketUrl = 'wss://ws.postman-echo.com/raw';
+  private webSocketUrl = 'wss://echo.websocket.org/';
+
   private socket$: WebSocketSubject<any> | undefined;
   // Declare the BehaviorSubject for WebSocket status
   private webSocketStatusSubject = new BehaviorSubject<
@@ -175,6 +179,7 @@ export class LivekitService {
    */
   constructor(private snackBar: MatSnackBar) {}
 
+  private breakoutRoomCounter = 0;
   /**
    * Connects to a LiveKit room using the provided WebSocket URL and token.
    *
@@ -183,96 +188,84 @@ export class LivekitService {
    * @param {string} token - The token used for authentication.
    * @returns {Promise<void>} A promise that resolves when the connection is established.
    */
+
   async connectToRoom(wsURL: string, token: string): Promise<void> {
     // this.audioVideoHandler();
     await this.room.connect(wsURL, token);
     console.log('Connected to room', this.room);
-    this.connectWebSocket();
+    // this.connectWebSocket();
     this.updateParticipantNames();
     this.remoteParticipantAfterLocal();
   }
+  // connectWebSocket() {
+  //   if (!this.socket$ || this.socket$.closed) {
+  //     this.socket$ = webSocket({
+  //       url: this.webSocketUrl,
+  //       closeObserver: {
+  //         next: () => {
+  //           this.webSocketStatusSubject.next('disconnected');
+  //           console.log('WebSocket connection closed');
+  //           this.socket$ = undefined;
+  //           this.triggerReconnectingState();
+  //         },
+  //       },
+  //       openObserver: {
+  //         next: () => {
+  //           this.webSocketStatusSubject.next('connected');
+  //           console.log('WebSocket connection established');
+  //           this.reconnectAttempts = 0;
+  //         },
+  //       },
+  //     });
 
-  connectWebSocket() {
-    if (!this.socket$ || this.socket$.closed) {
-      this.socket$ = webSocket({
-        url: this.webSocketUrl,
-        closeObserver: {
-          next: () => {
-            this.webSocketStatusSubject.next('disconnected');
-            console.log('WebSocket connection closed');
-            this.socket$ = undefined;
-            this.triggerReconnectingState();
-          },
-        },
-        openObserver: {
-          next: () => {
-            this.webSocketStatusSubject.next('connected');
-            console.log('WebSocket connection established');
-            this.reconnectAttempts = 0;
-          },
-        },
-      });
-
-      this.socket$.subscribe(
-        (msg) => console.log('Received message:', msg),
-        (err) => {
-          console.error('WebSocket error:', err);
-          this.webSocketStatusSubject.next('reconnecting');
-          console.log('reconnecting...................');
-          this.triggerReconnectingState();
-          this.socket$ = undefined;
-        },
-        () => {
-          console.log('WebSocket completed');
-          this.webSocketStatusSubject.next('disconnected');
-          this.triggerReconnectingState();
-        }
-      );
-    } else {
-      console.log('WebSocket connection already established');
-    }
-  }
-
-  private triggerReconnectingState() {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      const delay = this.calculateBackoffDelay(this.reconnectAttempts);
-      this.webSocketStatusSubject.next('reconnecting');
-      console.log(
-        `Reconnecting in ${delay / 1000} seconds... (Attempt ${
-          this.reconnectAttempts + 1
-        })`
-      );
-
-      setTimeout(() => {
-        this.reconnectAttempts++;
-        console.log('Attempting to reconnect WebSocket...');
-        this.connectWebSocket();
-      }, delay);
-    } else {
-      console.log('Max reconnect attempts reached. Giving up.');
-      this.webSocketStatusSubject.next('disconnected');
-    }
-  }
-  private calculateBackoffDelay(attempt: number): number {
-    const baseDelay = 1000; // Start with 1 second
-    const maxDelay = 30000; // Cap the delay at 30 seconds
-    const exponentialBackoffDelay = Math.min(
-      baseDelay * Math.pow(2, attempt),
-      maxDelay
-    );
-    return exponentialBackoffDelay;
-  }
+  //     this.socket$.subscribe(
+  //       (msg) => console.log('Received message:', msg),
+  //       (err) => {
+  //         console.error('WebSocket error:', err);
+  //         this.webSocketStatusSubject.next('reconnecting');
+  //         console.log('reconnecting...................');
+  //         this.triggerReconnectingState();
+  //         this.socket$ = undefined;
+  //       },
+  //       () => {
+  //         console.log('WebSocket completed');
+  //         this.webSocketStatusSubject.next('disconnected');
+  //         this.triggerReconnectingState();
+  //       }
+  //     );
+  //   } else {
+  //     console.log('WebSocket connection already established');
+  //   }
+  // }
 
   // private triggerReconnectingState() {
-  //   // Set the status to reconnecting immediately
-  //   this.webSocketStatusSubject.next('reconnecting');
-  //   console.log('Reconnecting in 5 seconds...');
+  //   if (this.reconnectAttempts < this.maxReconnectAttempts) {
+  //     const delay = this.calculateBackoffDelay(this.reconnectAttempts);
+  //     this.webSocketStatusSubject.next('reconnecting');
+  //     console.log(
+  //       `Reconnecting in ${delay / 1000} seconds... (Attempt ${
+  //         this.reconnectAttempts + 1
+  //       })`
+  //     );
 
-  //   // Wait for 5 seconds before trying to reconnect
-  //   setTimeout(() => {
-  //     console.log('Attempting to reconnect WebSocket...');
-  //     this.connectWebSocket();
-  //   }, 5000);
+  //     setTimeout(() => {
+  //       this.reconnectAttempts++;
+  //       console.log('Attempting to reconnect WebSocket...');
+  //       this.connectWebSocket();
+  //     }, delay);
+  //   } else {
+  //     console.log('Max reconnect attempts reached. Giving up.');
+  //     this.webSocketStatusSubject.next('disconnected');
+  //   }
+  // }
+  // private calculateBackoffDelay(attempt: number): number {
+  //   const baseDelay = 1000; // Start with 1 second
+  //   const maxDelay = 30000; // Cap the delay at 30 seconds
+  //   const exponentialBackoffDelay = Math.min(
+  //     baseDelay * Math.pow(2, attempt),
+  //     maxDelay
+  //   );
+  //   return exponentialBackoffDelay;
   // }
 
   /**
@@ -323,6 +316,25 @@ export class LivekitService {
    * @returns {Promise<void>} A promise that resolves when the message is published.
    */
   private async publishHandRaiseLowerMessage(message: any) {
+    const strData = JSON.stringify(message);
+    const data = new TextEncoder().encode(strData);
+    await this.room!.localParticipant.publishData(data, { reliable: true });
+  }
+
+  async breakoutRoomAlert(participant: any) {
+    this.breakoutRoomCounter++;
+
+    // Generate the room name using the counter
+    const roomName = `Breakout Room ${this.breakoutRoomCounter}`;
+    const message = {
+      type: 'breakoutRoom',
+      participantId: participant.identity,
+      roomName: roomName,
+    };
+    await this.publishBreakoutRoom(message);
+  }
+
+  private async publishBreakoutRoom(message: any) {
     const strData = JSON.stringify(message);
     const data = new TextEncoder().encode(strData);
     await this.room!.localParticipant.publishData(data, { reliable: true });
@@ -447,6 +459,12 @@ export class LivekitService {
         console.log('participant', participant);
         this.msgDataReceived.emit({ message, participant });
         if (message.type === 'handRaise') {
+          this.handRaised.emit({
+            participant: participant,
+            handRaised: message.handRaised,
+          });
+        }
+        if (message.type === 'breakoutRoomAlert') {
           this.handRaised.emit({
             participant: participant,
             handRaised: message.handRaised,
@@ -582,13 +600,13 @@ export class LivekitService {
             element.setAttribute(
               'style',
               `
-                 border-radius: 0.5rem; 
-                 width: 100%; 
-                 height: 100%; 
-                 object-fit: cover; 
-                 object-position: center; 
-                 background-color: #000; 
-               `
+                border-radius: 0.5rem; 
+                width: 100%; 
+                height: 100%; 
+                object-fit: cover; 
+                object-position: center; 
+                background-color: #000; 
+              `
             );
 
             // Create metadata container if it doesn't already exist
@@ -599,17 +617,17 @@ export class LivekitService {
               el3.setAttribute(
                 'style',
                 `
-                   position: absolute;
-                   right: 0.25rem;
-                   bottom: 0.25rem;
-                   left: 0.25rem;
-                   display: flex;
-                   flex-direction: row;
-                   align-items: center;
-                   justify-content: space-between;
-                   gap: 0.5rem;
-                   line-height: 1;
-                 `
+                  position: absolute;
+                  right: 0.25rem;
+                  bottom: 0.25rem;
+                  left: 0.25rem;
+                  display: flex;
+                  flex-direction: row;
+                  align-items: center;
+                  justify-content: space-between;
+                  gap: 0.5rem;
+                  line-height: 1;
+                `
               );
 
               const el4 = document.createElement('div');
@@ -617,12 +635,12 @@ export class LivekitService {
               el4.setAttribute(
                 'style',
                 `
-                   display: flex;
-                   align-items: center;
-                   padding: 0.25rem;
-                   background-color: rgba(0, 0, 0, 0.5);
-                   border-radius: calc(var(--lk-border-radius) / 2);
-                 `
+                  display: flex;
+                  align-items: center;
+                  padding: 0.25rem;
+                  background-color: rgba(0, 0, 0, 0.5);
+                  border-radius: calc(var(--lk-border-radius) / 2);
+                `
               );
 
               const el5 = document.createElement('span');
@@ -630,9 +648,9 @@ export class LivekitService {
               el5.setAttribute(
                 'style',
                 `
-                   font-size: 0.875rem;
-                   color: white;
-                 `
+                  font-size: 0.875rem;
+                  color: white;
+                `
               );
               el5.innerText = participant.identity;
 
@@ -658,13 +676,13 @@ export class LivekitService {
             el2.setAttribute(
               'style',
               ` --lk-speaking-indicator-width: 2.5px;
-             position: relative;
-             display: flex;
-             flex-direction: column;
-             height:100%;
-             gap: 0.375rem;
-             overflow: hidden;
-             border-radius: 0.5rem;`
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            height:100%;
+            gap: 0.375rem;
+            overflow: hidden;
+            border-radius: 0.5rem;`
             );
             const screenShareTrack = publication.track?.attach();
             if (screenShareTrack) {
@@ -681,33 +699,33 @@ export class LivekitService {
               el3.setAttribute(
                 'style',
                 `position: absolute;
-               right: 0.25rem;
-               bottom: 0.25rem;
-               left: 0.25rem;
-               display: flex;
-               flex-direction: row;
-               align-items: center;
-               justify-content: space-between;
-               gap: 0.5rem;
-               line-height: 1;`
+              right: 0.25rem;
+              bottom: 0.25rem;
+              left: 0.25rem;
+              display: flex;
+              flex-direction: row;
+              align-items: center;
+              justify-content: space-between;
+              gap: 0.5rem;
+              line-height: 1;`
               );
               const el4 = document.createElement('div');
               el4.setAttribute('class', 'lk-participant-metadata-item');
               el4.setAttribute(
                 'style',
                 `display: flex;
-               align-items: center;
-               padding: 0.25rem;
-               background-color: rgba(0, 0, 0, 0.5);
-               border-radius: 0.25rem;`
+              align-items: center;
+              padding: 0.25rem;
+              background-color: rgba(0, 0, 0, 0.5);
+              border-radius: 0.25rem;`
               );
               const el5 = document.createElement('span');
               el5.setAttribute('class', 'lk-participant-name');
               el5.setAttribute(
                 'style',
                 ` font-size: 0.875rem;
-               color: white;
-               `
+              color: white;
+              `
               );
               el2.appendChild(screenShareTrack);
               el2.appendChild(el3);
@@ -757,20 +775,20 @@ export class LivekitService {
    * Updates the list of participant names and emits events for updated participants.
    *
    * This method retrieves the list of remote participants from the room, updates the
-   * `participantNames` property, and emits the `participantNamesUpdated` event. It also
+   * participantNames property, and emits the participantNamesUpdated event. It also
    * logs the local participant and the updated list of participant names to the console.
-   * Additionally, it assigns the local participant to `loacalParticipant` and emits the
-   * `localParticipantData` event.
+   * Additionally, it assigns the local participant to loacalParticipant and emits the
+   * localParticipantData event.
    */
   updateParticipantNames() {
     this.participantNames = Array.from(this.room.remoteParticipants.values());
     this.participantNamesUpdated.emit(this.participantNames);
-    console.log('logging ', this.room.localParticipant);
     console.log('logging 3', this.participantNames);
-    this.loacalParticipant = this.room.localParticipant;
-    this.localParticipantData.emit(this.loacalParticipant);
+    // this.loacalParticipant = this.room.localParticipant;
+    this.localParticipantData.emit(this.room.localParticipant);
 
     console.log('participants remote', this.participantNames);
+    console.log('logging ', this.room.localParticipant);
   }
 
   /**
@@ -809,7 +827,7 @@ export class LivekitService {
    * If so, it retrieves the container element by its ID and attaches the track to this container.
    * If the container is not found, it logs an error message.
    *
-   * @param {any} track - The track to be attached. Expected to have properties `kind` and `source`.
+   * @param {any} track - The track to be attached. Expected to have properties kind and source.
    * @param {string} elementId - The ID of the HTML element to which the track should be attached.
    * @returns {HTMLElement | null} The attached track element if successful, otherwise null.
    */
@@ -901,11 +919,19 @@ export class LivekitService {
         }
 
         // Attach the video track
+        // const blurProcessor = new TrackProcessor(BackgroundBlur(10));
+        // const blur = BackgroundBlur(10);
         const element = track.attach();
+        // element.setProcessor(blur);
         element.setAttribute(
           'style',
           'border-radius: 0.5rem; width: 100%; height: 100%; object-fit: cover; object-position: center; background-color: #000;'
         );
+        // if (this.isPortraitMode()) {
+        //   element.setAttribute('style', 'filter: blur(70px);');
+        // } else {
+        //   element.setAttribute('style', 'filter: blur(70px);');
+        // }
         existingElement.appendChild(element);
 
         // Create metadata container if it doesn't already exist
@@ -916,15 +942,15 @@ export class LivekitService {
           el3.setAttribute(
             'style',
             `position: absolute;
-       right: 0.25rem;
-       bottom: 0.25rem;
-       left: 0.25rem;
-       display: flex;
-       flex-direction: row;
-       align-items: center;
-       justify-content: space-between;
-       gap: 0.5rem;
-       line-height: 1;`
+      right: 0.25rem;
+      bottom: 0.25rem;
+      left: 0.25rem;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      line-height: 1;`
           );
 
           const el4 = document.createElement('div');
@@ -932,10 +958,10 @@ export class LivekitService {
           el4.setAttribute(
             'style',
             `display: flex;
-       align-items: center;
-       padding: 0.25rem;
-       background-color: rgba(0, 0, 0, 0.5);
-       border-radius: calc(var(--lk-border-radius) / 2);`
+      align-items: center;
+      padding: 0.25rem;
+      background-color: rgba(0, 0, 0, 0.5);
+      border-radius: calc(var(--lk-border-radius) / 2);`
           );
 
           const el5 = document.createElement('span');
@@ -943,7 +969,7 @@ export class LivekitService {
           el5.setAttribute(
             'style',
             `font-size: 0.875rem;
-       color: white;`
+      color: white;`
           );
           el5.innerText = participant.identity;
 
@@ -1004,13 +1030,13 @@ export class LivekitService {
         el2.setAttribute(
           'style',
           ` --lk-speaking-indicator-width: 2.5px;
-         position: relative;
-         display: flex;
-         flex-direction: column;
-         height:100%;
-         gap: 0.375rem;
-         overflow: hidden;
-         border-radius: 0.5rem;`
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        height:100%;
+        gap: 0.375rem;
+        overflow: hidden;
+        border-radius: 0.5rem;`
         );
         const screenShareTrack = publication.track?.attach();
         if (screenShareTrack) {
@@ -1033,33 +1059,33 @@ export class LivekitService {
           el3.setAttribute(
             'style',
             `position: absolute;
-           right: 0.25rem;
-           bottom: 0.25rem;
-           left: 0.25rem;
-           display: flex;
-           flex-direction: row;
-           align-items: center;
-           justify-content: space-between;
-           gap: 0.5rem;
-           line-height: 1;`
+          right: 0.25rem;
+          bottom: 0.25rem;
+          left: 0.25rem;
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.5rem;
+          line-height: 1;`
           );
           const el4 = document.createElement('div');
           el4.setAttribute('class', 'lk-participant-metadata-item');
           el4.setAttribute(
             'style',
             `display: flex;
-           align-items: center;
-           padding: 0.25rem;
-           background-color: rgba(0, 0, 0, 0.5);
-           border-radius: 0.25rem;`
+          align-items: center;
+          padding: 0.25rem;
+          background-color: rgba(0, 0, 0, 0.5);
+          border-radius: 0.25rem;`
           );
           const el5 = document.createElement('span');
           el5.setAttribute('class', 'lk-participant-name');
           el5.setAttribute(
             'style',
             ` font-size: 0.875rem;
-           color: white;
-           `
+          color: white;
+          `
           );
           el2.appendChild(screenShareTrack);
           el2.appendChild(el3);
@@ -1177,7 +1203,7 @@ export class LivekitService {
   //     return stream;
   //   } catch (error) {
   //     console.error('Error accessing the camera:', error);
-  //     this.openSnackBar(`Error accessing the camera, ${error}`);
+  //     this.openSnackBar(Error accessing the camera, ${error});
   //     return undefined;
   //   }
   // }
@@ -1228,11 +1254,11 @@ export class LivekitService {
    * Creates and appends a participant avatar element to the grid layout.
    *
    * This method creates a new participant tile with an avatar and metadata. The tile is styled and added to the
-   * `.lk-grid-layout` container. The participant's identity is displayed in a metadata section. If the container
+   * .lk-grid-layout container. The participant's identity is displayed in a metadata section. If the container
    * is not available, the avatar creation will be skipped.
    *
    * @param {Participant} participant - The participant for whom the avatar is being created. This object must
-   * include at least an `identity` property, which represents the participant's name.
+   * include at least an identity property, which represents the participant's name.
    *
    * @returns {void}
    */
@@ -1243,14 +1269,14 @@ export class LivekitService {
     el2.setAttribute(
       'style',
       `
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        gap: 0.375rem;
-        border-radius: 0.5rem;
-        width: 100%;
-        background-color: #000;
-      `
+       position: relative;
+       display: flex;
+       flex-direction: column;
+       gap: 0.375rem;
+       border-radius: 0.5rem;
+       width: 100%;
+       background-color: #000;
+     `
     );
     setTimeout(() => {
       const container = document.querySelector('.lk-grid-layout');
@@ -1261,17 +1287,17 @@ export class LivekitService {
         el3.setAttribute(
           'style',
           `
-            position: absolute;
-            right: 0.25rem;
-            bottom: 0.25rem;
-            left: 0.25rem;
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.5rem;
-            line-height: 1;
-          `
+           position: absolute;
+           right: 0.25rem;
+           bottom: 0.25rem;
+           left: 0.25rem;
+           display: flex;
+           flex-direction: row;
+           align-items: center;
+           justify-content: space-between;
+           gap: 0.5rem;
+           line-height: 1;
+         `
         );
         // Create metadata item
         const el4 = document.createElement('div');
@@ -1279,12 +1305,12 @@ export class LivekitService {
         el4.setAttribute(
           'style',
           `
-            display: flex;
-            align-items: center;
-            padding: 0.25rem;
-            background-color: rgba(0, 0, 0, 0.5);
-            border-radius: calc(var(--lk-border-radius) / 2);
-          `
+           display: flex;
+           align-items: center;
+           padding: 0.25rem;
+           background-color: rgba(0, 0, 0, 0.5);
+           border-radius: calc(var(--lk-border-radius) / 2);
+         `
         );
         // Create participant name element
         const el5 = document.createElement('span');
@@ -1292,9 +1318,9 @@ export class LivekitService {
         el5.setAttribute(
           'style',
           `
-             font-size: 0.875rem;
-             color: white;
-           `
+            font-size: 0.875rem;
+            color: white;
+          `
         );
         el5.innerText = participant.identity;
         // Append elements
@@ -1305,16 +1331,16 @@ export class LivekitService {
         const imgElement = document.createElement('img');
         imgElement.setAttribute('src', '../assets/avatar.png');
         imgElement.style.cssText = `
-           position: absolute;
-           top: 50%;
-           left: 50%;
-           transform: translate(-50%, -50%);
-           width: 60px;
-           height: 60px;
-           border-radius: 50%;
-           object-fit: cover;
-           object-position: center;
-         `;
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 60px;
+          height: 60px;
+          border-radius: 50%;
+          object-fit: cover;
+          object-position: center;
+        `;
         el2.appendChild(imgElement);
         // Append participant tile to container
         container.appendChild(el2);
@@ -1324,13 +1350,13 @@ export class LivekitService {
 
   toggleExpand(element: any, participantId: any) {
     const originalTileElStyle = `--lk-speaking-indicator-width: 2.5px;
-         position: relative;
-         display: flex;
-         flex-direction: column;
-         height:100%;
-         gap: 0.375rem;
-         overflow: hidden;
-         border-radius: 0.5rem;`;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        height:100%;
+        gap: 0.375rem;
+        overflow: hidden;
+        border-radius: 0.5rem;`;
     const allElements = document.querySelectorAll('.lk-focus-layout');
     const tileElements = document.querySelectorAll('.lk-participant-tile');
 
@@ -1351,14 +1377,14 @@ export class LivekitService {
       element.setAttribute(
         'style',
         `
-         position: fixed;
-         bottom: 0;
-         left: 50%;
-         transform: translateX(-50%);
-         width: 55vw;
-         height: 90vh;
-         z-index: 10;
-       `
+        position: fixed;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 55vw;
+        height: 90vh;
+        z-index: 10;
+      `
       );
       element.setAttribute('data-expanded', 'true');
     }
@@ -1377,16 +1403,16 @@ export class LivekitService {
           el.setAttribute(
             'style',
             `
-             --lk-speaking-indicator-width: 1px;
-             position: relative;
-             display: flex;
-             flex-direction: column !important;
-             height: 50%;
-             width: 100%;
-             gap: 0.1rem;
-             overflow: auto;
-             border-radius: 0.25rem;
-           `
+            --lk-speaking-indicator-width: 1px;
+            position: relative;
+            display: flex;
+            flex-direction: column !important;
+            height: 50%;
+            width: 100%;
+            gap: 0.1rem;
+            overflow: auto;
+            border-radius: 0.25rem;
+          `
           );
           el.setAttribute('data-expanded', 'false');
         } else {
@@ -1407,17 +1433,17 @@ export class LivekitService {
           el.setAttribute(
             'style',
             `
-             --lk-speaking-indicator-width: 1px;
-               position: relative;
-             display: flex;
-             flex-direction: column;
-             gap: 0.375rem;
-             border-radius: 0.5rem;
-             height: 50%;
-             width: 28%;
-             overflow: auto;
-             border-radius: 0.25rem;
-           `
+            --lk-speaking-indicator-width: 1px;
+              position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 0.375rem;
+            border-radius: 0.5rem;
+            height: 50%;
+            width: 28%;
+            overflow: auto;
+            border-radius: 0.25rem;
+          `
           );
           el.setAttribute('data-expanded', 'false');
         } else {
@@ -1426,6 +1452,11 @@ export class LivekitService {
           el.setAttribute('data-expanded', 'false');
         }
       }
+    });
+  }
+  private showReconnectingSnackbar() {
+    this.snackBar.open('Reconnecting...', 'Close', {
+      duration: 3000,
     });
   }
 }

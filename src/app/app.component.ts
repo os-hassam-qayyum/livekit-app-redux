@@ -1,30 +1,30 @@
 import { Component, ElementRef, ViewChild } from '@angular/core';
-import { FormGroup, FormBuilder } from '@angular/forms';
-import { Store, select } from '@ngrx/store';
-import { Observable, Subscription } from 'rxjs';
 import {
-  selectIsMeetingStarted,
-  selectIsScreenSharing,
-  selectIconColor,
-  selectIsVideoOn,
-  selectParticipantSideWindowVisible,
-  selectChatSideWindowVisible,
-  selectAllMessages,
-  selectUnreadMessagesCount,
-  selectIsMicOn,
-} from './+state/livekit/livekit-room.selectors';
-import {
+  RemoteParticipant,
   RemoteTrack,
+  RemoteTrackPublication,
   Room,
   Track,
-  RemoteTrackPublication,
-  RemoteParticipant,
 } from 'livekit-client';
-import { LivekitService } from './livekit.service';
-
-import * as LiveKitRoomActions from './+state/livekit/livekit-room.actions';
-import { MatDialog } from '@angular/material/dialog';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Observable, Subscription } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Store, select } from '@ngrx/store';
+import {
+  selectAllMessages,
+  selectChatSideWindowVisible,
+  selectIconColor,
+  selectIsMeetingStarted,
+  selectIsMicOn,
+  selectIsScreenSharing,
+  selectIsVideoOn,
+  selectParticipantSideWindowVisible,
+  selectUnreadMessagesCount,
+} from './+state/livekit/livekit-room.selectors';
+import * as LiveKitRoomActions from './+state/livekit/livekit-room.actions';
+import { LivekitService } from './livekit.service';
+import { MatDialog } from '@angular/material/dialog';
+import { JoinBreakoutDialogComponent } from './join-breakout-dialog/join-breakout-dialog.component';
 
 const GRIDCOLUMN: { [key: number]: string } = {
   1: '1fr',
@@ -40,6 +40,10 @@ const GRIDCOLUMN: { [key: number]: string } = {
   styleUrls: ['./app.component.scss'],
 })
 export class AppComponent {
+  // websocket variables
+  webSocketStatus: 'connected' | 'reconnecting' | 'disconnected' =
+    'disconnected';
+  private statusSubscription!: Subscription;
   // selectors
   isMeetingStarted$!: Observable<boolean>;
   allMessages$!: Observable<any[]>;
@@ -65,19 +69,30 @@ export class AppComponent {
   handRaiseStates: { [identity: string]: boolean } = {};
   allMessages: any[] = [];
   room!: Room;
-  webSocketStatus: 'connected' | 'reconnecting' | 'disconnected' =
-    'disconnected';
-  private statusSubscription!: Subscription;
+  isModalOpen = false;
+  isModalVisible: boolean = false;
+  totalParticipants!: number;
+  breakoutForm!: FormGroup;
+  distributionMessage: string = '';
+  hostName!: string | undefined;
+  roomName: any;
+  availableParticipants: any;
+
+  breakoutRoomTypes = [
+    { value: 'automatic', viewValue: 'automatic' },
+    { value: 'manual', viewValue: 'manual' },
+  ];
 
   constructor(
     private formBuilder: FormBuilder,
     public livekitService: LivekitService,
     private snackBar: MatSnackBar,
+    private dialog: MatDialog,
     private store: Store
   ) {}
 
   ngOnInit() {
-    this.livekitService.connectWebSocket();
+    // this.livekitService.connectWebSocket();
     this.livekitService.audioVideoHandler();
     this.isMeetingStarted$ = this.store.pipe(select(selectIsMeetingStarted));
     this.isScreenSharing$ = this.store.pipe(select(selectIsScreenSharing));
@@ -95,15 +110,14 @@ export class AppComponent {
       select(selectUnreadMessagesCount)
     );
     this.isMicOn$ = this.store.pipe(select(selectIsMicOn));
-
+    // web socket
+    this.statusSubscription = this.livekitService.webSocketStatus$.subscribe(
+      (status: any) => {
+        this.webSocketStatus = status;
+        console.log('WebSocket status updated:', status); // Log the current WebSocket status
+      }
+    );
     // ==============================
-    // this.statusSubscription = this.livekitService.webSocketStatus$.subscribe(
-    //   (status) => {
-    //     this.webSocketStatus = status;
-    //     console.log('WebSocket status updated:', status); // Log the current WebSocket status
-    //   }
-    // );
-
     this.startForm = this.formBuilder.group({
       token: [''],
     });
@@ -111,33 +125,69 @@ export class AppComponent {
       message: [''],
       participant: [''],
     });
-    // Call startMeeting in ngOnInit
-    // this.startMeeting();
+    this.availableParticipants = [...this.remoteParticipantNames];
+    this.breakoutForm = this.formBuilder.group({
+      numberOfRooms: ['', [Validators.required]],
+      roomName: ['', Validators.required],
+      roomType: ['', Validators.required],
+      selectedParticipants: [[]],
+    });
     this.chatSideWindowVisible$.subscribe((visible) => {
       if (visible) {
         this.unreadMessagesCount = 0;
         this.scrollToBottom();
       }
     });
-    this.livekitService.msgDataReceived.subscribe((data) => {
-      // console.log('Received message:', data.message.handRaised);
-
+    this.livekitService.msgDataReceived.subscribe((data: any) => {
       console.log('Participant:', data.participant);
+      this.hostName = data.participant?.identity;
+
       if (data.message.handRaised === true) {
-        // console.log(`${data.participant} raised its hand`);
+        // console.log(${data.participant} raised its hand);
+        if (data.participant) {
+          this.handRaiseStates[data.participant.identity] = true;
+          this.openSnackBar(`${data.participant.identity} raised its hand`);
+        }
+      }
+      if (data.message.type === 'breakoutRoom') {
+        console.log('Breakout room created');
+        this.roomName = data.message.roomName;
+        if (data.participant) {
+          // this.openSnackBar(`You have invited to the ${data.message.roomName}`);
+          const dialogRef = this.dialog.open(JoinBreakoutDialogComponent, {
+            data: { roomName: data.message.roomName },
+          });
+
+          // Handle the user's response
+          dialogRef.afterClosed().subscribe((result) => {
+            if (result?.join) {
+              this.joinBreakoutRoom(data.message.roomName, data.participant);
+            } else {
+              console.log('User declined the breakout room invitation.');
+            }
+          });
+        }
+
+        this.showModal();
+      }
+      if (data.message.handRaised === true) {
+        // console.log(${data.participant} raised its hand);
         if (data.participant) {
           this.handRaiseStates[data.participant.identity] = true;
           this.openSnackBar(`${data.participant.identity} raised its hand`);
         }
       }
       if (data.message.handRaised === false) {
-        // console.log(`${data.participant} lowered its hand`);
+        // console.log(${data.participant} lowered its hand);
         if (data.participant) {
           this.handRaiseStates[data.participant.identity] = false;
           this.openSnackBar(`${data.participant.identity} lowered its hand`);
         }
       }
-      if (data.message.type !== 'handRaise') {
+      if (
+        data.message.type !== 'handRaise' &&
+        data.message.type !== 'breakoutRoom'
+      ) {
         const receivedMsg = data?.message?.message;
         const senderName = data?.participant?.identity;
         const receivingTime = data?.message?.timestamp;
@@ -173,7 +223,11 @@ export class AppComponent {
     );
     this.livekitService.participantNamesUpdated.subscribe((names: any) => {
       this.remoteParticipantNames = names;
-      console.log('Participant names updated:', this.remoteParticipantNames);
+      this.totalParticipants = this.remoteParticipantNames.length;
+      console.log(
+        'Participant names updated:',
+        this.remoteParticipantNames.length
+      );
     });
 
     this.livekitService.localParticipantData.subscribe((data: any) => {
@@ -185,33 +239,108 @@ export class AppComponent {
       (window as any).livekitService = this.livekitService;
     }
   }
-  ngOnDestroy(): void {
-    // Unsubscribe to avoid memory leaks
-    if (this.statusSubscription) {
-      this.statusSubscription.unsubscribe();
+
+  onRoomTypeChange() {
+    const roomType = this.breakoutForm.get('roomType')?.value;
+
+    if (roomType === 'automatic') {
+      // Reset manual selection when switching to automatic
+      this.breakoutForm.get('selectedParticipants')?.setValue([]);
+    } else if (roomType === 'manual') {
+      // Reset number of rooms when switching to manual
+      this.breakoutForm.get('numberOfRooms')?.setValue('');
     }
   }
 
+  onParticipantSelection(event: Event) {
+    const checkbox = event.target as HTMLInputElement;
+    const selectedParticipants = this.breakoutForm.get(
+      'selectedParticipants'
+    )?.value;
+
+    if (checkbox.checked) {
+      selectedParticipants.push(checkbox.value);
+    } else {
+      const index = selectedParticipants.indexOf(checkbox.value);
+      if (index > -1) {
+        selectedParticipants.splice(index, 1);
+      }
+    }
+
+    this.breakoutForm
+      .get('selectedParticipants')
+      ?.setValue(selectedParticipants);
+  }
+
+  calculateDistribution() {
+    const numberOfRooms = this.breakoutForm.get('numberOfRooms')?.value;
+
+    if (numberOfRooms > 0 && this.totalParticipants > 0) {
+      const participantsPerRoom = Math.floor(
+        this.totalParticipants / numberOfRooms
+      );
+      const remainder = this.totalParticipants % numberOfRooms;
+      console.log('check', remainder);
+      let message = '';
+
+      if (remainder > 0) {
+        message = `${remainder} room(s) will have ${
+          participantsPerRoom + 1
+        } participants. `;
+        message += `${
+          numberOfRooms - remainder
+        } room(s) will have ${participantsPerRoom} participants.`;
+      } else {
+        message = `${numberOfRooms} room(s), each will have ${participantsPerRoom} participants.`;
+      }
+
+      this.distributionMessage = message;
+    } else {
+      this.distributionMessage =
+        'Please enter valid number of rooms and participants.';
+    }
+  }
   /**
-   * Initiates the start of a meeting by dispatching a `startMeeting` action
+   * Initiates the start of a meeting by dispatching a startMeeting action
    * with the WebSocket URL and a dynamic token obtained from the form value.
    *
    * This function:
    * 1. Retrieves the token from the form value.
    * 2. Logs the token to the console.
    * 3. Defines the WebSocket URL.
-   * 4. Dispatches the `startMeeting` action with the WebSocket URL and token.
+   * 4. Dispatches the startMeeting action with the WebSocket URL and token.
    *
    * @async
    * @function
    * @returns {Promise<void>} - A promise that resolves when the meeting has been initiated.
    */
   async startMeeting() {
-    const dynamicToken = this.startForm.value.token;
-    console.log('token is', dynamicToken);
-    const wsURL = 'wss://hassam-app-fu1y3ybu.livekit.cloud';
-    const token = dynamicToken;
-    this.store.dispatch(LiveKitRoomActions.startMeeting({ wsURL, token }));
+    // const dynamicToken = this.startForm.value.token;
+    // console.log('token is', dynamicToken);
+    // const wsURL = 'wss://hassam-app-fu1y3ybu.livekit.cloud';
+    // const token = this.token;
+    // this.store.dispatch(LiveKitRoomActions.startMeeting({ wsURL, token }));
+    this.store.dispatch(
+      LiveKitRoomActions.createMeeting({
+        participantName: crypto.randomUUID(),
+        roomName: 'test-room',
+      })
+    );
+  }
+
+  async joinBreakoutRoom(roomName: string, participant: any) {
+    // Leave current room
+    this.leaveBtn();
+
+    this.store.dispatch(
+      LiveKitRoomActions.createMeeting({
+        participantName: participant.identity,
+        roomName,
+      })
+    );
+
+    // Join the breakout room
+    // await this.livekitService.connectToRoom(wsURL, roomName);
   }
 
   /**
@@ -226,16 +355,20 @@ export class AppComponent {
    * @returns {string} - The initials derived from the name.
    */
   extractInitials(name: any) {
-    const words = name.split(' ').map((word: any) => word.charAt(0));
-    return words.join('');
+    if (typeof name === 'string') {
+      const words = name?.split(' ').map((word: any) => word.charAt(0));
+      return words.join('');
+    } else {
+      return '';
+    }
   }
 
   /**
-   * Sorts the `allMessages` array in ascending order based on the message's timestamp.
+   * Sorts the allMessages array in ascending order based on the message's timestamp.
    *
    * This function:
-   * 1. Sorts messages by their `receivingTime` or `sendingTime` in ascending order.
-   * 2. Modifies the `allMessages` array in place.
+   * 1. Sorts messages by their receivingTime or sendingTime in ascending order.
+   * 2. Modifies the allMessages array in place.
    *
    * @function
    * @returns {void}
@@ -255,8 +388,8 @@ export class AppComponent {
    * 1. Always shows the avatar for the first message.
    * 2. Shows the avatar if the sender of the current message is different from the sender of the previous message.
    *
-   * @param {number} index - The index of the message in the `allMessages` array.
-   * @returns {boolean} - `true` if the avatar should be shown, otherwise `false`.
+   * @param {number} index - The index of the message in the allMessages array.
+   * @returns {boolean} - true if the avatar should be shown, otherwise false.
    */
 
   shouldShowAvatar(index: number): boolean {
@@ -273,7 +406,7 @@ export class AppComponent {
    *
    * This function:
    * 1. Retrieves the message and recipient from the chat form.
-   * 2. Calls the `sendChatMessage` method of the LiveKit service with the message and recipient.
+   * 2. Calls the sendChatMessage method of the LiveKit service with the message and recipient.
    * 3. Resets the chat form.
    *
    * @function
@@ -292,8 +425,8 @@ export class AppComponent {
    *
    * This function:
    * 1. Checks the current hand raise status of the local participant.
-   * 2. If the hand is raised, calls the `lowerHand` method of the LiveKit service.
-   * 3. If the hand is not raised, calls the `raiseHand` method of the LiveKit service.
+   * 2. If the hand is raised, calls the lowerHand method of the LiveKit service.
+   * 3. If the hand is not raised, calls the raiseHand method of the LiveKit service.
    *
    * @function
    * @returns {void}
@@ -498,5 +631,40 @@ export class AppComponent {
     } else {
       return 'repeat(auto-fill, minmax(200px, 1fr))';
     }
+  }
+  openBreakoutModal(): void {
+    this.isModalOpen = true;
+    console.log('hii'); // Open the modal
+  }
+
+  closeBreakoutModal(): void {
+    this.isModalOpen = false; // Close the modal
+  }
+
+  showModal(): void {
+    this.isModalVisible = true;
+  }
+
+  // Hide the modal
+  closeModal(): void {
+    this.isModalVisible = false;
+  }
+  joinNow() {
+    console.log('joining');
+    this.store.dispatch(
+      LiveKitRoomActions.createMeeting({
+        participantName: crypto.randomUUID(),
+        roomName: 'breakout Room',
+      })
+    );
+    this.isModalVisible = false;
+  }
+
+  async submitBreakoutForm(): Promise<void> {
+    const participant = this.remoteParticipantNames.map((p: any) => p.identity);
+    this.livekitService.breakoutRoomAlert(participant);
+    console.log(`${participant} room started`);
+    console.log(this.breakoutForm.value);
+    this.closeBreakoutModal();
   }
 }

@@ -3,32 +3,41 @@
   class="container"
   data-test="meetingForm"
 >
-  <div class="form">
-    <form
-      [formGroup]="startForm"
-      (ngSubmit)="startMeeting()"
-      class="os-content-card-footer"
+  <div class="startMeeting-container">
+    <button
+      (click)="startMeeting()"
+      data-cy="submit"
+      type="submit"
+      class="startBtn"
     >
-      <h1>Start Meeting</h1>
-      <label for="token">Enter token here</label>
-      <input
-        type="text"
-        class="sendTerm"
-        placeholder="Enter your token"
-        formControlName="token"
-      />
-      <div class="startMeeting-container">
-        <button data-cy="submit" type="submit" class="startBtn">
-          Start Meeting
-        </button>
-      </div>
-    </form>
+      Start Meeting
+    </button>
   </div>
 </div>
 <ng-container *ngIf="isMeetingStarted$ | async">
   <div class="os-main-content" data-test="meetingStarted">
     <header class="header">
       <div class="left-header" data-test="left-header">
+        <button
+          class="grid-view"
+          matTooltip="View"
+          (click)="openBreakoutModal()"
+        >
+          <i class="far fa-th-large"></i>
+        </button>
+        <button
+          data-cy="raise-hand"
+          *ngIf="localParticipant?.isLocal"
+          (click)="toggleRaiseHand()"
+          [matTooltip]="
+            localParticipant.handRaised ? 'Lower Hand' : 'Raise Hand'
+          "
+        >
+          <i
+            class="fas fa-hand-paper"
+            [ngClass]="{ 'hand-raised': localParticipant.handRaised }"
+          ></i>
+        </button>
         <div
           class="websocket-status"
           [ngClass]="{
@@ -38,19 +47,6 @@
           }"
         ></div>
         <span>{{ webSocketStatus | titlecase }}</span>
-        <button
-          data-cy="raise-hand"
-          *ngIf="localParticipant.isLocal"
-          (click)="toggleRaiseHand()"
-          matTooltip="
-            localParticipant.handRaised ? 'Lower Hand' : 'Raise Hand'
-          "
-        >
-          <i
-            class="fas fa-hand-paper"
-            [ngClass]="{ 'hand-raised': localParticipant.handRaised }"
-          ></i>
-        </button>
       </div>
       <div class="right-header">
         <button
@@ -176,6 +172,95 @@
     </ng-container>
 
     <div
+      class="modal-overlay"
+      *ngIf="isModalOpen"
+      (click)="closeBreakoutModal()"
+    ></div>
+    <div class="modal-content" *ngIf="isModalOpen">
+      <div class="modal-header">
+        <h2>Breakout Rooms</h2>
+        <button class="close-button" (click)="closeBreakoutModal()">
+          &times;
+        </button>
+      </div>
+      <form [formGroup]="breakoutForm" (ngSubmit)="submitBreakoutForm()">
+        <div class="modal-body">
+          <div class="radio-group">
+            <label>Room Type:</label>
+            <div
+              class="breakout-room-types"
+              *ngFor="let type of breakoutRoomTypes"
+            >
+              <input
+                type="radio"
+                [value]="type.value"
+                formControlName="roomType"
+                id="{{ type.value }}"
+              />
+              <label for="{{ type.value }}">{{ type.viewValue }}</label>
+            </div>
+          </div>
+          <!-- Number of Rooms Input -->
+          <div *ngIf="breakoutForm?.get('roomType')?.value === 'automatic'">
+            <div *ngIf="totalParticipants > 0; else noParticipants">
+              <div class="total-rooms">
+                <label for="numberOfRooms">
+                  Assign {{ totalParticipants }} participants into
+                  <input
+                    id="numberOfRooms"
+                    formControlName="numberOfRooms"
+                    type="number"
+                    (input)="calculateDistribution()"
+                  />
+                  room
+                </label>
+              </div>
+              <div *ngIf="distributionMessage">
+                <p class="rooms-msg">{{ distributionMessage }}</p>
+              </div>
+            </div>
+            <ng-template #noParticipants>
+              <p>No participants in the meeting</p>
+            </ng-template>
+          </div>
+          <!-- participant names  -->
+          <div *ngIf="breakoutForm?.get('roomType')?.value === 'manual'">
+            <h1>Select Participant</h1>
+
+            <!-- Check if there are participants -->
+            <div *ngIf="availableParticipants.length > 0; else noParticipants">
+              <div
+                *ngFor="let participant of availableParticipants"
+                class="breakout-participant"
+              >
+                <input
+                  type="checkbox"
+                  [value]="participant.identity"
+                  (change)="onParticipantSelection($event)"
+                />
+                <label>{{ participant.identity }}</label>
+              </div>
+            </div>
+
+            <!-- Template for no participants -->
+            <ng-template #noParticipants>
+              <p>No participants in the meeting</p>
+            </ng-template>
+          </div>
+
+          <!-- Room Type Radio Buttons -->
+        </div>
+        <div class="modal-footer">
+          <button class="modal-close-btn" (click)="closeBreakoutModal()">
+            Close
+          </button>
+          <button type="submit" class="modal-submit-btn">
+            Create Breakout Room
+          </button>
+        </div>
+      </form>
+    </div>
+    <div
       class="lk-grid-layout-wrapper"
       [ngClass]="{
         'screen-share-layout-wrapper':
@@ -193,7 +278,6 @@
         [style.grid-template-columns]="GalleryGridColumnStyle"
       ></div>
     </div>
-    <!-- modal to show a person is already sharing screen  -->
   </div>
 
   <div class="closeChatSideWindow" (click)="closeChatSideWindow()">
@@ -301,9 +385,9 @@
           <div class="participant">
             <div class="left-side">
               <div class="avatar">
-                <p>{{ extractInitials(localParticipant.identity) }}</p>
+                <p>{{ extractInitials(localParticipant?.identity) }}</p>
               </div>
-              <div class="name">{{ localParticipant.identity }}(You)</div>
+              <div class="name">{{ localParticipant?.identity }}(You)</div>
 
               <span
                 *ngIf="handRaiseStates[localParticipant?.identity]"
@@ -381,3 +465,23 @@
     </div>
   </div>
 </ng-container>
+
+<!-- html structure for creating video elments  -->
+<!-- <div class="lk-grid-layout-wrapper">
+  <div
+    id="remoteVideoContainer"
+    class="lk-grid-layout"
+    [style.grid-template-columns]="GalleryGridColumnStyle"
+  >
+    <div class="" *ngIf="attachedTrack">
+      <video id="videoElement" class="lk-participant-tile video-element">
+        {{ attachedTrack }}
+      </video>
+      <div class="lk-participant-metadata">
+        <div class="lk-participant-metadata-item">
+          <span class="lk-participant-name">Participant Name</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> -->

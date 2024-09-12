@@ -1,0 +1,8 @@
+<h1 mat-dialog-title>Breakout Room Invitation</h1>
+<div mat-dialog-content>
+  <p>You are invited to join {{ data.roomName }}. Would you like to join?</p>
+</div>
+<div mat-dialog-actions>
+  <button mat-button (click)="onDecline()">Decline</button>
+  <button mat-button color="primary" (click)="onJoin()">Join</button>
+</div>

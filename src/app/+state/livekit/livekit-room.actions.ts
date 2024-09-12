@@ -113,3 +113,18 @@ export const sendMessage = createAction(
 );
 
 export const scrollToBottom = createAction('[LiveKit Room] Scroll To Bottom');
+
+export const createMeeting = createAction(
+  '[Meeting] Create Meeting',
+  props<{ participantName: string; roomName: string }>()
+);
+
+export const createMeetingSuccess = createAction(
+  '[Meeting] Create Meeting Success',
+  props<{ token: string }>()
+);
+
+export const createMeetingFailure = createAction(
+  '[Meeting] Create Meeting Failure',
+  props<{ error: any }>()
+);

@@ -12,7 +12,8 @@ export interface LiveKitRoomState {
   iconColor: string;
   participantSideWindowVisible: boolean;
   chatSideWindowVisible: boolean;
-  error?: string;
+  error?: string | null;
+  token: string | null;
 }
 
 export const initialState: LiveKitRoomState = {
@@ -25,6 +26,7 @@ export const initialState: LiveKitRoomState = {
   iconColor: 'black',
   participantSideWindowVisible: false,
   chatSideWindowVisible: false,
+  token: null,
 };
 
 export const liveKitRoomReducer = createReducer(
@@ -156,5 +158,14 @@ export const liveKitRoomReducer = createReducer(
   on(LiveKitRoomActions.leaveMeetingFailure, (state, { error }) => ({
     ...state,
     error,
-  }))
+  })),
+    on(LiveKitRoomActions.createMeetingSuccess, (state, { token }) => ({
+      ...state,
+      token,
+    })),
+    on(LiveKitRoomActions.createMeetingFailure, (state, { error }) => ({
+      ...state,
+      token: null,
+      error,
+    })),
 );

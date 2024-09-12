@@ -14,9 +14,19 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { HttpClientModule } from '@angular/common/http';
+import { JoinBreakoutDialogComponent } from './join-breakout-dialog/join-breakout-dialog.component';
 
 @NgModule({
-  declarations: [AppComponent, ErrorDialogComponent],
+  declarations: [
+    AppComponent,
+    ErrorDialogComponent,
+    JoinBreakoutDialogComponent,
+  ],
   imports: [
     BrowserModule,
     AppRoutingModule,
@@ -24,11 +34,17 @@ import { MatSnackBarModule } from '@angular/material/snack-bar';
     MatDialogModule,
     MatButtonModule,
     BrowserAnimationsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatButtonModule,
+    MatTooltipModule,
     MatSnackBarModule,
     StoreModule.forRoot({ liveKitRoom: liveKitRoomReducer }, {}),
     EffectsModule.forRoot([LiveKitRoomEffects]),
     StoreDevtoolsModule.instrument({ maxAge: 25, logOnly: !isDevMode() }),
     BrowserAnimationsModule,
+    HttpClientModule,
   ],
   providers: [],
   bootstrap: [AppComponent],
