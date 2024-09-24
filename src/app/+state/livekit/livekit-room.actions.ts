@@ -115,8 +115,8 @@ export const sendMessage = createAction(
 export const scrollToBottom = createAction('[LiveKit Room] Scroll To Bottom');
 
 export const createMeeting = createAction(
-  '[Meeting] Create Meeting',
-  props<{ participantName: string; roomName: string }>()
+  '[LiveKit] Create Meeting',
+  props<{ participantNames: string[]; roomName: string }>() // Change to accept an array of participant names
 );
 
 export const createMeetingSuccess = createAction(

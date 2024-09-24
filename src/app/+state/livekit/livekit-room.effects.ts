@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import * as LiveKitRoomActions from './livekit-room.actions';
 import { catchError, map, mergeMap, switchMap, tap } from 'rxjs/operators';
-import { of, from } from 'rxjs';
+import { of, from, forkJoin } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MeetingService } from 'src/app/meeting.service';
 import { LivekitService } from 'src/app/livekit.service';
@@ -19,21 +19,32 @@ export class LiveKitRoomEffects {
   createMeeting$ = createEffect(() =>
     this.actions$.pipe(
       ofType(LiveKitRoomActions.createMeeting),
-      mergeMap((action) =>
-        this.meetingService
-          .createMeeting(action.participantName, action.roomName)
-          .pipe(
-            map((response) => {
-              return LiveKitRoomActions.startMeeting({
-                wsURL: 'wss://hassam-app-fu1y3ybu.livekit.cloud',
-                token: response.token,
-              });
-            }),
-            catchError((error) =>
-              of(LiveKitRoomActions.createMeetingFailure({ error }))
-            )
+      mergeMap((action) => {
+        // Map through all the participants and return an observable for each meeting creation
+        const participantObservables = action.participantNames.map(
+          (participantName) =>
+            this.meetingService
+              .createMeeting(participantName, action.roomName)
+              .pipe(
+                map((response) => response.token) // Extract the token from each response
+              )
+        );
+
+        // Combine all participant observables using forkJoin to wait until all have emitted their values
+        return from(participantObservables).pipe(
+          switchMap((observablesArray) => forkJoin(observablesArray)),
+          map((tokens) => {
+            // Once all tokens are available, we use the first token to start the meeting
+            return LiveKitRoomActions.startMeeting({
+              wsURL: 'wss://hassam-app-fu1y3ybu.livekit.cloud',
+              token: tokens[0], // Use one token (all participants are in the same room)
+            });
+          }),
+          catchError((error) =>
+            of(LiveKitRoomActions.createMeetingFailure({ error }))
           )
-      )
+        );
+      })
     )
   );
 
