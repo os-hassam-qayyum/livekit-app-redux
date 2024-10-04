@@ -19,13 +19,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { HttpClientModule } from '@angular/common/http';
-import { ReactiveFormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 @NgModule({
-  declarations: [
-    AppComponent,
-    ErrorDialogComponent,
-  ],
+  declarations: [AppComponent, ErrorDialogComponent],
   imports: [
     BrowserModule,
     AppRoutingModule,
@@ -33,6 +30,7 @@ import { ReactiveFormsModule } from '@angular/forms';
     MatDialogModule,
     MatButtonModule,
     BrowserAnimationsModule,
+    FormsModule,
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,

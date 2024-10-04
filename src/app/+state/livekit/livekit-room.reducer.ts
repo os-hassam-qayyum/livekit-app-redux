@@ -12,6 +12,7 @@ export interface LiveKitRoomState {
   iconColor: string;
   participantSideWindowVisible: boolean;
   chatSideWindowVisible: boolean;
+  breakoutSideWindowVisible: boolean;
   error?: string | null;
   token: string | null;
 }
@@ -26,6 +27,7 @@ export const initialState: LiveKitRoomState = {
   iconColor: 'black',
   participantSideWindowVisible: false,
   chatSideWindowVisible: false,
+  breakoutSideWindowVisible: false,
   token: null,
 };
 
@@ -87,6 +89,7 @@ export const liveKitRoomReducer = createReducer(
   on(LiveKitRoomActions.closeChatSideWindow, (state) => ({
     ...state,
     chatSideWindowVisible: false,
+    unreadMessagesCount: 0,
   })),
   on(LiveKitRoomActions.closeParticipantSideWindow, (state) => ({
     ...state,
@@ -100,6 +103,10 @@ export const liveKitRoomReducer = createReducer(
       state.chatSideWindowVisible && !state.participantSideWindowVisible
         ? false
         : state.chatSideWindowVisible,
+    breakoutSideWindowVisible:
+      state.breakoutSideWindowVisible && !state.participantSideWindowVisible
+        ? false
+        : state.breakoutSideWindowVisible,
   })),
   on(LiveKitRoomActions.toggleChatSideWindow, (state) => ({
     ...state,
@@ -109,6 +116,10 @@ export const liveKitRoomReducer = createReducer(
       state.participantSideWindowVisible && !state.chatSideWindowVisible
         ? false
         : state.participantSideWindowVisible,
+    breakoutSideWindowVisible:
+      state.breakoutSideWindowVisible && !state.chatSideWindowVisible
+        ? false
+        : state.breakoutSideWindowVisible,
   })),
 
   on(LiveKitRoomActions.updateUnreadMessagesCount, (state, { count }) => ({
@@ -159,13 +170,29 @@ export const liveKitRoomReducer = createReducer(
     ...state,
     error,
   })),
-    on(LiveKitRoomActions.createMeetingSuccess, (state, { token }) => ({
-      ...state,
-      token,
-    })),
-    on(LiveKitRoomActions.createMeetingFailure, (state, { error }) => ({
-      ...state,
-      token: null,
-      error,
-    })),
+  on(LiveKitRoomActions.createMeetingSuccess, (state, { token }) => ({
+    ...state,
+    token,
+  })),
+  on(LiveKitRoomActions.createMeetingFailure, (state, { error }) => ({
+    ...state,
+    token: null,
+    error,
+  })),
+  on(LiveKitRoomActions.toggleBreakoutSideWindow, (state) => ({
+    ...state,
+    breakoutSideWindowVisible: !state.breakoutSideWindowVisible,
+    chatSideWindowVisible:
+      state.chatSideWindowVisible && !state.breakoutSideWindowVisible
+        ? false
+        : state.chatSideWindowVisible,
+    participantSideWindowVisible:
+      state.participantSideWindowVisible && !state.breakoutSideWindowVisible
+        ? false
+        : state.participantSideWindowVisible,
+  })),
+  on(LiveKitRoomActions.closeBreakoutSideWindow, (state) => ({
+    ...state,
+    breakoutSideWindowVisible: false,
+  }))
 );

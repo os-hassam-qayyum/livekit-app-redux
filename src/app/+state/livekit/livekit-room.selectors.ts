@@ -55,3 +55,8 @@ export const selectUnreadMessagesCount = createSelector(
   selectLiveKitRoomState,
   (state: LiveKitRoomState) => state.unreadMessagesCount
 );
+
+export const selectBreakoutSideWindowVisible = createSelector(
+  selectLiveKitRoomState,
+  (state: LiveKitRoomState) => state.breakoutSideWindowVisible
+);

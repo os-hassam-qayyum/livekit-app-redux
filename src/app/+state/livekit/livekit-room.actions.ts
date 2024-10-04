@@ -128,3 +128,11 @@ export const createMeetingFailure = createAction(
   '[Meeting] Create Meeting Failure',
   props<{ error: any }>()
 );
+
+export const toggleBreakoutSideWindow = createAction(
+  '[LiveKit Room] Toggle Breakout Side Window'
+);
+
+export const closeBreakoutSideWindow = createAction(
+  '[LiveKit Room] Close Side Window'
+);

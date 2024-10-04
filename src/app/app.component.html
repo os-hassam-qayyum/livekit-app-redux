@@ -1,433 +1,3 @@
-<!-- <div
-  *ngIf="!(isMeetingStarted$ | async)"
-  class="container"
-  data-test="meetingForm"
->
-  <div class="startMeeting-container">
-    <button
-      (click)="startMeeting()"
-      data-cy="submit"
-      type="submit"
-      class="startBtn"
-    >
-      Start Meeting
-    </button>
-  </div>
-</div>
-<ng-container *ngIf="isMeetingStarted$ | async">
-  <div class="os-main-content" data-test="meetingStarted">
-    <header class="header">
-      <div class="left-header" data-test="left-header">
-        <button
-          class="grid-view"
-          matTooltip="View"
-          (click)="openBreakoutModal()"
-        >
-          <i class="far fa-th-large"></i>
-        </button>
-        <button
-          data-cy="raise-hand"
-          *ngIf="localParticipant?.isLocal"
-          (click)="toggleRaiseHand()"
-          [matTooltip]="
-            localParticipant.handRaised ? 'Lower Hand' : 'Raise Hand'
-          "
-        >
-          <i
-            class="fas fa-hand-paper"
-            [ngClass]="{ 'hand-raised': localParticipant.handRaised }"
-          ></i>
-        </button>
-        <div
-          class="websocket-status"
-          [ngClass]="{
-            'status-connected': webSocketStatus === 'connected',
-            'status-reconnecting': webSocketStatus === 'reconnecting',
-            'status-disconnected': webSocketStatus === 'disconnected'
-          }"
-        ></div>
-        <span>{{ webSocketStatus | titlecase }}</span>
-      </div>
-      <div class="right-header">
-        <button
-          class="people"
-          matTooltip="Participants"
-          (click)="openParticipantSideWindow()"
-        >
-          <i class="fal fa-user-friends"></i>
-        </button>
-
-        <button class="chat" matTooltip="Chat" (click)="openChatSideWindow()">
-          <i class="far fa-comment-lines"></i>
-          <span
-            *ngIf="!(chatSideWindowVisible$ | async) && unreadMessagesCount > 0"
-            class="badge"
-            >0{{ unreadMessagesCount }}</span
-          >
-        </button>
-     
-
-        <button class="more" matTooltip="More">
-          <i class="fas fa-ellipsis-h"></i>
-        </button>
-        <div class="line"></div>
-
-        <button data-test="video-test" class="video" (click)="toggleVideo()">
-          <i
-            class="fas"
-            [ngClass]="{
-              'fa-video': (isVideoOn$ | async),
-              'fa-video-slash': !(isVideoOn$ | async)
-            }"
-          ></i>
-        </button>
-        <button class="mic" (click)="toggleMic()">
-          <i
-            class="fas"
-            [ngClass]="{
-              'fa-microphone': (isMicOn$ | async),
-              'fa-microphone-slash': !(isMicOn$ | async)
-            }"
-          ></i>
-        </button>
-
-       
-        <button class="share" (click)="toggleScreenShare()">
-          <span
-            class="material-symbols-outlined"
-            *ngIf="!livekitService.isScreenSharingEnabled"
-          >
-            screen_share
-          </span>
-          <span
-            class="material-symbols-outlined"
-            *ngIf="livekitService.isScreenSharingEnabled"
-            [ngStyle]="{ color: (iconColor$ | async) }"
-          >
-            stop_screen_share
-          </span>
-        </button>
-      
-
-        <button class="leave-btn" (click)="leaveBtn()">
-          <h2>Leave</h2>
-          <div class="chevron-icon"><i class="fas fa-chevron-down"></i></div>
-        </button>
-      </div>
-    </header>
-
-    <ng-container
-      *ngIf="
-        livekitService.isScreenSharingEnabled === true ||
-        livekitService.remoteScreenShare === true
-      "
-    >
-      <div
-        class="lk-focus-layout-wrapper"
-        [ngClass]="{
-          'screen-share-layout-wrapper': livekitService.isExpanded === true
-        }"
-      >
-        <div
-          class="lk-focus-layout"
-          [ngClass]="{ expanded: livekitService.isExpanded }"
-          [ngClass]="{
-            'screen-share-layout': livekitService.isExpanded === true
-          }"
-          [style.grid-template-columns]="ScreenGalleryGridColumnStyle"
-        ></div>
-      </div>
-    </ng-container>
-
-    <div
-      class="modal-overlay"
-      *ngIf="isModalOpen"
-      (click)="closeBreakoutModal()"
-    ></div>
-    <div class="modal-content" *ngIf="isModalOpen">
-      <div class="modal-header">
-        <h2>Breakout Rooms</h2>
-        <button class="close-button" (click)="closeBreakoutModal()">
-          &times;
-        </button>
-      </div>
-      <form [formGroup]="breakoutForm" (ngSubmit)="submitBreakoutForm()">
-        <div class="modal-body">
-          <div class="radio-group">
-            <label>Room Type:</label>
-            <div
-              class="breakout-room-types"
-              *ngFor="let type of breakoutRoomTypes"
-            >
-              <input
-                type="radio"
-                [value]="type.value"
-                formControlName="roomType"
-                id="{{ type.value }}"
-              />
-              <label for="{{ type.value }}">{{ type.viewValue }}</label>
-            </div>
-          </div>
-          <div *ngIf="breakoutForm?.get('roomType')?.value === 'automatic'">
-            <div *ngIf="totalParticipants > 0; else noParticipants">
-              <div class="total-rooms">
-                <label for="numberOfRooms">
-                  Assign {{ totalParticipants }} participants into
-                  <input
-                    id="numberOfRooms"
-                    formControlName="numberOfRooms"
-                    type="number"
-                    (input)="calculateDistribution()"
-                  />
-                  room
-                </label>
-              </div>
-              <div *ngIf="distributionMessage">
-                <p class="rooms-msg">{{ distributionMessage }}</p>
-              </div>
-            </div>
-            <ng-template #noParticipants>
-              <p>No participants in the meeting</p>
-            </ng-template>
-          </div>
-          <div *ngIf="breakoutForm?.get('roomType')?.value === 'manual'">
-            <h1>Select Participant</h1>
-
-            <div *ngIf="availableParticipants.length > 0; else noParticipants">
-              <div
-                *ngFor="let participant of availableParticipants"
-                class="breakout-participant"
-              >
-                <input
-                  type="checkbox"
-                  [value]="participant.identity"
-                  (change)="onParticipantSelection($event)"
-                />
-                <label>{{ participant.identity }}</label>
-              </div>
-            </div>
-
-            <ng-template #noParticipants>
-              <p>No participants in the meeting</p>
-            </ng-template>
-          </div>
-
-        </div>
-        <div class="modal-footer">
-          <button class="modal-close-btn" (click)="closeBreakoutModal()">
-            Close
-          </button>
-          <button type="submit" class="modal-submit-btn">
-            Create Breakout Room
-          </button>
-        </div>
-      </form>
-    </div>
-    <div
-      class="lk-grid-layout-wrapper"
-      [ngClass]="{
-        'screen-share-layout-wrapper':
-          livekitService.isScreenSharingEnabled === true ||
-          livekitService.remoteScreenShare === true
-      }"
-    >
-      <div
-        class="lk-grid-layout"
-        [ngClass]="{
-          'screen-share-layout':
-            livekitService.isScreenSharingEnabled === true ||
-            livekitService.remoteScreenShare === true
-        }"
-        [style.grid-template-columns]="GalleryGridColumnStyle"
-      ></div>
-    </div>
-  </div>
-
-  <div class="closeChatSideWindow" (click)="closeChatSideWindow()">
-    <div
-      *ngIf="chatSideWindowVisible$ | async"
-      class="chat-side-window-container"
-    >
-      <div class="chat-side-window" (click)="$event.stopPropagation()">
-        <div class="chat-detail">
-          <div class="os-content-card-nav">
-            <div class="chat-head">
-              <h2>Chat</h2>
-            </div>
-          </div>
-          <div class="os-content-card-body">
-            <div class="os-content-body" #messageContainer>
-              <div *ngFor="let message of allMessages; let i = index">
-                <div class="main-receiver" *ngIf="message.type === 'received'">
-                  <div class="receive">
-                    <div class="avatar">
-                      <p *ngIf="shouldShowAvatar(i)">
-                        {{ message.senderName.charAt(0).toUpperCase() }}
-                      </p>
-                    </div>
-                    <div class="receive-msg">
-                      <div class="head">
-                        <div class="receiver-name">
-                          <h2 *ngIf="shouldShowAvatar(i)">
-                            {{ message.senderName }}
-                          </h2>
-                        </div>
-                        <div class="msg-tym">
-                          {{ message.receivingTime | date : "shortTime" }}
-                        </div>
-                      </div>
-                      <div class="msg-detail">
-                        {{ message.receivedMsg }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div class="main-sender" *ngIf="message.type === 'sent'">
-                  <div class="send">
-                    <div class="msg-tym">
-                      {{ message.sendingTime | date : "shortTime" }}
-                    </div>
-                    <div class="msg-detail">{{ message.sendMessage }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="new-footer-card">
-            <form [formGroup]="chatForm" (ngSubmit)="sendMessage()" class="">
-              <div class="dropdwn">
-                <label for="participant">To: </label>
-                <div class="select-dropdown">
-                  <select formControlName="participant">
-                    <option selected value="">EveryOne</option>
-                    <option
-                      *ngFor="let participant of remoteParticipantNames"
-                      [value]="participant.identity"
-                    >
-                      {{ participant.identity }}
-                    </option>
-                  </select>
-                </div>
-              </div>
-              <div class="footer-flex">
-                <div class="search">
-                  <input
-                    type="text"
-                    class="sendTerm"
-                    placeholder="send a message"
-                    formControlName="message"
-                  />
-                  <div class="emoji">
-                    <i class="fas fa-face-smile"></i>
-                  </div>
-                </div>
-                <button type="submit" class="sendButton">
-                  <i class="send fas fa-paper-plane"></i>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div
-    class="closeParticipantSideWindow"
-    (click)="closeParticipantSideWindow()"
-  >
-    <div
-      *ngIf="participantSideWindowVisible$ | async"
-      class="participants-side-window-container"
-    >
-      <div class="participants-side-window" (click)="$event.stopPropagation()">
-        <h2>Participants</h2>
-
-        <div class="participant-container">
-          <div class="participant">
-            <div class="left-side">
-              <div class="avatar">
-                <p>{{ extractInitials(localParticipant?.identity) }}</p>
-              </div>
-              <div class="name">{{ localParticipant?.identity }}(You)</div>
-
-              <span
-                *ngIf="handRaiseStates[localParticipant?.identity]"
-                class="raised-hand-icon"
-                >✋</span
-              >
-            </div>
-            <div class="right-side">
-              <div class="screen-share-icon">
-                <span
-                  class="material-symbols-outlined"
-                  *ngIf="isScreenSharing$ | async"
-                >
-                  screen_share
-                </span>
-              </div>
-              <div class="video-icon">
-                <i
-                  class="fas"
-                  [ngClass]="{
-                    'fa-video': (isVideoOn$ | async),
-                    'fa-video-slash': !(isVideoOn$ | async)
-                  }"
-                ></i>
-              </div>
-              <div class="mic-icon">
-                <i
-                  class="fas"
-                  [ngClass]="{
-                    'fa-microphone': (isMicOn$ | async),
-                    'fa-microphone-slash': !(isMicOn$ | async)
-                  }"
-                ></i>
-              </div>
-            </div>
-          </div>
-          <div
-            *ngFor="let participant of remoteParticipantNames"
-            class="participant"
-          >
-            <div class="left-side">
-              <div class="avatar">
-                <p>{{ extractInitials(participant.identity) }}</p>
-              </div>
-              <div class="name">{{ participant.identity }}</div>
-              <span
-                *ngIf="handRaiseStates[participant?.identity]"
-                class="raised-hand-icon"
-                >✋</span
-              >
-            </div>
-            <div class="right-side">
-              <div class="video-icon">
-                <i
-                  class="fas"
-                  [ngClass]="{
-                    'fa-video-slash': !participant.isCameraEnabled,
-                    'fa-video': participant.isCameraEnabled
-                  }"
-                ></i>
-              </div>
-              <div class="mic-icon">
-                <i
-                  class="fas"
-                  [ngClass]="{
-                    'fa-microphone': participant.isMicrophoneEnabled,
-                    'fa-microphone-slash': !participant.isMicrophoneEnabled
-                  }"
-                ></i>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</ng-container> -->
-
 <div
   *ngIf="!(isMeetingStarted$ | async)"
   class="container"
@@ -447,6 +17,30 @@
   </div>
 </div>
 <ng-container *ngIf="isMeetingStarted$ | async">
+  <div id="remoteAudioContainer"></div>
+  <div>
+    <h2>Send Message to Breakout Room</h2>
+
+    <!-- Input field to type the message -->
+    <input
+      type="text"
+      [(ngModel)]="messageContent"
+      placeholder="Enter your message"
+    />
+    <!-- Dropdown to select the breakout room -->
+    <select [(ngModel)]="selectedBreakoutRoom">
+      <option disabled [selected]>Please select a room</option>
+      <option
+        *ngFor="let room of breakoutRoomsData"
+        [value]="room.participantIds"
+      >
+        {{ room.roomName }}
+      </option>
+    </select>
+
+    <!-- Button to send the message -->
+    <button (click)="sendMessageToBreakoutRoom()">Send Message</button>
+  </div>
   <div class="os-main-content" data-test="meetingStarted">
     <header class="header">
       <div class="left-header" data-test="left-header">
@@ -459,7 +53,7 @@
         </button>
         <button
           data-cy="raise-hand"
-          *ngIf="localParticipant?.isLocal"
+          *ngIf="localParticipant.isLocal"
           (click)="toggleRaiseHand()"
           matTooltip="
             localParticipant.handRaised ? 'Lower Hand' : 'Raise Hand'
@@ -481,6 +75,19 @@
         <span>{{ webSocketStatus | titlecase }}</span>
       </div>
       <div class="right-header">
+        <button
+          matTooltip="Ask for Help To Main Room"
+          (click)="sendHelpRequest()"
+        >
+          <i class="fas fa-user-headset"></i>
+        </button>
+        <button
+          class="people"
+          matTooltip="Breakout Rooms"
+          (click)="openPBreakoutSideWindow()"
+        >
+          <i class="fas fa-th-large"></i>
+        </button>
         <button
           class="people"
           matTooltip="Participants"
@@ -608,6 +215,7 @@
       *ngIf="isModalOpen"
       (click)="closeBreakoutModal()"
     ></div>
+    <!-- breakout room modal from host  -->
     <div class="modal-content" *ngIf="isModalOpen">
       <div class="modal-header">
         <h2>Breakout Rooms</h2>
@@ -633,7 +241,7 @@
             </div>
           </div>
           <!-- Number of Rooms Input -->
-          <div *ngIf="breakoutForm?.get('roomType')?.value === 'automatic'">
+          <div *ngIf="breakoutForm.get('roomType')?.value === 'automatic'">
             <div *ngIf="totalParticipants > 0; else noParticipants">
               <div class="total-rooms">
                 <label for="numberOfRooms">
@@ -655,31 +263,88 @@
               <p>No participants in the meeting</p>
             </ng-template>
           </div>
-          <!-- participant names  -->
-          <div *ngIf="breakoutForm?.get('roomType')?.value === 'manual'">
+
+          <!-- new logic for manual   -->
+          <div *ngIf="breakoutForm.get('roomType')?.value === 'manual'">
             <h1>Select Participant</h1>
 
-            <!-- Check if there are participants -->
-            <div
-              *ngIf="remoteParticipantNames?.length > 0; else noParticipants"
-            >
-              <div
-                *ngFor="let participant of remoteParticipantNames"
-                class="breakout-participant"
-              >
-                <input
-                  type="checkbox"
-                  [value]="participant.identity"
-                  (change)="onParticipantSelection($event)"
-                />
-                <label>{{ participant.identity }}</label>
-              </div>
+            <!-- Create New Room Section -->
+            <div class="create-room-section">
+              <label>Create New Room</label>
+              <button type="button" (click)="createNewRoom($event)">
+                Create
+              </button>
             </div>
 
-            <!-- Template for no participants -->
-            <ng-template #noParticipants>
-              <p>No participants in the meeting</p>
-            </ng-template>
+            <!-- List of Created Rooms -->
+            <div *ngIf="breakoutRooms.length > 0" class="created-rooms">
+              <h2>Breakout Rooms</h2>
+              <ul>
+                <li *ngFor="let room of breakoutRooms; let i = index">
+                  <div class="br-participant-li">
+                    <span>{{ room.name }}</span>
+                    <button
+                      type="button"
+                      (click)="toggleParticipants($event, i)"
+                    >
+                      Assign
+                    </button>
+                  </div>
+
+                  <!-- Show participants only when showParticipants is true for the room -->
+                  <div *ngIf="room.showParticipants">
+                    <h3>Participants</h3>
+
+                    <!-- Show available participants that haven't been assigned to any room -->
+                    <div
+                      *ngIf="
+                        remoteParticipantNames.length > 0;
+                        else noParticipants
+                      "
+                    >
+                      <div
+                        *ngFor="let participant of remoteParticipantNames"
+                        class="breakout-participant"
+                      >
+                        <input
+                          type="checkbox"
+                          [checked]="
+                            room.participants.includes(participant.identity)
+                          "
+                          [value]="participant.identity"
+                          (change)="onParticipantSelection($event, i)"
+                        />
+                        <label>{{ participant.identity }}</label>
+                      </div>
+                    </div>
+
+                    <!-- Template for no participants -->
+                    <ng-template #noParticipants>
+                      <p>No participants in the meeting</p>
+                    </ng-template>
+                  </div>
+
+                  <!-- List of assigned participants in the current room (checkboxes for unassigning) -->
+                  <div *ngIf="room.participants.length > 0">
+                    <h4>Assigned Participants</h4>
+                    <ul>
+                      <li
+                        class="breakout-participant"
+                        *ngFor="let participant of room.participants"
+                      >
+                        <input
+                          type="checkbox"
+                          [value]="participant"
+                          [checked]="true"
+                          (change)="onUnassignParticipant($event, i)"
+                        />
+                        <label>{{ participant }}</label>
+                      </li>
+                    </ul>
+                  </div>
+                </li>
+              </ul>
+            </div>
           </div>
 
           <!-- Room Type Radio Buttons -->
@@ -733,7 +398,7 @@
                   <div class="receive">
                     <div class="avatar">
                       <p *ngIf="shouldShowAvatar(i)">
-                        {{ message.senderName.charAt(0).toUpperCase() }}
+                        {{ message.senderName?.charAt(0)?.toUpperCase() || "" }}
                       </p>
                     </div>
                     <div class="receive-msg">
@@ -748,7 +413,9 @@
                         </div>
                       </div>
                       <div class="msg-detail">
-                        {{ message.receivedMsg }}
+                        {{
+                          message.receivedMsg || breakoutMessageContent?.content
+                        }}
                       </div>
                     </div>
                   </div>
@@ -803,7 +470,7 @@
       </div>
     </div>
   </div>
-
+  <!-- participant side window  -->
   <div
     class="closeParticipantSideWindow"
     (click)="closeParticipantSideWindow()"
@@ -819,9 +486,9 @@
           <div class="participant">
             <div class="left-side">
               <div class="avatar">
-                <p>{{ extractInitials(localParticipant?.identity) }}</p>
+                <p>{{ extractInitials(localParticipant.identity) }}</p>
               </div>
-              <div class="name">{{ localParticipant?.identity }}(You)</div>
+              <div class="name">{{ localParticipant.identity }}(You)</div>
 
               <span
                 *ngIf="handRaiseStates[localParticipant?.identity]"
@@ -898,6 +565,54 @@
       </div>
     </div>
   </div>
+  <!-- breakout side window  -->
+  <div class="closeBreakoutSideWindow" (click)="closeParticipantSideWindow()">
+    <div
+      *ngIf="breakoutSideWindowVisible$ | async"
+      class="breakout-side-window-container"
+    >
+      <div class="breakout-side-window" (click)="$event.stopPropagation()">
+        <h2>Breakout rooms</h2>
+
+        <div class="breakout-container">
+          <!-- Check if there are any breakout rooms -->
+          <div *ngIf="breakoutRoomsData.length > 0; else noRooms">
+            <!-- Iterate over breakoutRoomsData to display room names and participants -->
+            <div class="breakout" *ngFor="let room of breakoutRoomsData">
+              <div class="room">
+                <!-- Display Room Name -->
+                <div class="room-name">{{ room.roomName }}</div>
+
+                <!-- Check if there are any participants -->
+                <div
+                  *ngIf="room.participantIds.length > 0; else noParticipants"
+                >
+                  <!-- List Participants in this Room -->
+                  <ul class="participants-list">
+                    <li *ngFor="let participant of room.participantIds">
+                      {{ participant }}
+                    </li>
+                  </ul>
+                </div>
+
+                <!-- Display this message when participantIds array is empty -->
+                <ng-template #noParticipants>
+                  <div class="no-participants-msg">
+                    No participants in {{ room.roomName }}
+                  </div>
+                </ng-template>
+              </div>
+            </div>
+          </div>
+
+          <!-- Display this message if there are no breakout rooms -->
+          <ng-template #noRooms>
+            <div class="no-rooms-msg">No Breakout Rooms created</div>
+          </ng-template>
+        </div>
+      </div>
+    </div>
+  </div>
 </ng-container>
 
 <!-- Breakout Room Modal -->
@@ -912,3 +627,7 @@
     </div>
   </div>
 </div>
+
+<!-- <div class="mic-container">
+  <canvas #audioCanvas></canvas>
+</div> -->
