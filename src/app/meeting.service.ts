@@ -28,4 +28,12 @@ export class MeetingService {
     console.log('Sending broadcast message:', body);
     return this.http.post<any>(`${this.apiUrl}/broadcast`, body);
   }
+  sendMessageToMainRoom(
+    roomName: string,
+    breakoutRoomName: string,
+    content: string
+  ): Observable<any> {
+    const body = { roomName, sender: breakoutRoomName, content };
+    return this.http.post<any>(`${this.apiUrl}/broadcast`, body);
+  }
 }

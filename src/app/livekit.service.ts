@@ -66,8 +66,10 @@ export class LivekitService {
    * @type {boolean}
    */
   isScreenSharingEnabled = false;
-  public messageContentReceived: EventEmitter<string> = new EventEmitter<any>();
-
+  public messageContentReceived: EventEmitter<string[]> = new EventEmitter<
+    string[]
+  >();
+  private messageArray: string[] = [];
   /**
    * Event emitter for when the video status changes.
    * @type {EventEmitter<boolean>}
@@ -153,7 +155,7 @@ export class LivekitService {
     message: any;
     participant: RemoteParticipant | undefined;
   }>();
-
+  public messageToMain: EventEmitter<string[]> = new EventEmitter<string[]>();
   /**
    * Event emitter for when a participant raises or lowers their hand.
    * @type {EventEmitter<{ participant: RemoteParticipant | undefined; handRaised: boolean }>}
@@ -175,7 +177,7 @@ export class LivekitService {
    * @type {EventEmitter<any>}
    */
   messageEmitter = new EventEmitter<any>();
-
+  private messageArrayToMain: string[] = [];
   /**
    * Array of message objects containing sender, text, and timestamp information.
    * @type {{ sender: string; text: string; timestamp: Date }[]}
@@ -343,13 +345,34 @@ export class LivekitService {
     };
     console.log(`Publishing breakout room alert:`, message);
     await this.publishBreakoutRoom(message, participants);
+    // Find if the room already exists in breakoutRoomsData
+    const existingRoomIndex = this.breakoutRoomsData.findIndex(
+      (room) => room.roomName === roomName
+    );
 
-    // Store the room data for tracking
-    this.breakoutRoomsData.push({
-      participantIds: message.participantIds,
-      roomName: message.roomName,
-      type: message.type,
-    });
+    if (existingRoomIndex !== -1) {
+      // If the room already exists, update its participantIds
+      const existingRoom = this.breakoutRoomsData[existingRoomIndex];
+
+      // Ensure no duplicate participants are added
+      const updatedParticipants = [
+        ...existingRoom.participantIds,
+        ...participants.filter((p) => !existingRoom.participantIds.includes(p)),
+      ];
+
+      // Update the room with the new participant list
+      this.breakoutRoomsData[existingRoomIndex] = {
+        ...existingRoom,
+        participantIds: updatedParticipants,
+      };
+    } else {
+      // Store the room data for tracking
+      this.breakoutRoomsData.push({
+        participantIds: message.participantIds,
+        roomName: message.roomName,
+        type: message.type,
+      });
+    }
 
     // Emit the updated breakout rooms data
     this.breakoutRoomsDataUpdated.emit(this.breakoutRoomsData);
@@ -510,12 +533,28 @@ export class LivekitService {
               roomName: message.roomName, // Use the room name from the message
             });
           }
+          
         }
         if (message.title === 'test-room') {
           console.log(`Received message in breakout room: ${message.content}`);
-          this.messageContentReceived.emit(message);
+          // Add the new message content to the array
+          this.messageArray.push(message);
+
+          // Emit the updated message array
+          this.messageContentReceived.emit(this.messageArray);
         } else {
           console.log('Message not for this breakout room');
+        }
+        if (message.title.includes('Breakout-Room')) {
+          console.log(`Received message in main room: ${message}`);
+
+          // Add the new message content to the array
+          this.messageArrayToMain.push(message);
+
+          // Emit the updated message array
+          this.messageToMain.emit(this.messageArrayToMain);
+        } else {
+          console.log('Message not for this main room');
         }
       }
     );
@@ -1510,45 +1549,9 @@ export class LivekitService {
       duration: 3000,
     });
   }
-  // sendMessageToBreakoutRoom(roomName: string, content: string) {
-  //   this.meetingService.broadcastMessage(roomName, content).subscribe(
-  //     (response) => {
-  //       console.log('Message sent successfully:', response, roomName, content);
-  //     },
-  //     (error) => {
-  //       console.error('Error sending message:', error);
-  //     }
-  //   );
-  // }
-
-  // sendMessageToBreakoutRoom(roomId: string, content: string) {
-  //   // Assume "sender" is the logged-in user or system-generated name.
-  //   const sender = 'System'; // Replace with actual participant name if available
-  //   const room = this.breakoutRoomsData.find((r) =>
-  //     r.participantIds.includes(roomId)
-  //   );
-  //   this.meetingService.broadcastMessage(room.roomName, content).subscribe(
-  //     (response) => {
-  //       console.log(
-  //         'Message sent successfully:',
-  //         response,
-  //         room.roomName,
-  //         content
-  //       );
-  //     },
-  //     (error) => {
-  //       console.error('Error sending message:', error);
-
-  //       // Optionally, you can display a user-friendly error message.
-  //       this.openSnackBar('Failed to send message to the breakout room.');
-  //     }
-  //   );
-  // }
 
   sendMessageToBreakoutRoom(roomId: string, content: string) {
-    const room = this.breakoutRoomsData.find((r) =>
-      r.participantIds.includes(roomId)
-    );
+    const room = this.breakoutRoomsData.find((r) => r.roomName === roomId);
 
     this.meetingService.broadcastMessage(room.roomName, content).subscribe(
       (response) => {
@@ -1567,17 +1570,22 @@ export class LivekitService {
     );
   }
   // Method to send the help message to the main room
-  sendMessageToMainRoom(content: string) {
-    const mainRoomId = 'test-room'; // Replace this with your actual main room ID
-
-    this.meetingService.broadcastMessage(mainRoomId, content).subscribe(
-      (response) => {
-        console.log('Help message sent to the main room:', response, content);
-      },
-      (error) => {
-        console.error('Error sending help message to the main room:', error);
-        this.openSnackBar('Failed to send help message.');
-      }
-    );
+  sendMessageToMainRoom(breakoutRoomName: string, content: string) {
+    this.meetingService
+      .sendMessageToMainRoom('test-room', breakoutRoomName, content)
+      .subscribe(
+        (response) => {
+          console.log(
+            'Message sent successfully:',
+            response,
+            breakoutRoomName,
+            content
+          );
+        },
+        (error) => {
+          console.error('Error sending message:', error);
+          this.openSnackBar('Failed to send message to the breakout room.');
+        }
+      );
   }
 }

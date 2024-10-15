@@ -29,12 +29,9 @@
     />
     <!-- Dropdown to select the breakout room -->
     <select [(ngModel)]="selectedBreakoutRoom">
-      <option disabled [selected]>Please select a room</option>
-      <option
-        *ngFor="let room of breakoutRoomsData"
-        [value]="room.participantIds"
-      >
-        {{ room.roomName }}
+      <option value="" disabled [selected]>Please select a room</option>
+      <option *ngFor="let room of breakoutRoomsData" [value]="room.roomName">
+        {{ room.roomName | json }}
       </option>
     </select>
 
@@ -413,9 +410,7 @@
                         </div>
                       </div>
                       <div class="msg-detail">
-                        {{
-                          message.receivedMsg || breakoutMessageContent?.content
-                        }}
+                        {{ message.receivedMsg }}
                       </div>
                     </div>
                   </div>
@@ -572,49 +567,118 @@
       class="breakout-side-window-container"
     >
       <div class="breakout-side-window" (click)="$event.stopPropagation()">
-        <h2>Breakout rooms</h2>
+        <div>
+          <h2>Breakout rooms</h2>
+          <button
+            (click)="submitUnallocatedParticipants()"
+            class="modal-submit-btn"
+          >
+            Send Invitation
+          </button>
+        </div>
+        <div class="create-room-section">
+          <label>Create New Room</label>
+          <button type="button" (click)="createNewRoomSidebar($event)">
+            Create
+          </button>
+        </div>
 
         <div class="breakout-container">
-          <!-- Check if there are any breakout rooms -->
-          <div *ngIf="breakoutRoomsData.length > 0; else noRooms">
-            <!-- Iterate over breakoutRoomsData to display room names and participants -->
-            <div class="breakout" *ngFor="let room of breakoutRoomsData">
-              <div class="room">
-                <!-- Display Room Name -->
-                <div class="room-name">{{ room.roomName }}</div>
+          <!-- Iterate over breakoutRoomsData to display room names and participants -->
+          <div
+            class="breakout"
+            *ngFor="let room of breakoutRoomsData; let i = index"
+          >
+            <div class="room">
+              <!-- Display Room Name -->
+              <div class="room-header">
+                <span class="room-name">{{ room.roomName }}</span>
 
-                <!-- Check if there are any participants -->
-                <div
-                  *ngIf="room.participantIds.length > 0; else noParticipants"
+                <!-- Button to toggle the available participants list -->
+                <button
+                  class="allocated-btn"
+                  (click)="toggleParticipantsList(i)"
                 >
-                  <!-- List Participants in this Room -->
-                  <ul class="participants-list">
-                    <li *ngFor="let participant of room.participantIds">
-                      {{ participant }}
+                  Add Participants
+                </button>
+              </div>
+
+              <!-- List of participants in the room -->
+              <div *ngIf="room.participantIds.length > 0; else noParticipants">
+                <h4 class="allocated-headings">Assigned Participants</h4>
+                <ul class="participants-list">
+                  <li *ngFor="let participant of room.participantIds">
+                    {{ participant }}
+                  </li>
+                </ul>
+              </div>
+
+              <!-- Template for no participants -->
+              <ng-template #noParticipants>
+                <p>No participants assigned to this room</p>
+              </ng-template>
+
+              <!-- Available participants not in this room, with checkboxes -->
+              <div *ngIf="room.showAvailableParticipants">
+                <h4 class="allocated-headings">Available Participants</h4>
+                <div
+                  *ngIf="
+                    getAvailableParticipants(room).length > 0;
+                    else noMoreParticipants
+                  "
+                >
+                  <ul class="available-participants-list">
+                    <li
+                      *ngFor="let participant of getAvailableParticipants(room)"
+                      class="available-participant"
+                    >
+                      <label>
+                        <input
+                          type="checkbox"
+                          (change)="
+                            onParticipantSelected(room, participant, $event)
+                          "
+                        />
+                        {{ participant.identity }}
+                      </label>
                     </li>
                   </ul>
                 </div>
-
-                <!-- Display this message when participantIds array is empty -->
-                <ng-template #noParticipants>
-                  <div class="no-participants-msg">
-                    No participants in {{ room.roomName }}
-                  </div>
+                <ng-template #noMoreParticipants>
+                  <p>No more participants available for this room</p>
                 </ng-template>
               </div>
             </div>
           </div>
-
-          <!-- Display this message if there are no breakout rooms -->
-          <ng-template #noRooms>
-            <div class="no-rooms-msg">No Breakout Rooms created</div>
-          </ng-template>
         </div>
       </div>
     </div>
   </div>
 </ng-container>
 
+<div
+  class="receive-msg-modal"
+  *ngIf="isMsgModalOpen && allMessagesToMainRoom.length > 0"
+>
+  <div class="modal-header">
+    <h2>Messages in Main Room</h2>
+    <button class="close-btn" (click)="closeReceiveMsgModal()">&times;</button>
+  </div>
+
+  <div class="modal-body">
+    <div class="messages-container">
+      <div *ngFor="let message of allMessagesToMainRoom" class="message">
+        <strong>{{ message.senderName }}:</strong>
+        <p>{{ message.receivedMsg }}</p>
+        <span>{{ message.receivingTime | date : "short" }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button (click)="hostJoinNow()">Join Now</button>
+  </div>
+</div>
 <!-- Breakout Room Modal -->
 <div *ngIf="isModalVisible" class="br-modal">
   <div class="br-modal-content">
