@@ -60,3 +60,11 @@ export const selectBreakoutSideWindowVisible = createSelector(
   selectLiveKitRoomState,
   (state: LiveKitRoomState) => state.breakoutSideWindowVisible
 );
+
+export const isBreakoutModalOpen = createSelector(
+  selectLiveKitRoomState,
+  (state: LiveKitRoomState) => {
+    console.log('hello breakout', state.isBreakoutModalOpen);
+    return state.isBreakoutModalOpen;
+  }
+);

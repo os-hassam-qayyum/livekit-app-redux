@@ -10,6 +10,7 @@ import {
   RemoteTrackPublication,
   Room,
   RoomEvent,
+  setLogLevel,
   Track,
   TrackPublication,
   VideoQuality,
@@ -69,7 +70,7 @@ export class LivekitService {
   public messageContentReceived: EventEmitter<string[]> = new EventEmitter<
     string[]
   >();
-  private messageArray: string[] = [];
+  public messageArray: string[] = [];
   /**
    * Event emitter for when the video status changes.
    * @type {EventEmitter<boolean>}
@@ -177,7 +178,7 @@ export class LivekitService {
    * @type {EventEmitter<any>}
    */
   messageEmitter = new EventEmitter<any>();
-  private messageArrayToMain: string[] = [];
+  public messageArrayToMain: string[] = [];
   /**
    * Array of message objects containing sender, text, and timestamp information.
    * @type {{ sender: string; text: string; timestamp: Date }[]}
@@ -384,7 +385,7 @@ export class LivekitService {
     );
   }
 
-  private async publishBreakoutRoom(message: any, recipientIds: string[]) {
+  async publishBreakoutRoom(message: any, recipientIds: string[]) {
     const strData = JSON.stringify(message);
     const data = new TextEncoder().encode(strData);
 
@@ -463,16 +464,27 @@ export class LivekitService {
     // also subscribe to tracks published before participant joined
 
     const remoteParticipants = Array.from(
-      this.room.remoteParticipants.values()
+      this.room.remoteParticipants.values() || []
     );
     remoteParticipants.forEach((participant) => {
       this.createAvatar(participant);
-      const eachRemoteParticipant = Array.from(
-        participant.trackPublications.values()
-      );
-      eachRemoteParticipant.forEach((publication) => {
-        publication.setSubscribed(true);
-      });
+      // Ensure trackPublications exists and is iterable
+      if (
+        participant.trackPublications &&
+        participant.trackPublications.values
+      ) {
+        const eachRemoteParticipant = Array.from(
+          participant.trackPublications.values()
+        );
+        eachRemoteParticipant.forEach((publication) => {
+          publication.setSubscribed(true);
+        });
+      } else {
+        console.error(
+          'Track publications not found for participant:',
+          participant
+        );
+      }
     });
   }
   /**
@@ -482,6 +494,7 @@ export class LivekitService {
    */
   audioVideoHandler() {
     this.room = new Room();
+    setLogLevel('debug');
     this.participants = this.room.numParticipants;
     console.log('total participants', this.participants);
     /**
@@ -533,7 +546,6 @@ export class LivekitService {
               roomName: message.roomName, // Use the room name from the message
             });
           }
-          
         }
         if (message.title === 'test-room') {
           console.log(`Received message in breakout room: ${message.content}`);
@@ -545,7 +557,7 @@ export class LivekitService {
         } else {
           console.log('Message not for this breakout room');
         }
-        if (message.title.includes('Breakout-Room')) {
+        if (message.title && message.title.includes('Breakout-Room')) {
           console.log(`Received message in main room: ${message}`);
 
           // Add the new message content to the array

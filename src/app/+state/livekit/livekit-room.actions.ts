@@ -116,7 +116,7 @@ export const scrollToBottom = createAction('[LiveKit Room] Scroll To Bottom');
 
 export const createMeeting = createAction(
   '[LiveKit] Create Meeting',
-  props<{ participantNames: string[]; roomName: string }>() // Change to accept an array of participant names
+  props<{ participantName: string; roomName: string }>() // Change to accept an array of participant names
 );
 
 export const createMeetingSuccess = createAction(
@@ -135,4 +135,11 @@ export const toggleBreakoutSideWindow = createAction(
 
 export const closeBreakoutSideWindow = createAction(
   '[LiveKit Room] Close Side Window'
+);
+
+export const openBreakoutModal = createAction(
+  '[LiveKit Room] Open Breakout Modal'
+);
+export const closeBreakoutModal = createAction(
+  '[LiveKit Room] Close Breakout Modal'
 );

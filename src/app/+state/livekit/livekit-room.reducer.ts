@@ -13,6 +13,7 @@ export interface LiveKitRoomState {
   participantSideWindowVisible: boolean;
   chatSideWindowVisible: boolean;
   breakoutSideWindowVisible: boolean;
+  isBreakoutModalOpen: boolean;
   error?: string | null;
   token: string | null;
 }
@@ -28,6 +29,7 @@ export const initialState: LiveKitRoomState = {
   participantSideWindowVisible: false,
   chatSideWindowVisible: false,
   breakoutSideWindowVisible: false,
+  isBreakoutModalOpen: false,
   token: null,
 };
 
@@ -194,5 +196,13 @@ export const liveKitRoomReducer = createReducer(
   on(LiveKitRoomActions.closeBreakoutSideWindow, (state) => ({
     ...state,
     breakoutSideWindowVisible: false,
+  })),
+  on(LiveKitRoomActions.openBreakoutModal, (state) => ({
+    ...state,
+    isBreakoutModalOpen: true,
+  })),
+  on(LiveKitRoomActions.closeBreakoutModal, (state) => ({
+    ...state,
+    isBreakoutModalOpen: false,
   }))
 );
