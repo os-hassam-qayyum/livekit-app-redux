@@ -190,8 +190,8 @@ export class LivekitService {
    * @param {MatSnackBar} snackBar - The snack bar service for displaying notifications.
    */
   constructor(
-    private snackBar: MatSnackBar,
-    private meetingService: MeetingService
+    public snackBar: MatSnackBar,
+    public meetingService: MeetingService
   ) {}
 
   private breakoutRoomCounter = 0;
@@ -1189,15 +1189,16 @@ export class LivekitService {
             this.toggleExpand(el2, participant.identity);
             // el2.appendChild(button);
 
-            console.log(`Button clicked for ${participant.identity}!`);
+            // console.log(`Button clicked for ${participant.identity}!`);
           };
 
           el3.appendChild(button);
           lkFocusLayoutContainer?.appendChild(el2);
           newScreenShareContainer?.appendChild(el2.cloneNode(true));
-        } else {
-          console.error('Remote screen share container not found');
         }
+        // else {
+        //   console.error('Remote screen share container not found');
+        // }
       }, 100);
     }
   }
@@ -1556,7 +1557,7 @@ export class LivekitService {
       }
     });
   }
-  private showReconnectingSnackbar() {
+  showReconnectingSnackbar() {
     this.snackBar.open('Reconnecting...', 'Close', {
       duration: 3000,
     });
