@@ -24,8 +24,20 @@ import { MeetingService } from './meeting.service';
   providedIn: 'root',
 })
 export class LivekitService {
-  //////////////////////////////////////////////
+  // audio visualizer logic
 
+  private micCanvas!: HTMLCanvasElement;
+  private micCtx!: CanvasRenderingContext2D;
+  private micAnalyzer!: AnalyserNode;
+  private audioCtx!: AudioContext;
+  private micBufferLength!: number;
+  private micDataArray!: Uint8Array;
+  private WIDTH = 1500;
+  private HEIGHT = 1000;
+  audioStream!: MediaStream;
+  isMicOn = false;
+  // websocket variables
+  // private webSocketUrl = 'wss://ws.postman-echo.com/raw';
   private webSocketUrl = 'wss://echo.websocket.org/';
 
   private socket$: WebSocketSubject<any> | undefined;
@@ -67,10 +79,7 @@ export class LivekitService {
    * @type {boolean}
    */
   isScreenSharingEnabled = false;
-  public messageContentReceived: EventEmitter<string[]> = new EventEmitter<
-    string[]
-  >();
-  public messageArray: string[] = [];
+
   /**
    * Event emitter for when the video status changes.
    * @type {EventEmitter<boolean>}
@@ -156,7 +165,7 @@ export class LivekitService {
     message: any;
     participant: RemoteParticipant | undefined;
   }>();
-  public messageToMain: EventEmitter<string[]> = new EventEmitter<string[]>();
+
   /**
    * Event emitter for when a participant raises or lowers their hand.
    * @type {EventEmitter<{ participant: RemoteParticipant | undefined; handRaised: boolean }>}
@@ -178,7 +187,7 @@ export class LivekitService {
    * @type {EventEmitter<any>}
    */
   messageEmitter = new EventEmitter<any>();
-  public messageArrayToMain: string[] = [];
+
   /**
    * Array of message objects containing sender, text, and timestamp information.
    * @type {{ sender: string; text: string; timestamp: Date }[]}
@@ -190,11 +199,17 @@ export class LivekitService {
    * @param {MatSnackBar} snackBar - The snack bar service for displaying notifications.
    */
   constructor(
-    public snackBar: MatSnackBar,
+   public snackBar: MatSnackBar,
     public meetingService: MeetingService
   ) {}
 
-  private breakoutRoomCounter = 0;
+  public breakoutRoomCounter = 0;
+  public messageContentReceived: EventEmitter<string[]> = new EventEmitter<
+    string[]
+  >();
+  public messageToMain: EventEmitter<string[]> = new EventEmitter<string[]>();
+  messageArray: string[] = [];
+  messageArrayToMain: string[] = [];
   /**
    * Connects to a LiveKit room using the provided WebSocket URL and token.
    *
@@ -212,6 +227,7 @@ export class LivekitService {
     this.updateParticipantNames();
     this.remoteParticipantAfterLocal();
   }
+
   // connectWebSocket() {
   //   if (!this.socket$ || this.socket$.closed) {
   //     this.socket$ = webSocket({
@@ -377,6 +393,7 @@ export class LivekitService {
 
     // Emit the updated breakout rooms data
     this.breakoutRoomsDataUpdated.emit(this.breakoutRoomsData);
+    console.log('checking help message', this.breakoutRoomsData);
 
     console.log(
       `Breakout room '${roomName}' assigned to participants: ${participants.join(
@@ -464,27 +481,16 @@ export class LivekitService {
     // also subscribe to tracks published before participant joined
 
     const remoteParticipants = Array.from(
-      this.room.remoteParticipants.values() || []
+      this.room.remoteParticipants.values()
     );
     remoteParticipants.forEach((participant) => {
       this.createAvatar(participant);
-      // Ensure trackPublications exists and is iterable
-      if (
-        participant.trackPublications &&
-        participant.trackPublications.values
-      ) {
-        const eachRemoteParticipant = Array.from(
-          participant.trackPublications.values()
-        );
-        eachRemoteParticipant.forEach((publication) => {
-          publication.setSubscribed(true);
-        });
-      } else {
-        console.error(
-          'Track publications not found for participant:',
-          participant
-        );
-      }
+      const eachRemoteParticipant = Array.from(
+        participant.trackPublications.values()
+      );
+      eachRemoteParticipant.forEach((publication) => {
+        publication.setSubscribed(true);
+      });
     });
   }
   /**
@@ -494,7 +500,6 @@ export class LivekitService {
    */
   audioVideoHandler() {
     this.room = new Room();
-    setLogLevel('debug');
     this.participants = this.room.numParticipants;
     console.log('total participants', this.participants);
     /**
@@ -548,16 +553,18 @@ export class LivekitService {
           }
         }
         if (message.title === 'test-room') {
-          console.log(`Received message in breakout room: ${message.content}`);
+          console.log(`Received message in breakout room: ${message}`);
+
           // Add the new message content to the array
           this.messageArray.push(message);
 
           // Emit the updated message array
           this.messageContentReceived.emit(this.messageArray);
         } else {
-          console.log('Message not for this breakout room');
+          console.log(`Message not for this breakout room`);
         }
-        if (message.title && message.title.includes('Breakout-Room')) {
+        //======
+        if (message.title.includes('Breakout_Room')) {
           console.log(`Received message in main room: ${message}`);
 
           // Add the new message content to the array
@@ -566,7 +573,7 @@ export class LivekitService {
           // Emit the updated message array
           this.messageToMain.emit(this.messageArrayToMain);
         } else {
-          console.log('Message not for this main room');
+          console.log(`Message not for this main room`);
         }
       }
     );
@@ -1189,16 +1196,15 @@ export class LivekitService {
             this.toggleExpand(el2, participant.identity);
             // el2.appendChild(button);
 
-            // console.log(`Button clicked for ${participant.identity}!`);
+            console.log(`Button clicked for ${participant.identity}!`);
           };
 
           el3.appendChild(button);
           lkFocusLayoutContainer?.appendChild(el2);
           newScreenShareContainer?.appendChild(el2.cloneNode(true));
+        } else {
+          console.error('Remote screen share container not found');
         }
-        // else {
-        //   console.error('Remote screen share container not found');
-        // }
       }, 100);
     }
   }
@@ -1228,6 +1234,33 @@ export class LivekitService {
    * @throws {Error} Throws an error if the room is not enabled.
    */
 
+  // toggleMicrophone(): Observable<boolean> {
+  //   if (!this.room) {
+  //     console.error('Room not initialized or enabled.');
+  //     throw new Error('Room not enabled.');
+  //   }
+
+  //   const localParticipant = this.room.localParticipant;
+  //   const isMuted = localParticipant.isMicrophoneEnabled;
+
+  //   console.log('Current microphone status before toggling:', isMuted); // Debug
+
+  //   return from(
+  //     localParticipant
+  //       .setMicrophoneEnabled(!isMuted)
+  //       .then(() => {
+  //         const newMicStatus = !isMuted;
+  //         console.log('Microphone status after toggling:', newMicStatus); // Debug
+  //         this.microphoneStatusChanged.emit(newMicStatus);
+  //         return newMicStatus;
+  //       })
+  //       .catch((error) => {
+  //         console.error('Error setting microphone enabled:', error); // Debug
+  //         throw error;
+  //       })
+  //   );
+  // }
+  // =====audio visualization
   toggleMicrophone(): Observable<boolean> {
     if (!this.room) {
       console.error('Room not initialized or enabled.');
@@ -1242,10 +1275,19 @@ export class LivekitService {
     return from(
       localParticipant
         .setMicrophoneEnabled(!isMuted)
-        .then(() => {
+        .then(async () => {
           const newMicStatus = !isMuted;
           console.log('Microphone status after toggling:', newMicStatus); // Debug
           this.microphoneStatusChanged.emit(newMicStatus);
+
+          // Start audio capture only if the mic is turned on
+          if (newMicStatus) {
+            await this.startAudioCapture();
+          } else {
+            this.stopAudioCapture();
+          }
+
+          this.isMicOn = newMicStatus; // Update the local mic status
           return newMicStatus;
         })
         .catch((error) => {
@@ -1355,6 +1397,102 @@ export class LivekitService {
    *
    * @returns {void}
    */
+  // createAvatar(participant: Participant) {
+  //   const el2 = document.createElement('div');
+  //   el2.setAttribute('class', 'lk-participant-tile');
+  //   el2.setAttribute('id', `${participant.sid}`);
+  //   el2.setAttribute(
+  //     'style',
+  //     `
+  //      position: relative;
+  //      display: flex;
+  //      flex-direction: column;
+  //      gap: 0.375rem;
+  //      border-radius: 0.5rem;
+  //      width: 100%;
+  //      background-color: #000;
+  //    `
+  //   );
+  //   setTimeout(() => {
+  //     const container = document.querySelector('.lk-grid-layout');
+  //     if (container) {
+  //       // Create metadata container
+  //       const el3 = document.createElement('div');
+  //       el3.setAttribute('class', 'lk-participant-metadata');
+  //       el3.setAttribute(
+  //         'style',
+  //         `
+  //          position: absolute;
+  //          right: 0.25rem;
+  //          bottom: 0.25rem;
+  //          left: 0.25rem;
+  //          display: flex;
+  //          flex-direction: row;
+  //          align-items: center;
+  //          justify-content: space-between;
+  //          gap: 0.5rem;
+  //          line-height: 1;
+  //        `
+  //       );
+  //       // Create metadata item
+  //       const el4 = document.createElement('div');
+  //       el4.setAttribute('class', 'lk-participant-metadata-item');
+  //       el4.setAttribute(
+  //         'style',
+  //         `
+  //          display: flex;
+  //          align-items: center;
+  //          padding: 0.25rem;
+  //          background-color: rgba(0, 0, 0, 0.5);
+  //          border-radius: calc(var(--lk-border-radius) / 2);
+  //        `
+  //       );
+  //       // Create participant name element
+  //       const el5 = document.createElement('span');
+  //       el5.setAttribute('class', 'lk-participant-name');
+  //       el5.setAttribute(
+  //         'style',
+  //         `
+  //           font-size: 0.875rem;
+  //           color: white;
+  //         `
+  //       );
+  //       el5.innerText = participant.identity;
+  //       // Append elements
+  //       el4.appendChild(el5);
+  //       el3.appendChild(el4);
+  //       el2.appendChild(el3);
+  //       // Create avatar image
+  //       const imgElement = document.createElement('img');
+  //       imgElement.setAttribute('src', '../assets/avatar.png');
+  //       imgElement.style.cssText = `
+  //         position: absolute;
+  //         top: 50%;
+  //         left: 50%;
+  //         transform: translate(-50%, -50%);
+  //         width: 60px;
+  //         height: 60px;
+  //         border-radius: 50%;
+  //         object-fit: cover;
+  //         object-position: center;
+  //       `;
+  //       const audioElement = document.createElement('span');
+  //       audioElement.setAttribute('class', 'lk-participant-name');
+  //       audioElement.setAttribute(
+  //         'style',
+  //         `
+  //           font-size: 0.875rem;
+  //           color: white;
+  //         `
+  //       );
+  //       audioElement.innerText = participant.identity;
+  //       el2.appendChild(imgElement);
+  //       // Append participant tile to container
+  //       container.appendChild(el2);
+  //     }
+  //   }, 100);
+  // }
+  // old audio vusalize
   createAvatar(participant: Participant) {
     const el2 = document.createElement('div');
     el2.setAttribute('class', 'lk-participant-tile');
@@ -1392,6 +1530,7 @@ export class LivekitService {
            line-height: 1;
          `
         );
+
         // Create metadata item
         const el4 = document.createElement('div');
         el4.setAttribute('class', 'lk-participant-metadata-item');
@@ -1405,6 +1544,7 @@ export class LivekitService {
            border-radius: calc(var(--lk-border-radius) / 2);
          `
         );
+
         // Create participant name element
         const el5 = document.createElement('span');
         el5.setAttribute('class', 'lk-participant-name');
@@ -1416,10 +1556,61 @@ export class LivekitService {
           `
         );
         el5.innerText = participant.identity;
-        // Append elements
+        console.log('checking for audio', participant);
+
+        // Create mic-container div
+        const micContainer = this.createMicContainer();
+        micContainer.setAttribute('class', 'mic-container');
+        micContainer.setAttribute(
+          'style',
+          `
+            background: rgba(255,255,255,0.3);
+            display: flex;
+            margin-left: 8px;
+            height: 10vh;
+            width: 60%;
+            position: relative;
+          `
+        );
+        const dottedLine = document.createElement('div');
+        dottedLine.setAttribute(
+          'style',
+          `position: absolute;
+            top: 50%; /* Position it vertically centered */
+            left: 0;
+            width: 100%;
+            height: 7px;
+            background-image: radial-gradient(circle, #fff 3px, transparent 1px);
+            background-size: 10px 1px;
+            background-repeat: repeat-x;
+  `
+        );
+
+        // Append the dotted line to micContainer
+        micContainer.appendChild(dottedLine);
         el4.appendChild(el5);
+        el4.appendChild(micContainer);
         el3.appendChild(el4);
         el2.appendChild(el3);
+
+        // Call the startAudioCapture method
+        // this.startAudioCapture();
+
+        // Create canvas element inside mic-container
+        const audioCanvas = document.createElement('canvas');
+        audioCanvas.setAttribute('class', 'audioCanvas');
+        audioCanvas.setAttribute('width', '100'); // Adjust width as needed
+        audioCanvas.setAttribute('height', '100'); // Adjust height as needed
+
+        // Append canvas to mic-container
+        micContainer.appendChild(audioCanvas);
+
+        // Append name and mic-container div
+        el4.appendChild(el5);
+        el4.appendChild(micContainer);
+        el3.appendChild(el4);
+        el2.appendChild(el3);
+
         // Create avatar image
         const imgElement = document.createElement('img');
         imgElement.setAttribute('src', '../assets/avatar.png');
@@ -1434,21 +1625,44 @@ export class LivekitService {
           object-fit: cover;
           object-position: center;
         `;
-        const audioElement = document.createElement('span');
-        audioElement.setAttribute('class', 'lk-participant-name');
-        audioElement.setAttribute(
-          'style',
-          `
-            font-size: 0.875rem;
-            color: white;
-          `
-        );
-        audioElement.innerText = participant.identity;
+
         el2.appendChild(imgElement);
-        // Append participant tile to container
         container.appendChild(el2);
       }
     }, 100);
+  }
+
+  createMicContainer(): HTMLElement {
+    const micContainer = document.createElement('div');
+    micContainer.className = 'mic-container';
+    micContainer.style.cssText = `
+      background: rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center; 
+      justify-content: center; 
+      height: 10vh; 
+      width: 100%;
+      position: relative;
+      border-radius: 0.25rem; 
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); 
+    `;
+
+    // Create canvas element inside mic-container
+    const audioCanvas = document.createElement('canvas');
+    audioCanvas.className = 'audioCanvas';
+    audioCanvas.width = 100; // Adjust width as needed
+    audioCanvas.height = 100; // Adjust height as needed
+
+    // Append canvas to mic-container
+    micContainer.appendChild(audioCanvas);
+
+    // Get a reference to the canvas element
+    this.micCanvas = audioCanvas as HTMLCanvasElement;
+
+    // Call the initCanvas method with the correct canvas element
+    this.initCanvas(this.micCanvas);
+
+    return micContainer;
   }
 
   toggleExpand(element: any, participantId: any) {
@@ -1557,48 +1771,128 @@ export class LivekitService {
       }
     });
   }
-  showReconnectingSnackbar() {
+  private showReconnectingSnackbar() {
     this.snackBar.open('Reconnecting...', 'Close', {
       duration: 3000,
     });
   }
 
+  // audio visualizer logic
+  async startAudioCapture(): Promise<void> {
+    try {
+      this.audioStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
+      this.audioCtx = new AudioContext();
+      this.micAnalyzer = this.audioCtx.createAnalyser();
+      const source = this.audioCtx.createMediaStreamSource(this.audioStream);
+      source.connect(this.micAnalyzer);
+      this.micAnalyzer.fftSize = 1024;
+      this.micBufferLength = this.micAnalyzer.frequencyBinCount;
+      this.micDataArray = new Uint8Array(this.micBufferLength);
+
+      setInterval(() => {
+        this.micAnalyzer.getByteFrequencyData(this.micDataArray);
+        if (this.micDataArray.some((value) => value > 0)) {
+          // console.log('Mic data array:', this.micDataArray);
+          this.drawMicData();
+        }
+      }, 100);
+    } catch (err) {
+      console.error('Error starting audio capture:', err);
+    }
+  }
+
+  stopAudioCapture(): void {
+    if (this.audioStream) {
+      this.audioStream.getTracks().forEach((track) => track.stop());
+    }
+    if (this.audioCtx) {
+      this.audioCtx.close();
+    }
+  }
+
+  handleError(err: any): void {
+    console.error('You must give access to your mic in order to proceed', err);
+  }
+
+  private drawMicData(): void {
+    this.micAnalyzer.getByteFrequencyData(this.micDataArray);
+    // console.log('Audio Data:', this.micDataArray);
+
+    this.micCtx.clearRect(0, 0, this.WIDTH, this.HEIGHT);
+
+    const barWidth = (this.WIDTH / this.micBufferLength) * 7;
+    let x = 0;
+
+    for (let i = 0; i < this.micBufferLength / 2; i++) {
+      const v = this.micDataArray[i] / 255;
+      const barHeight = (v * this.HEIGHT) / 2;
+      // console.log(`Audio Data at index ${i}: ${this.micDataArray[i]}`);
+      const gradient = this.micCtx.createLinearGradient(0, 0, 0, this.HEIGHT);
+      gradient.addColorStop(0, '#00bfff');
+      gradient.addColorStop(1, '#000080');
+
+      this.micCtx.fillStyle = gradient;
+      this.micCtx.fillRect(x, this.HEIGHT / 2 - barHeight, barWidth, barHeight);
+      this.micCtx.fillRect(x, this.HEIGHT / 2, barWidth, barHeight);
+
+      x += barWidth + 2;
+    }
+
+    requestAnimationFrame(() => this.drawMicData());
+  }
+
+  initCanvas(canvas: HTMLCanvasElement): void {
+    this.micCanvas = canvas;
+    this.micCtx = this.micCanvas.getContext('2d') as CanvasRenderingContext2D;
+    this.micCanvas.width = this.WIDTH;
+    this.micCanvas.height = this.HEIGHT;
+  }
+  // mic visualizer end
   sendMessageToBreakoutRoom(roomId: string, content: string) {
     const room = this.breakoutRoomsData.find((r) => r.roomName === roomId);
 
-    this.meetingService.broadcastMessage(room.roomName, content).subscribe(
-      (response) => {
-        console.log(
-          'Message sent successfully:',
-          response,
-          room.roomName,
-          content
-        );
-      },
-
-      (error) => {
-        console.error('Error sending message:', error);
-        this.openSnackBar('Failed to send message to the breakout room.');
-      }
-    );
+    // Return the observable instead of subscribing directly
+    return this.meetingService.sendBroadcastMessage(room.roomName, content);
+    // .pipe(
+    //   tap((response) => {
+    //     console.log(
+    //       'Message sent successfully:',
+    //       response,
+    //       room.roomName,
+    //       content
+    //     );
+    //   }),
+    //   catchError((error) => {
+    //     console.error('Error sending message:', error);
+    //     this.openSnackBar('Failed to send message to the breakout room.');
+    //     return throwError(error);
+    //   })
+    // );
   }
-  // Method to send the help message to the main room
+
   sendMessageToMainRoom(breakoutRoomName: string, content: string) {
-    this.meetingService
-      .sendMessageToMainRoom('test-room', breakoutRoomName, content)
-      .subscribe(
-        (response) => {
-          console.log(
-            'Message sent successfully:',
-            response,
-            breakoutRoomName,
-            content
-          );
-        },
-        (error) => {
-          console.error('Error sending message:', error);
-          this.openSnackBar('Failed to send message to the breakout room.');
-        }
-      );
+    return this.meetingService.sendMessageToMainRoom(
+      'test-room',
+      breakoutRoomName,
+      content
+    );
+    // .pipe(
+    //   tap((response) => {
+    //     console.log(
+    //       'Message sent successfully:',
+    //       response,
+    //       breakoutRoomName,
+    //       content
+    //     );
+    //   }),
+
+    //   catchError((error) => {
+    //     console.error('Error sending message:', error);
+    //     this.openSnackBar('Failed to send message to the breakout room.');
+    //     return throwError(error);
+    //   })
+    // );
   }
 }

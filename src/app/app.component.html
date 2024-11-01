@@ -9,16 +9,13 @@
         <input
           type="text"
           [(ngModel)]="participantName"
-          placeholder="Enter your name"
-          class="participantNameInput"
-          data-cy="participantNameInput"
+          placeholder="Enter your Name"
         />
         <button
           (click)="startMeeting()"
           data-cy="submit"
           type="submit"
           class="startBtn"
-          [disabled]="!participantName || participantName.trim().length === 0"
         >
           Start Meeting
         </button>
@@ -27,8 +24,10 @@
   </div>
 </div>
 <ng-container *ngIf="isMeetingStarted$ | async">
+  <!-- container for audio  -->
   <div id="remoteAudioContainer"></div>
-  <div class="host-to-br-msg-modal" *ngIf="isHostToBrMsgModalOpen">
+  <!-- send message to breakout rooms from host modal  -->
+  <div class="host-to-br-msg-modal" *ngIf="isHostMsgModal$ | async">
     <div class="msg-modal-content">
       <!-- Modal Header -->
       <div class="modal-header">
@@ -50,7 +49,7 @@
         <select [(ngModel)]="selectedBreakoutRoom" class="breakout-select">
           <option value="" disabled [selected]>Select Breakout Room</option>
           <option
-            *ngFor="let room of breakoutRoomsData"
+            *ngFor="let room of breakoutRoomsData$ | async"
             [value]="room.roomName"
           >
             {{ room.roomName }}
@@ -68,11 +67,12 @@
     </div>
   </div>
   <div class="os-main-content" data-test="meetingStarted">
+    <!-- header showing when meeting get started  -->
     <header class="header">
       <div class="left-header" data-test="left-header">
         <button
           class="grid-view"
-          matTooltip="View"
+          matTooltip="Open breakout modal"
           (click)="openBreakoutModal()"
         >
           <i class="far fa-th-large"></i>
@@ -81,7 +81,7 @@
           class="grid-view disabled-msg-btn"
           matTooltip="Send Message to Breakout room"
           (click)="openHostToBrMsgModal()"
-          [disabled]="breakoutRoomsData.length === 0"
+          [disabled]="(breakoutRoomsData$ | async)?.length === 0"
         >
           <i class="far fa-comments"></i>
         </button>
@@ -133,18 +133,14 @@
         <button class="chat" matTooltip="Chat" (click)="openChatSideWindow()">
           <i class="far fa-comment-lines"></i>
           <span
-            *ngIf="!(chatSideWindowVisible$ | async) && unreadMessagesCount > 0"
+            *ngIf="
+              !(chatSideWindowVisible$ | async) &&
+              (unreadMessagesCount$ | async)! > 0
+            "
             class="badge"
-            >0{{ unreadMessagesCount }}</span
+            >0{{ unreadMessagesCount$ | async }}</span
           >
         </button>
-        <!-- <button class="chat" matTooltip="Chat" (click)="openChatSideWindow()">
-          <i class="far fa-comment-lines"></i>
-          <span *ngIf="(unreadMessagesCount$ | async) || 0 > 0" class="badge">
-            {{ (unreadMessagesCount$ | async) || 0 }}
-          </span>
-        </button> -->
-
         <button class="more" matTooltip="More">
           <i class="fas fa-ellipsis-h"></i>
         </button>
@@ -168,22 +164,6 @@
             }"
           ></i>
         </button>
-
-        <!-- <button class="share" (click)="toggleScreenShare()">
-          <span
-            class="material-symbols-outlined"
-            *ngIf="!(isScreenSharing$ | async)"
-          >
-            screen_share
-          </span>
-          <span
-            class="material-symbols-outlined"
-            *ngIf="isScreenSharing$ | async"
-            [ngStyle]="{ color: (iconColor$ | async) }"
-          >
-            stop_screen_share
-          </span>
-        </button> -->
         <button class="share" (click)="toggleScreenShare()">
           <span
             class="material-symbols-outlined"
@@ -199,21 +179,6 @@
             stop_screen_share
           </span>
         </button>
-        <!-- <button class="share" (click)="toggleScreenShare()">
-          <ng-container *ngIf="isScreenSharing$ | async as isScreenSharing">
-            <span class="material-symbols-outlined" *ngIf="!isScreenSharing">
-              screen_share
-            </span>
-            <span
-              class="material-symbols-outlined"
-              *ngIf="isScreenSharing"
-              [ngStyle]="{ color: (iconColor$ | async) }"
-            >
-              stop_screen_share
-            </span>
-          </ng-container>
-        </button> -->
-
         <button class="leave-btn" (click)="leaveBtn()">
           <h2>Leave</h2>
           <div class="chevron-icon"><i class="fas fa-chevron-down"></i></div>
@@ -221,6 +186,7 @@
       </div>
     </header>
 
+    <!-- for screen sharing container  -->
     <ng-container
       *ngIf="
         livekitService.isScreenSharingEnabled === true ||
@@ -243,156 +209,7 @@
         ></div>
       </div>
     </ng-container>
-
-    <div
-      class="modal-overlay"
-      *ngIf="isBreakoutModal$ | async"
-      (click)="closeBreakoutModal()"
-    ></div>
-    <!-- breakout room modal from host  -->
-    <div class="modal-content" *ngIf="isBreakoutModal$ | async">
-      <div class="modal-header">
-        <h2>Breakout Rooms</h2>
-        <button class="close-button" (click)="closeBreakoutModal()">
-          &times;
-        </button>
-      </div>
-      <form [formGroup]="breakoutForm" (ngSubmit)="submitBreakoutForm()">
-        <div class="modal-body">
-          <div class="radio-group">
-            <label>Room Type:</label>
-            <div
-              class="breakout-room-types"
-              *ngFor="let type of breakoutRoomTypes"
-            >
-              <input
-                type="radio"
-                [value]="type.value"
-                formControlName="roomType"
-                id="{{ type.value }}"
-              />
-              <label for="{{ type.value }}">{{ type.viewValue }}</label>
-            </div>
-          </div>
-          <!-- Number of Rooms Input -->
-          <div *ngIf="breakoutForm.get('roomType')?.value === 'automatic'">
-            <div *ngIf="totalParticipants > 0; else noParticipants">
-              <div class="total-rooms">
-                <label for="numberOfRooms">
-                  Assign {{ totalParticipants }} participants into
-                  <input
-                    id="numberOfRooms"
-                    formControlName="numberOfRooms"
-                    type="number"
-                    (input)="calculateDistribution()"
-                  />
-                  room
-                </label>
-              </div>
-              <div *ngIf="distributionMessage">
-                <p class="rooms-msg">{{ distributionMessage }}</p>
-              </div>
-            </div>
-            <ng-template #noParticipants>
-              <p>No participants in the meeting</p>
-            </ng-template>
-          </div>
-
-          <!-- new logic for manual   -->
-          <div *ngIf="breakoutForm.get('roomType')?.value === 'manual'">
-            <h1>Select Participant</h1>
-
-            <!-- Create New Room Section -->
-            <div class="create-room-section">
-              <label>Create New Room</label>
-              <button type="button" (click)="createNewRoom($event)">
-                Create
-              </button>
-            </div>
-
-            <!-- List of Created Rooms -->
-            <div *ngIf="breakoutRooms.length > 0" class="created-rooms">
-              <h2>Breakout Rooms</h2>
-              <ul>
-                <li *ngFor="let room of breakoutRooms; let i = index">
-                  <div class="br-participant-li">
-                    <span>{{ room.name }}</span>
-                    <button
-                      type="button"
-                      (click)="toggleParticipants($event, i)"
-                    >
-                      Assign
-                    </button>
-                  </div>
-
-                  <!-- Show participants only when showParticipants is true for the room -->
-                  <div *ngIf="room.showParticipants">
-                    <h3>Participants</h3>
-
-                    <!-- Show available participants that haven't been assigned to any room -->
-                    <div
-                      *ngIf="
-                        remoteParticipantNames.length > 0;
-                        else noParticipants
-                      "
-                    >
-                      <div
-                        *ngFor="let participant of remoteParticipantNames"
-                        class="breakout-participant"
-                      >
-                        <input
-                          type="checkbox"
-                          [checked]="
-                            room.participants.includes(participant.identity)
-                          "
-                          [value]="participant.identity"
-                          (change)="onParticipantSelection($event, i)"
-                        />
-                        <label>{{ participant.identity }}</label>
-                      </div>
-                    </div>
-
-                    <!-- Template for no participants -->
-                    <ng-template #noParticipants>
-                      <p>No participants in the meeting</p>
-                    </ng-template>
-                  </div>
-
-                  <!-- List of assigned participants in the current room (checkboxes for unassigning) -->
-                  <div *ngIf="room.participants.length > 0">
-                    <h4>Assigned Participants</h4>
-                    <ul>
-                      <li
-                        class="breakout-participant"
-                        *ngFor="let participant of room.participants"
-                      >
-                        <input
-                          type="checkbox"
-                          [value]="participant"
-                          [checked]="true"
-                          (change)="onUnassignParticipant($event, i)"
-                        />
-                        <label>{{ participant }}</label>
-                      </li>
-                    </ul>
-                  </div>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <!-- Room Type Radio Buttons -->
-        </div>
-        <div class="modal-footer">
-          <button class="modal-close-btn" (click)="closeBreakoutModal()">
-            Close
-          </button>
-          <button type="submit" class="modal-submit-btn">
-            Create Breakout Room
-          </button>
-        </div>
-      </form>
-    </div>
+    <!-- screen sahring for multiple screens  -->
     <div
       class="lk-grid-layout-wrapper"
       [ngClass]="{
@@ -413,6 +230,174 @@
     </div>
   </div>
 
+  <!-- breakout room modal which includes automatic and manual selection from host  -->
+  <div
+    class="modal-overlay"
+    *ngIf="isBreakoutModal$ | async"
+    (click)="closeBreakoutModal()"
+  ></div>
+  <div class="modal-content" *ngIf="isBreakoutModal$ | async">
+    <div class="modal-header">
+      <h2>Breakout Rooms</h2>
+      <button class="close-button" (click)="closeBreakoutModal()">
+        &times;
+      </button>
+    </div>
+    <form [formGroup]="breakoutForm" (ngSubmit)="submitBreakoutForm()">
+      <div class="modal-body">
+        <div class="radio-group">
+          <label>Room Type:</label>
+          <div
+            class="breakout-room-types"
+            *ngFor="let type of breakoutRoomTypes"
+          >
+            <input
+              type="radio"
+              [value]="type.value"
+              formControlName="roomType"
+              id="{{ type.value }}"
+            />
+            <label for="{{ type.value }}">{{ type.viewValue }}</label>
+          </div>
+        </div>
+        <!-- Number of Rooms Input -->
+        <div *ngIf="breakoutForm.get('roomType')?.value === 'automatic'">
+          <div *ngIf="totalParticipants > 0; else noParticipants">
+            <div class="total-rooms">
+              <label for="numberOfRooms">
+                Assign {{ totalParticipants }} participants into
+                <input
+                  id="numberOfRooms"
+                  formControlName="numberOfRooms"
+                  type="number"
+                  (input)="calculateDistribution()"
+                />
+                room
+              </label>
+            </div>
+            <div *ngIf="distributionMessage$ | async">
+              <p class="rooms-msg">{{ distributionMessage$ | async }}</p>
+            </div>
+          </div>
+          <ng-template #noParticipants>
+            <p>No participants in the meeting</p>
+          </ng-template>
+        </div>
+
+        <!-- new logic for manual   -->
+        <div *ngIf="breakoutForm.get('roomType')?.value === 'manual'">
+          <div class="create-room-section">
+            <label>Create New Room</label>
+            <button type="button" (click)="createNewRoomSidebar()">
+              Create
+            </button>
+          </div>
+
+          <div class="breakout-container">
+            <!-- Iterate over breakoutRoomsData to display room names and participants -->
+            <div
+              class="breakout"
+              *ngFor="let room of breakoutRoomsData$ | async; let i = index"
+            >
+              <div class="room">
+                <!-- Display Room Name -->
+                <div class="room-header">
+                  <span class="room-name">{{ room.roomName }}</span>
+
+                  <!-- Button to toggle the available participants list -->
+                  <button
+                    class="allocated-btn"
+                    type="button"
+                    (click)="toggleParticipantsList(i)"
+                  >
+                    Add participants <i class="fa fa-angle-down"></i>
+                  </button>
+                </div>
+
+                <!-- List of participants in the room with checkboxes -->
+                <div
+                  *ngIf="room.participantIds.length > 0; else noParticipants"
+                >
+                  <h4 class="allocated-headings">Assigned Participants</h4>
+                  <ul class="participants-list">
+                    <li *ngFor="let participant of room.participantIds">
+                      <label>
+                        <input
+                          type="checkbox"
+                          (change)="
+                            onParticipantSelected(
+                              room,
+                              { identity: participant },
+                              $event
+                            )
+                          "
+                          [checked]="true"
+                        />
+                        {{ participant }}
+                      </label>
+                    </li>
+                  </ul>
+                </div>
+
+                <!-- Template for no participants -->
+                <ng-template #noParticipants>
+                  <p>No participants assigned to this room</p>
+                </ng-template>
+
+                <!-- Available participants with checkboxes, disabling those already assigned -->
+                <div *ngIf="room.showAvailableParticipants">
+                  <h4 class="allocated-headings">Available Participants</h4>
+                  <div
+                    *ngIf="
+                      getAvailableParticipants(room).length > 0;
+                      else noMoreParticipants
+                    "
+                  >
+                    <ul class="available-participants-list">
+                      <li
+                        *ngFor="
+                          let participant of getAvailableParticipants(room)
+                        "
+                        class="available-participant"
+                      >
+                        <label>
+                          <input
+                            type="checkbox"
+                            (change)="
+                              onParticipantSelected(room, participant, $event)
+                            "
+                            [checked]="isParticipantAssigned(room, participant)"
+                            [disabled]="
+                              isParticipantAssigned(room, participant)
+                            "
+                          />
+                          {{ participant.identity }}
+                        </label>
+                      </li>
+                    </ul>
+                  </div>
+                  <ng-template #noMoreParticipants>
+                    <p>No more participants available for this room</p>
+                  </ng-template>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Room Type Radio Buttons -->
+      </div>
+      <div class="modal-footer">
+        <button class="modal-close-btn" (click)="closeBreakoutModal()">
+          Close
+        </button>
+        <button type="submit" class="modal-submit-btn">
+          Create Breakout Room
+        </button>
+      </div>
+    </form>
+  </div>
+  <!-- chat side window  -->
   <div class="closeChatSideWindow" (click)="closeChatSideWindow()">
     <div
       *ngIf="chatSideWindowVisible$ | async"
@@ -606,75 +591,83 @@
       <div class="breakout-side-window" (click)="$event.stopPropagation()">
         <div>
           <h2>Breakout rooms</h2>
-          <button
-            (click)="submitUnallocatedParticipants()"
-            class="modal-submit-btn"
-          >
+          <button (click)="submitBreakoutForm()" class="sidenav-invitation-btn">
             Send Invitation
           </button>
         </div>
         <div class="create-room-section">
           <label>Create New Room</label>
-          <button type="button" (click)="createNewRoom($event)">Create</button>
+          <button type="button" (click)="createNewRoomSidebar()">Create</button>
         </div>
 
         <div class="breakout-container">
-          <!-- Iterate over breakoutRoomsData to display room names and participants -->
           <div
             class="breakout"
-            *ngFor="let room of breakoutRooms; let i = index"
+            *ngFor="let room of breakoutRoomsData$ | async; let i = index"
           >
             <div class="room">
-              <!-- Display Room Name -->
               <div class="room-header">
-                <span class="room-name">{{ room.name }}</span>
-
-                <!-- Button to toggle the available participants list -->
+                <span class="room-name">{{ room.roomName }}</span>
                 <button
                   class="allocated-btn"
-                  (click)="toggleParticipants($event, i)"
+                  (click)="toggleParticipantsList(i)"
                 >
-                  Add Participants
+                  Add Participants <i class="fa fa-angle-down"></i>
                 </button>
               </div>
 
-              <!-- List of participants in the room -->
-              <div *ngIf="room.participants.length > 0; else noParticipants">
+              <div *ngIf="room.participantIds.length > 0; else noParticipants">
                 <h4 class="allocated-headings">Assigned Participants</h4>
                 <ul class="participants-list">
-                  <li *ngFor="let participant of room.participants">
-                    {{ participant }}
+                  <li *ngFor="let participant of room.participantIds">
+                    <label>
+                      <input
+                        type="checkbox"
+                        (change)="
+                          onParticipantSelected(
+                            room,
+                            { identity: participant },
+                            $event
+                          )
+                        "
+                        [checked]="true"
+                      />
+                      {{ participant }}
+                    </label>
                   </li>
                 </ul>
               </div>
 
-              <!-- Template for no participants -->
               <ng-template #noParticipants>
                 <p>No participants assigned to this room</p>
               </ng-template>
 
-              <!-- Available participants not in this room, with checkboxes -->
-              <div *ngIf="room.showParticipants">
+              <div *ngIf="room.showAvailableParticipants">
                 <h4 class="allocated-headings">Available Participants</h4>
-
-                <!-- Show available participants that haven't been assigned to any room -->
                 <div
-                  *ngIf="remoteParticipantNames.length > 0; else noParticipants"
+                  *ngIf="
+                    getAvailableParticipants(room).length > 0;
+                    else noMoreParticipants
+                  "
                 >
-                  <div
-                    *ngFor="let participant of remoteParticipantNames"
-                    class="breakout-participant"
-                  >
-                    <input
-                      type="checkbox"
-                      [checked]="
-                        room.participants.includes(participant.identity)
-                      "
-                      [value]="participant.identity"
-                      (change)="onParticipantSelection($event, i)"
-                    />
-                    <label>{{ participant.identity }}</label>
-                  </div>
+                  <ul class="available-participants-list">
+                    <li
+                      *ngFor="let participant of getAvailableParticipants(room)"
+                      class="available-participant"
+                    >
+                      <label>
+                        <input
+                          type="checkbox"
+                          (change)="
+                            onParticipantSelected(room, participant, $event)
+                          "
+                          [checked]="isParticipantAssigned(room, participant)"
+                          [disabled]="isParticipantAssigned(room, participant)"
+                        />
+                        {{ participant.identity }}
+                      </label>
+                    </li>
+                  </ul>
                 </div>
                 <ng-template #noMoreParticipants>
                   <p>No more participants available for this room</p>
@@ -688,9 +681,23 @@
   </div>
 </ng-container>
 
+<!-- Breakout Room Modal which is sent to participants for invitation -->
+<div *ngIf="isInvitationModal$ | async" class="br-modal">
+  <div class="br-modal-content">
+    <span class="close" (click)="closeInvitationModal()">&times;</span>
+    <h2>Breakout Room Created</h2>
+    <p>{{ hostName }} is inviting you to join {{ roomName }}</p>
+    <div class="br-modal-flex">
+      <button (click)="closeInvitationModal()">Close</button>
+      <button class="join" (click)="joinNow()">Join Now</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for asking asking help to host from breakout rooms participants -->
 <div
   class="receive-msg-modal"
-  *ngIf="isMsgModalOpen && allMessagesToMainRoom.length > 0"
+  *ngIf="(isHelpMsgModal$ | async) && allMessagesToMainRoom.length > 0"
 >
   <div class="modal-header">
     <h2>Messages in Main Room</h2>
@@ -708,22 +715,6 @@
   </div>
 
   <div class="modal-footer">
-    <button (click)="hostJoinNow()">Join Now</button>
+    <button (click)="hostJoinNow()">Host Join Now</button>
   </div>
 </div>
-<!-- Breakout Room Modal -->
-<div *ngIf="isModalVisible" class="br-modal">
-  <div class="br-modal-content">
-    <span class="close" (click)="closeModal()">&times;</span>
-    <h2>Breakout Room Created</h2>
-    <p>{{ hostName }} is inviting you to join {{ roomName }}</p>
-    <div class="br-modal-flex">
-      <button (click)="closeModal()">Close</button>
-      <button class="join" (click)="joinNow()">Join Now</button>
-    </div>
-  </div>
-</div>
-
-<!-- <div class="mic-container">
-  <canvas #audioCanvas></canvas>
-</div> -->

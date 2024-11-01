@@ -1,145 +1,106 @@
-import { createAction, props } from '@ngrx/store';
-import { RemoteTrack } from 'livekit-client';
+import { createActionGroup, emptyProps, props } from '@ngrx/store';
 
-export const startMeeting = createAction(
-  '[LiveKit Room] Start Meeting',
-  props<{ wsURL: string; token: string }>()
-);
+// Grouping Meeting-related actions
+export const MeetingActions = createActionGroup({
+  source: '[Meeting]',
+  events: {
+    createMeeting: props<{ participantNames: string[]; roomName: string }>(),
+    createMeetingSuccess: props<{ token: string }>(),
+    createMeetingFailure: props<{ error: any }>(),
+    leaveMeeting: emptyProps(),
+    leaveMeetingSuccess: emptyProps(),
+    leaveMeetingFailure: props<{ error: any }>(),
+  },
+});
 
-export const startMeetingSuccess = createAction(
-  '[LiveKit Room] Start Meeting Success'
-);
+// Grouping LiveKit Room actions
+export const LiveKitActions = createActionGroup({
+  source: '[LiveKit Room]',
+  events: {
+    startMeeting: props<{ wsURL: string; token: string }>(),
+    startMeetingSuccess: emptyProps(),
+    startMeetingFailure: props<{ error: string }>(),
+    enableCameraAndMicrophone: emptyProps(),
+    enableCameraAndMicrophoneSuccess: emptyProps(),
+    enableCameraAndMicrophoneFailure: props<{ error: string }>(),
+    toggleRaiseHand: emptyProps(),
+    toggleScreenShare: emptyProps(),
+    toggleScreenShareSuccess: props<{ isScreenSharing: boolean }>(),
+    toggleScreenShareFailure: props<{ error: string }>(),
+    toggleVideo: emptyProps(),
+    toggleVideoSuccess: props<{ isVideoOn: boolean }>(),
+    toggleVideoFailure: props<{ error: string }>(),
+    toggleMic: emptyProps(),
+    toggleMicSuccess: props<{ isMicOn: boolean }>(),
+    toggleMicFailure: props<{ error: string }>(),
+    toggleParticipantSideWindow: emptyProps(),
+    toggleChatSideWindow: emptyProps(),
+    closeChatSideWindow: emptyProps(),
+    closeParticipantSideWindow: emptyProps(),
+    updateUnreadMessagesCount: props<{ count: number }>(),
+    resetUnreadMessagesCount: emptyProps(),
+    updateMessages: props<{ allMessages: any[] }>(),
+    scrollToBottom: emptyProps(),
+  },
+});
 
-export const startMeetingFailure = createAction(
-  '[LiveKit Room] Start Meeting Failure',
-  props<{ error: string }>()
-);
+// Grouping Chat actions
+export const ChatActions = createActionGroup({
+  source: '[Chat]',
+  events: {
+    receiveMessage: props<{ message: any; participant: any }>(),
+    sendMessage: props<{ message: string; recipient: string }>(),
+    SendChatMessage: props<{ msg: string; recipient: string }>(),
+    // send message to breakout room
+    sendMessageToBreakoutRoom: props<{
+      breakoutRoom: string;
+      messageContent: string;
+    }>(),
+    sendMessageToBreakoutRoomSuccess: emptyProps(),
+    sendMessageToBreakoutRoomFailure: props<{ error: any }>(),
+    //send message from breakout room to main room
+    sendHelpRequest: props<{ roomName: string }>(),
+    sendHelpRequestSuccess: emptyProps(),
+    sendHelpRequestFailure: props<{ error: any }>(),
+  },
+});
 
-export const enableCameraAndMicrophone = createAction(
-  '[LiveKit Room] Enable Camera and Microphone'
-);
+// Grouping Breakout actions
+export const BreakoutActions = createActionGroup({
+  source: '[Breakout Room]',
+  events: {
+    toggleBreakoutSideWindow: emptyProps(),
+    closeBreakoutSideWindow: emptyProps(),
+    openBreakoutModal: emptyProps(),
+    closeBreakoutModal: emptyProps(),
+    // breakout modal distribution in automatic and manual
+    calculateDistribution: props<{
+      numberOfRooms: number;
+      totalParticipants: number;
+    }>(),
+    calculateDistributionSuccess: props<{ distributionMessage: string }>(),
+    openInvitationModal: emptyProps(),
+    closeInvitationModal: emptyProps(),
+    openHostToBrMsgModal: emptyProps(),
+    closeHostToBrMsgModal: emptyProps(),
 
-export const enableCameraAndMicrophoneSuccess = createAction(
-  '[LiveKit Room] Enable Camera and Microphone Success'
-);
-
-export const enableCameraAndMicrophoneFailure = createAction(
-  '[LiveKit Room] Enable Camera and Microphone Failure',
-  props<{ error: string }>()
-);
-
-export const toggleRaiseHand = createAction('[LiveKit Room] Toggle Raise Hand');
-
-export const leaveMeeting = createAction('[LiveKit Room] Leave Meeting');
-export const leaveMeetingSuccess = createAction(
-  '[Meeting] Leave Meeting Success'
-);
-
-export const leaveMeetingFailure = createAction(
-  '[Meeting] Leave Meeting Failure',
-  props<{ error: any }>()
-);
-
-export const toggleScreenShare = createAction(
-  '[LiveKit Room] Toggle Screen Share'
-);
-
-export const toggleScreenShareSuccess = createAction(
-  '[LiveKit] Toggle Screen Share Success',
-  props<{ isScreenSharing: boolean }>()
-);
-
-export const toggleScreenShareFailure = createAction(
-  '[LiveKit Room] Toggle Screen Share Failure',
-  props<{ error: string }>()
-);
-
-export const toggleVideo = createAction('[LiveKit Room] Toggle Video');
-
-export const toggleVideoSuccess = createAction(
-  '[LiveKit Room] Toggle Video Success',
-  props<{ isVideoOn: boolean }>()
-);
-
-export const toggleVideoFailure = createAction(
-  '[LiveKit Room] Toggle Video Failure',
-  props<{ error: string }>()
-);
-
-export const toggleMic = createAction('[LiveKit Room] Toggle Mic');
-
-export const toggleMicSuccess = createAction(
-  '[LiveKit Room] Toggle Mic Success',
-  props<{ isMicOn: boolean }>()
-);
-
-export const toggleMicFailure = createAction(
-  '[LiveKit Room] Toggle Mic Failure',
-  props<{ error: string }>()
-);
-
-export const toggleParticipantSideWindow = createAction(
-  '[LiveKit Room] Toggle Participant Side Window'
-);
-
-export const toggleChatSideWindow = createAction(
-  '[LiveKit Room] Toggle Chat Side Window'
-);
-
-export const closeChatSideWindow = createAction(
-  '[LiveKit Room] Close Side Window'
-);
-export const closeParticipantSideWindow = createAction(
-  '[LiveKit Room] Close Side Window'
-);
-
-export const updateUnreadMessagesCount = createAction(
-  '[LiveKit Room] Update Unread Messages Count',
-  props<{ count: number }>()
-);
-
-export const updateMessages = createAction(
-  '[LiveKit Room] Update Messages',
-  props<{ allMessages: any[] }>()
-);
-
-export const receiveMessage = createAction(
-  '[Chat] Receive Message',
-  props<{ message: any; participant: any }>()
-);
-export const sendMessage = createAction(
-  '[LiveKit Room] Send Message',
-  props<{ message: string; recipient: string }>()
-);
-
-export const scrollToBottom = createAction('[LiveKit Room] Scroll To Bottom');
-
-export const createMeeting = createAction(
-  '[LiveKit] Create Meeting',
-  props<{ participantName: string; roomName: string }>() // Change to accept an array of participant names
-);
-
-export const createMeetingSuccess = createAction(
-  '[Meeting] Create Meeting Success',
-  props<{ token: string }>()
-);
-
-export const createMeetingFailure = createAction(
-  '[Meeting] Create Meeting Failure',
-  props<{ error: any }>()
-);
-
-export const toggleBreakoutSideWindow = createAction(
-  '[LiveKit Room] Toggle Breakout Side Window'
-);
-
-export const closeBreakoutSideWindow = createAction(
-  '[LiveKit Room] Close Side Window'
-);
-
-export const openBreakoutModal = createAction(
-  '[LiveKit Room] Open Breakout Modal'
-);
-export const closeBreakoutModal = createAction(
-  '[LiveKit Room] Close Breakout Modal'
-);
+    openHelpMessageModal: emptyProps(),
+    closeHelpMessageModal: emptyProps(),
+    //creating new rooms
+    initiateCreateNewRoom: emptyProps(),
+    CreateNewRoom: emptyProps(),
+    CreateNewRoomSuccess: props<{
+      roomName: string;
+      participantIds?: string[];
+    }>(),
+    ToggleParticipantsList: props<{ index: number }>(),
+    AddParticipant: props<{ roomName: string; participantId: string }>(),
+    RemoveParticipant: props<{ roomName: string; participantId: string }>(),
+    // manual and automatic rooms
+    InitiateManualRoomSelection: props<{ roomType: string }>(),
+    InitiateAutomaticRoomCreation: props<{
+      participants: string[];
+      numberOfRooms: number;
+    }>(),
+  },
+});

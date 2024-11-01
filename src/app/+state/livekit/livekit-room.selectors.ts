@@ -1,6 +1,7 @@
 import { createSelector, createFeatureSelector } from '@ngrx/store';
 import { LiveKitRoomState } from './livekit-room.reducer';
 
+// Feature selector
 export const selectLiveKitRoomState =
   createFeatureSelector<LiveKitRoomState>('liveKitRoom');
 
@@ -40,7 +41,10 @@ export const selectIconColor = createSelector(
 
 export const selectIsMicOn = createSelector(
   selectLiveKitRoomState,
-  (state: LiveKitRoomState) => state.isMicOn
+  (state: LiveKitRoomState) => {
+    console.log('selector mic', state.isMicOn);
+    return state.isMicOn;
+  }
 );
 
 export const selectAllMessages = createSelector(
@@ -53,7 +57,10 @@ export const selectAllMessages = createSelector(
 
 export const selectUnreadMessagesCount = createSelector(
   selectLiveKitRoomState,
-  (state: LiveKitRoomState) => state.unreadMessagesCount
+  (state: LiveKitRoomState) => {
+    console.log('selector unreads', state.unreadMessagesCount);
+    return state.unreadMessagesCount;
+  }
 );
 
 export const selectBreakoutSideWindowVisible = createSelector(
@@ -64,7 +71,43 @@ export const selectBreakoutSideWindowVisible = createSelector(
 export const isBreakoutModalOpen = createSelector(
   selectLiveKitRoomState,
   (state: LiveKitRoomState) => {
-    console.log('hello breakout', state.isBreakoutModalOpen);
     return state.isBreakoutModalOpen;
+  }
+);
+export const isInvitationModalOpen = createSelector(
+  selectLiveKitRoomState,
+  (state: LiveKitRoomState) => {
+    return state.isInvitationModalOpen;
+  }
+);
+
+export const isHostMsgModalOpen = createSelector(
+  selectLiveKitRoomState,
+  (state: LiveKitRoomState) => {
+    console.log('hello invitation', state.isHostMsgModalOpen);
+    return state.isHostMsgModalOpen;
+  }
+);
+export const selectDistributionMessage = createSelector(
+  selectLiveKitRoomState,
+  (state) => state.distributionMessage
+);
+export const selectBreakoutRoomsData = createSelector(
+  selectLiveKitRoomState,
+  (state) => {
+    console.log('br from selector', state.breakoutRoomsData);
+    return state.breakoutRoomsData;
+  }
+);
+export const selectNextRoomIndex = createSelector(
+  selectLiveKitRoomState,
+  (state) => state.nextRoomIndex
+);
+
+export const selectHelpMessageModal = createSelector(
+  selectLiveKitRoomState,
+  (state) => {
+    console.log('helpmessage ', state.helpMessageModal);
+    return state.helpMessageModal;
   }
 );

@@ -1,145 +1,427 @@
-// // reducer.spec.ts
-// import { liveKitRoomReducer, initialState, LiveKitRoomState } from './livekit-room.reducer';
-// import * as LiveKitRoomActions from './livekit-room.actions';
+import { liveKitRoomReducer, initialState } from './livekit-room.reducer';
+import * as LiveKitRoomActions from './livekit-room.actions';
+describe('LiveKit Room Reducer', () => {
+  it('should return the initial state', () => {
+    const result = liveKitRoomReducer(undefined, { type: '' });
+    expect(result).toEqual(initialState);
+  });
 
-// describe('LiveKitRoom Reducer', () => {
-//   it('should return the initial state', () => {
-//     const action = { type: 'Unknown' } as any;
-//     const state = liveKitRoomReducer(initialState, action);
+  describe('Meeting Actions Unit tests', () => {
+    it('should handle createMeetingSuccess', () => {
+      const token = 'test-token';
+      const action = LiveKitRoomActions.MeetingActions.createMeetingSuccess({
+        token,
+      });
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.token).toBe(token);
+    });
+    it('should handle createMeetingFailure', () => {
+      const error = 'Error creating meeting';
+      const action = LiveKitRoomActions.MeetingActions.createMeetingFailure({
+        error,
+      });
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.token).toBeNull();
+      expect(result.error).toBe(error);
+    });
+    it('should handle startMeetingSuccess', () => {
+      const action = LiveKitRoomActions.LiveKitActions.startMeetingSuccess();
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.isMeetingStarted).toBe(true);
+      expect(result.isVideoOn).toBe(false);
+    });
+    it('should handle startMeetingFailure', () => {
+      const error = 'Error starting meeting';
+      const action = LiveKitRoomActions.LiveKitActions.startMeetingFailure({
+        error,
+      });
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.isMeetingStarted).toBe(false);
+      expect(result.error).toBe(error);
+    });
+    it('should handle leaveMeetingSuccess', () => {
+      const action = LiveKitRoomActions.MeetingActions.leaveMeetingSuccess();
+      const stateWithMeetingStarted = {
+        ...initialState,
+        isMeetingStarted: true,
+      };
+      const result = liveKitRoomReducer(stateWithMeetingStarted, action);
+      expect(result.isMeetingStarted).toBe(false);
+    });
+    it('should handle leaveMeetingFailure', () => {
+      const error = 'Error leaving meeting';
+      const action = LiveKitRoomActions.MeetingActions.leaveMeetingFailure({
+        error,
+      });
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.error).toBe(error);
+    });
 
-//     expect(state).toBe(initialState);
-//   });
+    it('should handle createNewRoomSuccess with multiple rooms', () => {
+      const roomName1 = 'Room 1';
+      const roomName2 = 'Room 2';
+      const action1 = LiveKitRoomActions.BreakoutActions.createNewRoomSuccess({
+        roomName: roomName1,
+      });
+      const resultAfterFirst = liveKitRoomReducer(initialState, action1);
 
-//   it('should handle startMeetingSuccess', () => {
-//     const action = LiveKitRoomActions.startMeetingSuccess();
-//     const state = liveKitRoomReducer(initialState, action);
+      const action2 = LiveKitRoomActions.BreakoutActions.createNewRoomSuccess({
+        roomName: roomName2,
+      });
+      const resultAfterSecond = liveKitRoomReducer(resultAfterFirst, action2);
 
-//     expect(state.isMeetingStarted).toBe(true);
-//   });
+      expect(resultAfterSecond.breakoutRoomsData.length).toBe(2); // Ensure two rooms are created
+      expect(resultAfterSecond.breakoutRoomsData[0].roomName).toBe(roomName1);
+      expect(resultAfterSecond.breakoutRoomsData[1].roomName).toBe(roomName2);
+    });
+    //   const action = LiveKitRoomActions.MeetingActions.leaveMeetingSuccess();
+    //   const stateNotInMeeting = { ...initialState, isMeetingStarted: false };
+    //   const result = liveKitRoomReducer(stateNotInMeeting, action);
+    //   expect(result.isMeetingStarted).toBe(false); // Should remain false
+    // });
+  });
 
-//   it('should handle startMeetingFailure', () => {
-//     const error = 'Test Error';
-//     const action = LiveKitRoomActions.startMeetingFailure({ error });
-//     const state = liveKitRoomReducer(initialState, action);
+  describe('ScreenShare unit tests', () => {
+    it('should handle toggleScreenShareSuccess', () => {
+      const action = LiveKitRoomActions.LiveKitActions.toggleScreenShareSuccess(
+        {
+          isScreenSharing: true,
+        }
+      );
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.isScreenSharing).toBe(true);
+      expect(result.iconColor).toBe('green');
+    });
 
-//     expect(state.isMeetingStarted).toBe(false);
-//     expect(state.error).toBe(error);
-//   });
+    it('should handle toggleScreenShareFailure', () => {
+      const error = 'Error toggling screen share';
+      const action = LiveKitRoomActions.LiveKitActions.toggleScreenShareFailure(
+        {
+          error,
+        }
+      );
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.error).toBe(error);
+    });
+  });
+  describe('Video and mic testings', () => {
+    it('should handle toggleVideoSuccess', () => {
+      const action = LiveKitRoomActions.LiveKitActions.toggleVideoSuccess({
+        isVideoOn: true,
+      });
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.isVideoOn).toBe(true);
+    });
 
-//   it('should handle toggleScreenShareSuccess', () => {
-//     const isScreenSharing = true;
-//     const action = LiveKitRoomActions.toggleScreenShareSuccess({
-//       isScreenSharing,
-//     });
-//     const state = liveKitRoomReducer(initialState, action);
+    it('should handle toggleVideoFailure', () => {
+      const errorMessage = 'Error toggling video';
+      const action = LiveKitRoomActions.LiveKitActions.toggleVideoFailure({
+        error: errorMessage,
+      });
 
-//     expect(state.isScreenSharing).toBe(isScreenSharing);
-//     expect(state.iconColor).toBe('green');
-//   });
+      const result = liveKitRoomReducer(initialState, action);
 
-//   it('should handle toggleScreenShareFailure', () => {
-//     const error = 'Screen share error';
-//     const action = LiveKitRoomActions.toggleScreenShareFailure({ error });
-//     const state = liveKitRoomReducer(initialState, action);
+      expect(result.error).toBe(errorMessage);
+    });
+    it('should handle toggleMicSuccess', () => {
+      const action = LiveKitRoomActions.LiveKitActions.toggleMicSuccess({
+        isMicOn: true,
+      });
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.isMicOn).toBe(true);
+    });
 
-//     expect(state.error).toBe(error);
-//   });
+    it('should handle toggleMicFailure', () => {
+      const error = 'Error toggling mic';
+      const action = LiveKitRoomActions.LiveKitActions.toggleMicFailure({
+        error,
+      });
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.error).toBe(error);
+    });
+  });
 
-//   it('should handle toggleVideoSuccess', () => {
-//     const isVideoOn = true;
-//     const action = LiveKitRoomActions.toggleVideoSuccess({ isVideoOn });
-//     const state = liveKitRoomReducer(initialState, action);
+  describe('Side windows testings', () => {
+    it('should handle toggleChatSideWindow when it is already closed', () => {
+      const action = LiveKitRoomActions.LiveKitActions.toggleChatSideWindow();
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.chatSideWindowVisible).toBe(true); // Should open the chat side window
+    });
+    it('should handle closeChatSideWindow', () => {
+      const action = LiveKitRoomActions.LiveKitActions.closeChatSideWindow();
+      const stateWithChatOpen = {
+        ...initialState,
+        chatSideWindowVisible: true,
+      };
+      const result = liveKitRoomReducer(stateWithChatOpen, action);
+      expect(result.chatSideWindowVisible).toBe(false);
+    });
 
-//     expect(state.isVideoOn).toBe(isVideoOn);
-//   });
+    it('should handle toggleParticipantSideWindow', () => {
+      const action =
+        LiveKitRoomActions.LiveKitActions.toggleParticipantSideWindow();
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.participantSideWindowVisible).toBe(true);
+    });
 
-//   it('should handle toggleVideoFailure', () => {
-//     const error = 'Video error';
-//     const action = LiveKitRoomActions.toggleVideoFailure({ error });
-//     const state = liveKitRoomReducer(initialState, action);
+    it('should handle closeParticipantSideWindow when it is already closed', () => {
+      const action =
+        LiveKitRoomActions.LiveKitActions.closeParticipantSideWindow();
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.participantSideWindowVisible).toBe(false); // Should remain closed
+    });
 
-//     expect(state.error).toBe(error);
-//   });
+    it('should handle toggleBreakoutSideWindow', () => {
+      const action =
+        LiveKitRoomActions.BreakoutActions.toggleBreakoutSideWindow();
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.breakoutSideWindowVisible).toBe(true);
+    });
 
-//   it('should handle toggleMicSuccess', () => {
-//     const isMicOn = true;
-//     const action = LiveKitRoomActions.toggleMicSuccess({ isMicOn });
-//     const state = liveKitRoomReducer(initialState, action);
+    it('should handle closeBreakoutSideWindow', () => {
+      const action =
+        LiveKitRoomActions.BreakoutActions.closeBreakoutSideWindow();
+      const stateWithBreakoutOpen = {
+        ...initialState,
+        breakoutSideWindowVisible: true,
+      };
+      const result = liveKitRoomReducer(stateWithBreakoutOpen, action);
+      expect(result.breakoutSideWindowVisible).toBe(false); // Should close the breakout side window
+    });
+    it('should handle toggleParticipantsList when already showing participants', () => {
+      const action = LiveKitRoomActions.BreakoutActions.toggleParticipantsList({
+        index: 0,
+      });
+      const stateWithParticipantsVisible = {
+        ...initialState,
+        breakoutRoomsData: [
+          {
+            roomName: 'Room 1',
+            participantIds: ['user1'],
+            showAvailableParticipants: true,
+          },
+        ],
+      };
+      const result = liveKitRoomReducer(stateWithParticipantsVisible, action);
+      expect(result.breakoutRoomsData[0].showAvailableParticipants).toBe(false); // Should toggle to false
+    });
+  });
+  describe('Messages sent and Receive', () => {
+    it('should handle updateUnreadMessagesCount', () => {
+      const action =
+        LiveKitRoomActions.LiveKitActions.updateUnreadMessagesCount({
+          count: 5,
+        });
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.unreadMessagesCount).toBe(5);
+    });
 
-//     expect(state.isMicOn).toBe(isMicOn);
-//   });
+    it('should handle receiveMessage', () => {
+      const action = LiveKitRoomActions.ChatActions.receiveMessage({
+        message: { message: 'Hello', timestamp: new Date() },
+        participant: { identity: 'User1' },
+      });
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.allMessages.length).toBe(1);
+      expect(result.unreadMessagesCount).toBe(1);
+    });
 
-//   it('should handle toggleMicFailure', () => {
-//     const error = 'Mic error';
-//     const action = LiveKitRoomActions.toggleMicFailure({ error });
-//     const state = liveKitRoomReducer(initialState, action);
+    it('should handle sendMessage', () => {
+      const action = LiveKitRoomActions.ChatActions.sendMessage({
+        message: 'Hello',
+        recipient: 'User2',
+      });
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.allMessages.length).toBe(1);
+      expect(result.allMessages[0].sendMessage).toBe('Hello');
+      expect(result.allMessages[0].recipient).toBe('User2');
+    });
+  });
 
-//     expect(state.error).toBe(error);
-//   });
+  describe('Add and Remove Participants', () => {
+    it('should handle addParticipant', () => {
+      const roomName = 'Room 1';
+      const action = LiveKitRoomActions.BreakoutActions.addParticipant({
+        roomName,
+        participantId: 'user1',
+      });
+      const stateWithRoom = {
+        ...initialState,
+        breakoutRoomsData: [
+          { roomName, participantIds: [], showAvailableParticipants: false },
+        ],
+      };
+      const result = liveKitRoomReducer(stateWithRoom, action);
+      expect(result.breakoutRoomsData[0].participantIds).toContain('user1');
+    });
 
-//   it('should handle closeChatSideWindow', () => {
-//     const action = LiveKitRoomActions.closeChatSideWindow();
-//     const state = liveKitRoomReducer(
-//       { ...initialState, chatSideWindowVisible: true },
-//       action
-//     );
+    it('should handle removeParticipant', () => {
+      const roomName = 'Room 1';
+      const action = LiveKitRoomActions.BreakoutActions.removeParticipant({
+        roomName,
+        participantId: 'user1',
+      });
+      const stateWithParticipant = {
+        ...initialState,
+        breakoutRoomsData: [
+          {
+            roomName,
+            participantIds: ['user1'],
+            showAvailableParticipants: false,
+          },
+        ],
+      };
+      const result = liveKitRoomReducer(stateWithParticipant, action);
+      expect(result.breakoutRoomsData[0].participantIds).not.toContain('user1');
+    });
+    // =====
+    it('should toggle showAvailableParticipants for the specified room', () => {
+      const indexToToggle = 0; // Toggle for 'Room 1'
+      const action = LiveKitRoomActions.BreakoutActions.toggleParticipantsList({
+        index: indexToToggle,
+      });
 
-//     expect(state.chatSideWindowVisible).toBe(false);
-//   });
+      const result = liveKitRoomReducer(initialState, action);
 
-//   it('should handle closeParticipantSideWindow', () => {
-//     const action = LiveKitRoomActions.closeParticipantSideWindow();
-//     const state = liveKitRoomReducer(
-//       { ...initialState, participantSideWindowVisible: true },
-//       action
-//     );
+      // Check if the specified room's showAvailableParticipants is toggled
+      expect(result.breakoutRoomsData[0].showAvailableParticipants).toBe(true); // Room 1 should now be true
+      expect(result.breakoutRoomsData[1].showAvailableParticipants).toBe(true); // Room 2 should remain true
+    });
 
-//     expect(state.participantSideWindowVisible).toBe(false);
-//   });
+    it('should leave other rooms unchanged', () => {
+      const indexToToggle = 1; // Toggle for 'Room 2'
+      const action = LiveKitRoomActions.BreakoutActions.toggleParticipantsList({
+        index: indexToToggle,
+      });
 
-//   it('should handle toggleParticipantSideWindow', () => {
-//     const action = LiveKitRoomActions.toggleParticipantSideWindow();
-//     const state = liveKitRoomReducer(initialState, action);
+      const result = liveKitRoomReducer(initialState, action);
 
-//     expect(state.participantSideWindowVisible).toBe(true);
-//     expect(state.chatSideWindowVisible).toBe(false);
-//   });
+      // Check if the specified room's showAvailableParticipants is toggled
+      expect(result.breakoutRoomsData[1].showAvailableParticipants).toBe(false); // Room 2 should now be false
+      expect(result.breakoutRoomsData[0].showAvailableParticipants).toBe(false); // Room 1 should remain false
+    });
 
-//   it('should handle toggleChatSideWindow', () => {
-//     const action = LiveKitRoomActions.toggleChatSideWindow();
-//     const state = liveKitRoomReducer(initialState, action);
+    it('should not crash when toggling a non-existent room', () => {
+      const indexToToggle = 2; // Invalid index (room does not exist)
+      const action = LiveKitRoomActions.BreakoutActions.toggleParticipantsList({
+        index: indexToToggle,
+      });
 
-//     expect(state.chatSideWindowVisible).toBe(true);
-//     expect(state.unreadMessagesCount).toBe(0);
-//     expect(state.participantSideWindowVisible).toBe(false);
-//   });
+      const result = liveKitRoomReducer(initialState, action);
 
-//   it('should handle updateUnreadMessagesCount', () => {
-//     const count = 5;
-//     const action = LiveKitRoomActions.updateUnreadMessagesCount({ count });
-//     const state = liveKitRoomReducer(initialState, action);
+      // Ensure state remains unchanged for an invalid index
+      expect(result).toEqual(initialState);
+    });
 
-//     expect(state.unreadMessagesCount).toBe(count);
-//   });
+    it('should not crash when toggling a negative index', () => {
+      const indexToToggle = -1; // Invalid index
+      const action = LiveKitRoomActions.BreakoutActions.toggleParticipantsList({
+        index: indexToToggle,
+      });
 
-//   it('should handle updateMessages', () => {
-//     const allMessages = [
-//       { message: 'test message', timestamp: new Date(), type: 'received' },
-//     ];
-//     const action = LiveKitRoomActions.updateMessages({ allMessages });
-//     const state = liveKitRoomReducer(initialState, action);
+      const result = liveKitRoomReducer(initialState, action);
 
-//     expect(state.allMessages).toEqual(allMessages);
-//   });
+      // Ensure state remains unchanged for a negative index
+      expect(result).toEqual(initialState);
+    });
+  });
+  // ================================
 
-//   it('should handle receiveMessage', () => {
-//     const message = { message: 'received message', timestamp: new Date() };
-//     const participant = { identity: 'sender' };
-//     const action = LiveKitRoomActions.receiveMessage({ message, participant });
-//     const state = liveKitRoomReducer(initialState, action);
+  describe('Calculate Distribution Message', () => {
+    it('should handle calculateDistribution', () => {
+      const action = LiveKitRoomActions.BreakoutActions.calculateDistribution({
+        numberOfRooms: 2,
+        totalParticipants: 5,
+      });
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.distributionMessage).toContain('room(s) will have');
+    });
+    it('should handle calculateDistributionSuccess', () => {
+      const distributionMessage = '2 rooms, each will have 3 participants.';
+      const action =
+        LiveKitRoomActions.BreakoutActions.calculateDistributionSuccess({
+          distributionMessage,
+        });
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.distributionMessage).toBe(distributionMessage);
+    });
+    it('should handle calculateDistribution with invalid parameters', () => {
+      const action = LiveKitRoomActions.BreakoutActions.calculateDistribution({
+        numberOfRooms: 0,
+        totalParticipants: 0,
+      });
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.distributionMessage).toBe(
+        'Please enter valid number of rooms and participants.'
+      ); // Check for the error message
+    });
+    it('should handle calculateDistribution with valid but extreme values', () => {
+      const action = LiveKitRoomActions.BreakoutActions.calculateDistribution({
+        numberOfRooms: 1000,
+        totalParticipants: 5000,
+      });
+      const result = liveKitRoomReducer(initialState, action);
 
-//     expect(state.allMessages.length).toBe(1);
-//     expect(state.unreadMessagesCount).toBe(1);
-//   });
+      // Assuming the logic is that each room should have an equal distribution of participants
+      const expectedMessage = '1000 room(s), each will have 5 participants.';
+      expect(result.distributionMessage).toBe(expectedMessage); // Check for the exact message
+    });
+  });
 
-// });
+  describe('Breakout Modals', () => {
+    it('should handle openBreakoutModal', () => {
+      const action = LiveKitRoomActions.BreakoutActions.openBreakoutModal();
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.isBreakoutModalOpen).toBe(true); // Should open the breakout modal
+    });
+
+    it('should handle closeBreakoutModal', () => {
+      const action = LiveKitRoomActions.BreakoutActions.closeBreakoutModal();
+      const stateWithModalOpen = { ...initialState, isBreakoutModalOpen: true };
+      const result = liveKitRoomReducer(stateWithModalOpen, action);
+      expect(result.isBreakoutModalOpen).toBe(false); // Should close the breakout modal
+    });
+
+    it('should handle openInvitationModal', () => {
+      const action = LiveKitRoomActions.BreakoutActions.openInvitationModal();
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.isInvitationModalOpen).toBe(true); // Should open the invitation modal
+    });
+
+    it('should handle closeInvitationModal', () => {
+      const action = LiveKitRoomActions.BreakoutActions.closeInvitationModal();
+      const stateWithModalOpen = {
+        ...initialState,
+        isInvitationModalOpen: true,
+      };
+      const result = liveKitRoomReducer(stateWithModalOpen, action);
+      expect(result.isInvitationModalOpen).toBe(false); // Should close the invitation modal
+    });
+
+    it('should handle openHostToBrMsgModal', () => {
+      const action = LiveKitRoomActions.BreakoutActions.openHostToBrMsgModal();
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.isHostMsgModalOpen).toBe(true); // Should open the host message modal
+    });
+
+    it('should handle closeHostToBrMsgModal', () => {
+      const action = LiveKitRoomActions.BreakoutActions.closeHostToBrMsgModal();
+      const stateWithModalOpen = { ...initialState, isHostMsgModalOpen: true };
+      const result = liveKitRoomReducer(stateWithModalOpen, action);
+      expect(result.isHostMsgModalOpen).toBe(false); // Should close the host message modal
+    });
+
+    it('should handle openHelpMessageModal', () => {
+      const action = LiveKitRoomActions.BreakoutActions.openHelpMessageModal();
+      const result = liveKitRoomReducer(initialState, action);
+      expect(result.helpMessageModal).toBe(true); // Should open the help message modal
+    });
+
+    it('should handle closeHelpMessageModal', () => {
+      const action = LiveKitRoomActions.BreakoutActions.closeHelpMessageModal();
+      const stateWithModalOpen = { ...initialState, helpMessageModal: true };
+      const result = liveKitRoomReducer(stateWithModalOpen, action);
+      expect(result.helpMessageModal).toBe(false); // Should close the help message modal
+    });
+  });
+});

@@ -14,18 +14,9 @@ export class MeetingService {
     const body = { participantName, roomName };
     return this.http.post<any>(this.apiUrl, body);
   }
-  sendMessage(
-    participantName: string,
-    roomName: string,
-    content: string
-  ): Observable<any> {
-    const body = { participantName, roomName, content };
-    return this.http.post<any>(this.apiUrl, body);
-  }
 
-  broadcastMessage(roomName: string, content: string): Observable<any> {
-    const body = { roomName, content, sender: 'test-room' }; // sender can be changed dynamically
-    console.log('Sending broadcast message:', body);
+  sendBroadcastMessage(roomName: string, content: string): Observable<any> {
+    const body = { roomName, sender: 'test-room', content };
     return this.http.post<any>(`${this.apiUrl}/broadcast`, body);
   }
   sendMessageToMainRoom(

@@ -23,3 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - change the `SendMessageToBreakoutRoom` Form to send the message to the breakout room.
+
+## [2024-10-23]
+
+### Changed
+
+- Change the business logic into ngrx `BreakoutRooms`
