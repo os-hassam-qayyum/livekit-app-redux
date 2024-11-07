@@ -109,6 +109,9 @@
         <span>{{ webSocketStatus | titlecase }}</span>
       </div>
       <div class="right-header">
+        <button matTooltip="Picture in picture mode" (click)="enterPiP()">
+          <span class="material-symbols-outlined"> pip </span>
+        </button>
         <button
           matTooltip="Ask for Help To Main Room"
           (click)="sendHelpRequest()"
@@ -187,6 +190,7 @@
     </header>
 
     <!-- for screen sharing container  -->
+    <!-- <div id="playerContainer" #playerContainer> -->
     <ng-container
       *ngIf="
         livekitService.isScreenSharingEnabled === true ||
@@ -209,6 +213,7 @@
         ></div>
       </div>
     </ng-container>
+    <!-- </div> -->
     <!-- screen sahring for multiple screens  -->
     <div
       class="lk-grid-layout-wrapper"
@@ -217,6 +222,7 @@
           livekitService.isScreenSharingEnabled === true ||
           livekitService.remoteScreenShare === true
       }"
+      #playerContainer
     >
       <div
         class="lk-grid-layout"
@@ -679,6 +685,51 @@
       </div>
     </div>
   </div>
+
+  <ng-container *ngIf="pipMode === true">
+    <div class="pip-container" #pipContainer id="pipHeader">
+      <button
+        data-test="video-test"
+        matTooltip="Video"
+        class="video"
+        (click)="toggleVideo()"
+      >
+        <i
+          class="fas"
+          [ngClass]="{
+            'fa-video': (isVideoOn$ | async),
+            'fa-video-slash': !(isVideoOn$ | async)
+          }"
+        ></i>
+      </button>
+      <button class="mic" matTooltip="Mic" (click)="toggleMic()">
+        <i
+          class="fas"
+          [ngClass]="{
+            'fa-microphone': (isMicOn$ | async),
+            'fa-microphone-slash': !(isMicOn$ | async)
+          }"
+        ></i>
+      </button>
+      <button
+        data-cy="raise-hand"
+        *ngIf="localParticipant.isLocal"
+        (click)="toggleRaiseHand()"
+        matTooltip="Raise Hand"
+      >
+        <i
+          class="fas fa-hand-paper"
+          [ngClass]="{ 'hand-raised': localParticipant.handRaised }"
+        ></i>
+      </button>
+      <button class="more" matTooltip="More">
+        <i class="fas fa-ellipsis-h"></i>
+      </button>
+      <button class="leave-btn" matTooltip="Leave_Meeting" (click)="leaveBtn()">
+        <span class="material-symbols-outlined"> call_end </span>
+      </button>
+    </div>
+  </ng-container>
 </ng-container>
 
 <!-- Breakout Room Modal which is sent to participants for invitation -->

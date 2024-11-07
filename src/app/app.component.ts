@@ -2,6 +2,7 @@ import {
   ChangeDetectorRef,
   Component,
   ElementRef,
+  Renderer2,
   ViewChild,
 } from '@angular/core';
 import {
@@ -52,6 +53,13 @@ const GRIDCOLUMN: { [key: number]: string } = {
   styleUrls: ['./app.component.scss'],
 })
 export class AppComponent {
+  @ViewChild('playerContainer') playerContainer!: ElementRef<HTMLDivElement>;
+  @ViewChild('pipContainer') pipContainer!: ElementRef<HTMLDivElement>;
+  pipMode = false;
+  pipWindow: Window | null = null;
+  requestPiP = false;
+  private originalParent: HTMLElement | null = null;
+  private originalNextSibling: Node | null = null;
   selectedParticipants: { [roomIndex: number]: string[] } = {};
   // websocket variables
   webSocketStatus: 'connected' | 'reconnecting' | 'disconnected' =
@@ -111,7 +119,9 @@ export class AppComponent {
     private formBuilder: FormBuilder,
     public livekitService: LivekitService,
     private snackBar: MatSnackBar,
-    public store: Store
+    public store: Store,
+    private renderer: Renderer2,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
@@ -138,6 +148,16 @@ export class AppComponent {
 
     // Expose livekitService for Cypress
     this.exposeLivekitServiceForCypress();
+    // Listen for window blur and focus events
+    // window.addEventListener('blur', this.onWindowBlur.bind(this));
+    // window.addEventListener('focus', this.onWindowFocus.bind(this));
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.enterPiP();
+      } else {
+        this.onLeavePiP();
+      }
+    });
   }
   private initializeWebSocketAndAudioVideoHandler() {
     // Uncomment this if you want to connect the WebSocket
@@ -150,6 +170,27 @@ export class AppComponent {
         console.log('WebSocket status updated:', status);
       }
     );
+  }
+  ngOnDestroy() {
+    // Clean up the event listener when the component is destroyed
+    document.removeEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.enterPiP();
+      } else {
+        this.onLeavePiP();
+      }
+    });
+    // document.removeEventListener(
+    //   'visibilitychange',
+    //   this.handleVisibilityChange.bind(this)
+    // );
+    // Clean up the event listeners
+    // window.removeEventListener('blur', this.handleWindowBlur.bind(this));
+    // window.addEventListener('blur', this.recommendPiP.bind(this));
+    // window.addEventListener('resize', this.recommendPiP.bind(this));
+    // window.removeEventListener('blur', this.onWindowBlur.bind(this));
+    // window.removeEventListener('focus', this.onWindowFocus.bind(this));
+    // window.removeEventListener('resize', this.handleResize.bind(this));
   }
 
   private initializeStateObservables() {
@@ -432,6 +473,173 @@ export class AppComponent {
     );
     this.livekitService.initCanvas(this.audioCanvasRef.nativeElement);
   }
+
+  async enterPiP() {
+    this.pipMode = true;
+    this.cdr.detectChanges();
+    const pipContainer = this.pipContainer?.nativeElement;
+    const playerContainer = this.playerContainer?.nativeElement;
+
+    //   // Store the original parent and next sibling of playerContainer
+    this.originalParent = playerContainer.parentElement;
+    this.originalNextSibling = playerContainer.nextSibling;
+
+    if ((window as any).documentPictureInPicture) {
+      const pipOptions = {
+        width: 300,
+        height: 500,
+      };
+
+      try {
+        this.pipWindow = await (
+          window as any
+        ).documentPictureInPicture.requestWindow(pipOptions);
+        playerContainer.style.height = '100vh';
+        // Copy over initial styles and elements to the PiP window
+        this.copyStylesToPiP();
+        this.updatePiPWindow();
+        // Listen for any changes in the main participant container
+        const observer = new MutationObserver(() => {
+          this.updatePiPWindow();
+        });
+        observer.observe(playerContainer, { childList: true, subtree: true });
+
+        // Clean up when PiP mode is exited
+        this.pipWindow.addEventListener(
+          'pagehide',
+          () => {
+            observer.disconnect();
+            this.onLeavePiP();
+          },
+          { once: true }
+        );
+      } catch (error) {
+        console.error('Error entering PiP mode:', error);
+      }
+    } else {
+      console.error(
+        'documentPictureInPicture API is not available in this browser.'
+      );
+    }
+  }
+
+  updatePiPWindow() {
+    console.log('updatePiPWindow called'); // Debugging log
+
+    if (!this.pipWindow) return;
+
+    const mainContainer = this.playerContainer.nativeElement;
+    const pipBody = this.pipWindow.document.body;
+
+    // Clear existing content in the PiP window
+    pipBody.innerHTML = '';
+
+    // Clone the current state of the main container into the PiP window
+    const clonedContainer = mainContainer.cloneNode(true) as HTMLElement;
+
+    // Clone the header from the main document (ng-container with pip header buttons)
+    const pipContainer = this.pipContainer.nativeElement;
+    const clonedHeader = pipContainer?.cloneNode(true) as HTMLElement;
+
+    // Append the cloned header to the PiP window body
+    if (clonedHeader) {
+      pipBody.appendChild(clonedHeader);
+    }
+
+    // Append the cloned player container to the PiP window body
+    pipBody.appendChild(clonedContainer);
+
+    // Manually reattach event listeners to each button in the cloned header
+    const buttons = clonedHeader.querySelectorAll('button');
+    console.log('Buttons in PiP header:', buttons.length); // Debugging log
+
+    buttons.forEach((button: HTMLElement) => {
+      const tooltipText = button.getAttribute('matTooltip');
+      const iconElement = button.querySelector('i');
+
+      // Observable subscriptions to automatically update the icons in PiP
+      if (tooltipText === 'Video') {
+        this.isVideoOn$.subscribe((isVideoOn) => {
+          iconElement?.classList.toggle('fa-video', isVideoOn);
+          iconElement?.classList.toggle('fa-video-slash', !isVideoOn);
+        });
+        this.renderer.listen(button, 'click', () => {
+          console.log('Video button clicked!');
+          this.toggleVideo();
+        });
+      } else if (tooltipText === 'Mic') {
+        this.isMicOn$.subscribe((isMicOn) => {
+          iconElement?.classList.toggle('fa-microphone', isMicOn);
+          iconElement?.classList.toggle('fa-microphone-slash', !isMicOn);
+        });
+        this.renderer.listen(button, 'click', () => {
+          console.log('Mic button clicked!');
+          this.toggleMic();
+        });
+      } else if (tooltipText === 'Raise Hand') {
+        this.renderer.listen(button, 'click', () => {
+          console.log('Raise Hand button clicked!');
+          this.toggleRaiseHand();
+        });
+      } else if (tooltipText === 'Leave_Meeting') {
+        this.renderer.listen(button, 'click', () => {
+          console.log('Leave button clicked!');
+          this.leaveBtn();
+        });
+      }
+    });
+  }
+
+  onLeavePiP() {
+    if (!this.pipWindow) return;
+
+    const playerContainer = this.playerContainer.nativeElement;
+
+    // Re-append playerContainer back to its original parent and position
+    if (this.originalParent) {
+      if (this.originalNextSibling) {
+        this.originalParent.insertBefore(
+          playerContainer,
+          this.originalNextSibling
+        );
+      } else {
+        this.originalParent.appendChild(playerContainer);
+      }
+    }
+    this.pipWindow.close();
+    playerContainer.classList.remove('pip-mode');
+    this.pipMode = false;
+    this.pipWindow = null;
+  }
+
+  copyStylesToPiP() {
+    if (!this.pipWindow) return;
+
+    // Convert document.styleSheets to an array
+    Array.from(document.styleSheets).forEach((styleSheet) => {
+      try {
+        // Create a style element and add CSS rules to it
+        const cssRules = Array.from(styleSheet.cssRules)
+          .map((rule) => rule.cssText)
+          .join('');
+        const styleEl = this.renderer.createElement('style');
+        this.renderer.setProperty(styleEl, 'textContent', cssRules);
+
+        // Append the style element to pipWindow's head
+        this.renderer.appendChild(this.pipWindow!.document.head, styleEl);
+      } catch (e) {
+        // Handle cross-origin restrictions by using link elements
+        if (styleSheet.href) {
+          const linkEl = this.renderer.createElement('link');
+          this.renderer.setAttribute(linkEl, 'rel', 'stylesheet');
+          this.renderer.setAttribute(linkEl, 'href', styleSheet.href);
+
+          // Append the link element to pipWindow's head
+          this.renderer.appendChild(this.pipWindow!.document.head, linkEl);
+        }
+      }
+    });
+  }
   /**
    * Initiates the start of a meeting by dispatching a `startMeeting` action
    * with the WebSocket URL and a dynamic token obtained from the form value.
@@ -560,11 +768,33 @@ export class AppComponent {
       this.livekitService.lowerHand(this.localParticipant);
       this.openSnackBar(`${this.localParticipant.identity} lowered hand`);
       this.handRaiseStates[this.localParticipant.identity] = false;
+
+      if (this.pipWindow) {
+        const pipBody = this.pipWindow.document.body;
+        const raiseHandIcon = pipBody.querySelector('[data-cy="raise-hand"] i');
+        if (raiseHandIcon) {
+          raiseHandIcon.classList.remove(
+            'hand-raised',
+            this.localParticipant.handRaised
+          );
+        }
+      }
     } else {
       this.localParticipant.handRaised = true;
       this.livekitService.raiseHand(this.localParticipant);
       this.openSnackBar(`${this.localParticipant.identity} raised hand`);
       this.handRaiseStates[this.localParticipant.identity] = true;
+      // Update the "Raise Hand" icon in the PiP window if it exists
+      if (this.pipWindow) {
+        const pipBody = this.pipWindow.document.body;
+        const raiseHandIcon = pipBody.querySelector('[data-cy="raise-hand"] i');
+        if (raiseHandIcon) {
+          raiseHandIcon.classList.add(
+            'hand-raised',
+            this.localParticipant.handRaised
+          );
+        }
+      }
     }
   }
 
@@ -577,6 +807,8 @@ export class AppComponent {
    */
   async leaveBtn(): Promise<void> {
     this.store.dispatch(LiveKitRoomActions.MeetingActions.leaveMeeting());
+
+    this.onLeavePiP();
   }
 
   /**
@@ -610,13 +842,6 @@ export class AppComponent {
    */
   async toggleMic(): Promise<void> {
     this.store.dispatch(LiveKitRoomActions.LiveKitActions.toggleMic());
-    // this.livekitService.toggleMicrophone().subscribe((isMicOn: boolean) => {
-    //   if (isMicOn) {
-    //     this.livekitService.startAudioCapture();
-    //   } else {
-    //     this.livekitService.stopAudioCapture();
-    //   }
-    // });
   }
 
   /**
@@ -706,7 +931,9 @@ export class AppComponent {
    * @type {string}
    */
   get GalleryGridColumnStyle() {
-    if (this.livekitService.room.numParticipants <= 6) {
+    if (this.pipMode) {
+      return '1fr';
+    } else if (this.livekitService.room.numParticipants <= 6) {
       return GRIDCOLUMN[this.livekitService.room.numParticipants];
     } else {
       return 'repeat(auto-fill, minmax(200px, 1fr))';

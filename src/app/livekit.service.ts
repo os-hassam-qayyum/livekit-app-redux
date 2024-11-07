@@ -25,7 +25,11 @@ import { MeetingService } from './meeting.service';
 })
 export class LivekitService {
   // audio visualizer logic
-
+  allParticipants: Array<{
+    sid: string;
+    videoSrc: any;
+    identity: string;
+  }> = [];
   private micCanvas!: HTMLCanvasElement;
   private micCtx!: CanvasRenderingContext2D;
   private micAnalyzer!: AnalyserNode;
@@ -199,7 +203,7 @@ export class LivekitService {
    * @param {MatSnackBar} snackBar - The snack bar service for displaying notifications.
    */
   constructor(
-   public snackBar: MatSnackBar,
+    public snackBar: MatSnackBar,
     public meetingService: MeetingService
   ) {}
 
@@ -688,7 +692,10 @@ export class LivekitService {
      */
     this.room.on(
       RoomEvent.LocalTrackPublished,
-      (publication: LocalTrackPublication, participant: LocalParticipant) => {
+      async (
+        publication: LocalTrackPublication,
+        participant: LocalParticipant
+      ) => {
         if (publication.track?.source === Track.Source.Camera) {
           const participantTile = document.getElementById(`${participant.sid}`);
           console.log('testing avatar', participantTile);
@@ -700,7 +707,8 @@ export class LivekitService {
             }
 
             // Attach the video track to the participant tile
-            const element = publication.track.attach();
+            const element = publication.track.attach() as HTMLVideoElement;
+
             participantTile.appendChild(element);
             element.setAttribute(
               'style',
@@ -734,7 +742,6 @@ export class LivekitService {
                   line-height: 1;
                 `
               );
-
               const el4 = document.createElement('div');
               el4.setAttribute('class', 'lk-participant-metadata-item');
               el4.setAttribute(
@@ -762,8 +769,9 @@ export class LivekitService {
               el4.appendChild(el5);
               el3.appendChild(el4);
               participantTile.appendChild(el3);
+              // await element.requestPictureInPicture();
             }
-
+            // this.addParticipantToPiP(participant, publication.track);
             console.log('local track published', publication.track);
           } else {
             console.error('Participant tile not found');
@@ -1103,6 +1111,7 @@ export class LivekitService {
 
             this.handleTrackMuted(publication, participant);
           }
+          // this.addParticipantToPiP(participant, track);
         }, 100);
       }
     }
@@ -1209,6 +1218,21 @@ export class LivekitService {
     }
   }
 
+  // addParticipantToPiP(participant: Participant, track: Track) {
+  //   // Avoid duplicates by checking if participant is already in PiP
+  //   const existingParticipant = this.allParticipants.find(
+  //     (p) => p.sid === participant.sid
+  //   );
+  //   if (existingParticipant) return;
+
+  //   const videoSrc = track.attach() as HTMLVideoElement;
+  //   videoSrc.requestPictureInPicture();
+  //   this.allParticipants.push({
+  //     sid: participant.sid,
+  //     videoSrc,
+  //     identity: participant.identity,
+  //   });
+  // }
   /**
    * Enables the camera and microphone for the local participant in the room.
    *
