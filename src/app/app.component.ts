@@ -47,6 +47,29 @@ const GRIDCOLUMN: { [key: number]: string } = {
   5: '1fr 1fr 1fr',
   6: '1fr 1fr 1fr',
 };
+const PIPGRIDCOLUMN: { [key: number]: string } = {
+  1: '1fr',
+  2: '1fr',
+  3: '1fr',
+  4: '1fr 1fr',
+  5: '1fr 1fr',
+  6: '1fr 1fr',
+  7: '1fr 1fr',
+  8: '1fr 1fr',
+  9: '1fr 1fr',
+  10: '1fr 1fr',
+  11: '1fr 1fr 1fr',
+  12: '1fr 1fr 1fr',
+  13: '1fr 1fr 1fr',
+  14: '1fr 1fr 1fr',
+  15: '1fr 1fr 1fr',
+  16: '1fr 1fr 1fr',
+  17: '1fr 1fr 1fr',
+  18: '1fr 1fr 1fr',
+  19: '1fr 1fr 1fr',
+  20: '1fr 1fr 1fr',
+  21: '1fr 1fr 1fr 1fr',
+};
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
@@ -88,6 +111,7 @@ export class AppComponent {
   pipWindow: any = null;
   @ViewChild('playerContainer') playerContainer!: ElementRef<HTMLDivElement>;
   @ViewChild('pipContainer') pipContainer!: ElementRef<HTMLDivElement>;
+  @ViewChild('screensharePiP') screensharePiP!: ElementRef<HTMLDivElement>;
 
   pipMode = false;
   private originalParent: HTMLElement | null = null;
@@ -149,23 +173,84 @@ export class AppComponent {
 
     // Expose livekitService for Cypress
     // this.exposeLivekitServiceForCypress();
-    // document.addEventListener('visibilitychange', () => {
-    //   if (document.hidden) {
-    //     this.enterPiP();
-    //   } else {
-    //     this.onLeavePiP();
-    //   }
-    // });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.enterPiP();
+      } else {
+        this.onLeavePiP();
+      }
+    });
+
+    // Add an event listener for visibility change
+    // document.addEventListener(
+    //   'visibilitychange',
+    //   this.onVisibilityChange.bind(this)
+    // );
   }
-  // ngOnDestroy() {
-  //   // Clean up the event listener when the component is destroyed
-  //   document.removeEventListener('visibilitychange', () => {
-  //     if (document.hidden) {
-  //       this.enterPiP();
-  //     } else {
-  //       this.onLeavePiP();
+  // ngOnDestroy(): void {
+  //   // Clean up the event listener to avoid memory leaks
+  //   document.removeEventListener(
+  //     'visibilitychange',
+  //     this.onVisibilityChange.bind(this)
+  //   );
+  // }
+  ngOnDestroy() {
+    // Clean up the event listener when the component is destroyed
+    document.removeEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.enterPiP();
+      } else {
+        this.onLeavePiP();
+      }
+    });
+  }
+
+  // async onVisibilityChange(event: Event) {
+  //   if (document.visibilityState === 'visible') {
+  //     if ((window as any).documentPictureInPicture.window) {
+  //       (window as any).documentPictureInPicture.window.close();
+  //       return;
   //     }
-  //   });
+  //   } else {
+  //     const pipWindow = await (
+  //       window as any
+  //     ).documentPictureInPicture.requestWindow({
+  //       width: 940,
+  //       height: 660,
+  //     });
+  //     // ...
+
+  //     // Copy style sheets over from the initial document
+  //     // so that the player looks the same.
+  //     [...(document.styleSheets as any)].forEach((styleSheet) => {
+  //       try {
+  //         const cssRules = [...styleSheet.cssRules]
+  //           .map((rule) => rule.cssText)
+  //           .join('');
+  //         const style = document.createElement('style');
+
+  //         style.textContent = cssRules;
+  //         pipWindow.document.head.appendChild(style);
+  //       } catch (e) {
+  //         const link = document.createElement('link');
+
+  //         link.rel = 'stylesheet';
+  //         link.type = styleSheet.type;
+  //         link.media = styleSheet.media;
+  //         link.href = styleSheet.href;
+  //         pipWindow.document.head.appendChild(link);
+  //       }
+  //     });
+
+  //     const player = document.querySelector('.os-main-content');
+  //     pipWindow.document.body.append(player);
+  //     // ...
+
+  //     pipWindow.addEventListener('pagehide', (event) => {
+  //       // const vcMainEl = document.querySelector('.vc-el');
+  //       this.originalParent.append(player);
+  //     });
+  //   }
   // }
   private initializeWebSocketAndAudioVideoHandler() {
     // Uncomment this if you want to connect the WebSocket
@@ -461,7 +546,7 @@ export class AppComponent {
         );
       }
     );
-    this.livekitService.initCanvas(this.audioCanvasRef.nativeElement);
+    // this.livekitService.initCanvas(this.audioCanvasRef.nativeElement);
   }
   /**
    * Initiates the start of a meeting by dispatching a startMeeting action
@@ -772,7 +857,7 @@ export class AppComponent {
    */
   get GalleryGridColumnStyle() {
     if (this.pipMode) {
-      return '1fr';
+      return PIPGRIDCOLUMN[this.livekitService.room.numParticipants];
     } else if (this.livekitService.room.numParticipants <= 6) {
       return GRIDCOLUMN[this.livekitService.room.numParticipants];
     } else {
@@ -819,8 +904,8 @@ export class AppComponent {
    * @type {string}
    */
   get ScreenGalleryGridColumnStyle() {
-    if (this.livekitService.screenShareCount <= 6) {
-      return GRIDCOLUMN[this.livekitService.screenShareCount];
+    if (this.livekitService.totalScreenShareCount <= 6) {
+      return GRIDCOLUMN[this.livekitService.totalScreenShareCount];
     } else {
       return 'repeat(auto-fill, minmax(200px, 1fr))';
     }
@@ -1230,7 +1315,7 @@ export class AppComponent {
     this.pipMode = true;
 
     const playerContainer = this?.playerContainer?.nativeElement;
-
+    const mainScreenShareContainer = this?.screensharePiP?.nativeElement;
     //   // Store the original parent and next sibling of playerContainer
     this.originalParent = playerContainer?.parentElement;
     this.originalNextSibling = playerContainer?.nextSibling;
@@ -1246,21 +1331,68 @@ export class AppComponent {
           window as any
         )?.documentPictureInPicture?.requestWindow(pipOptions);
         playerContainer.style.height = '75vh';
+        playerContainer.style.overflow = 'hidden';
+        // const pipBody = this.pipWindow.document.body;
+
+        // pipVideoLayout.style.overflow = 'hidden';
         // Copy over initial styles and elements to the PiP window
         this.copyStylesToPiP();
         this.updatePiPWindow();
         // Listen for any changes in the main participant container
-        const observer = new MutationObserver(() => {
-          this.updatePiPWindow();
+        // Create a MutationObserver to update the PiP window
+        const observerPlayerContainer = new MutationObserver(() => {
+          this.updatePiPWindow(); // Update PiP window when mutation happens in playerContainer
         });
-        observer.observe(playerContainer, { childList: true, subtree: true });
+
+        const observerScreenShareContainer = new MutationObserver(() => {
+          this.updatePiPWindow(); // Update PiP window when mutation happens in mainScreenShareContainer
+        });
+
+        // Observe playerContainer and mainScreenShareContainer separately
+        observerPlayerContainer.observe(playerContainer, {
+          childList: true,
+          subtree: true,
+        });
+        observerScreenShareContainer.observe(mainScreenShareContainer, {
+          childList: true,
+          subtree: true,
+        });
 
         // Clean up when PiP mode is exited
         this.pipWindow.addEventListener(
           'pagehide',
           () => {
-            observer.disconnect();
-            this.onLeavePiP();
+            // Disconnect both observers
+            observerPlayerContainer.disconnect();
+            observerScreenShareContainer.disconnect();
+
+            // Remove the PiP-specific inline styles only
+            const currentStyle = mainScreenShareContainer.getAttribute('style');
+
+            // Check if the attribute includes our PiP styles and remove them
+            if (currentStyle) {
+              const newStyle = currentStyle
+                .replace('--lk-control-bar-height: 380px;', '')
+                .replace('padding: 10px;', '')
+                .replace('width: 93%;', '')
+                .replace(
+                  'height: calc(100% - var(--lk-control-bar-height));',
+                  ''
+                );
+              if (newStyle.trim()) {
+                this.renderer.setAttribute(
+                  mainScreenShareContainer,
+                  'style',
+                  newStyle.trim()
+                );
+              } else {
+                this.renderer.removeAttribute(
+                  mainScreenShareContainer,
+                  'style'
+                );
+              }
+            }
+            this.onLeavePiP(); // Perform any PiP exit cleanup
           },
           { once: true }
         );
@@ -1317,12 +1449,14 @@ export class AppComponent {
    * @function
    * @returns {void}
    */
+
   updatePiPWindow() {
     console.log('updatePiPWindow called'); // Debugging log
 
     if (!this.pipWindow) return;
 
     const mainContainer = this.playerContainer.nativeElement;
+    const mainScreenShareContainer = this.screensharePiP.nativeElement;
     const pipBody = this.pipWindow.document.body;
 
     // Clear existing content in the PiP window
@@ -1335,11 +1469,102 @@ export class AppComponent {
     const pipContainer = this.pipContainer.nativeElement;
     const clonedHeader = pipContainer?.cloneNode(true) as HTMLElement;
 
+    const isScreenSharingActive =
+      this.livekitService.isScreenSharingEnabled ||
+      this.livekitService.remoteScreenShare;
+    // Check if screen sharing is active and clone #screensharePiP if so
+    if (isScreenSharingActive) {
+      const screenSharePiPElment = this.screensharePiP?.nativeElement;
+      if (screenSharePiPElment && this.pipWindow) {
+        this.renderer.setAttribute(
+          screenSharePiPElment,
+          'style',
+          `
+          --lk-control-bar-height: 380px;
+          padding: 10px;
+          width: 93%;
+          height: calc(100% - var(--lk-control-bar-height));
+        `
+        );
+      }
+      const clonedScreenShare = screenSharePiPElment?.cloneNode(
+        true
+      ) as HTMLElement;
+
+      pipBody.appendChild(clonedScreenShare);
+    }
     // Append the cloned player container to the PiP window body
     pipBody.appendChild(clonedContainer);
     // Append the cloned header to the PiP window body
     if (clonedHeader) {
       pipBody.appendChild(clonedHeader);
+    }
+
+    const pipVideoContainer = pipBody.querySelector(
+      '.screen-share-layout-wrapper'
+    ) as HTMLDivElement;
+    if (pipVideoContainer) {
+      this.renderer.setStyle(pipVideoContainer, 'height', '53vh');
+      this.renderer.setStyle(pipVideoContainer, 'margin-left', '0');
+    }
+    // pipVideoContainer.style.height = '53vh';
+    const pipVideoLayout = pipBody.querySelector(
+      '.lk-grid-layout'
+    ) as HTMLDivElement;
+    if (pipVideoLayout) {
+      this.renderer.setStyle(pipVideoLayout, 'overflow', 'hidden');
+    }
+
+    // Get all screenshare elements with class '.pip-video' inside the PiP window
+    const pipScreenShareElements = pipBody.querySelectorAll(
+      '.pip-screenShare'
+    ) as NodeListOf<HTMLVideoElement>;
+
+    const originalScreenShareElements =
+      mainScreenShareContainer.querySelectorAll(
+        '.pip-screenShare'
+      ) as NodeListOf<HTMLVideoElement>;
+    // Ensure there are corresponding screen share elements in both the PiP window and the main container
+    if (
+      pipScreenShareElements.length > 0 &&
+      originalScreenShareElements.length > 0
+    ) {
+      pipScreenShareElements.forEach((pipScreenShareElement, index) => {
+        const originalScreenShareElement = originalScreenShareElements[index];
+        if (originalScreenShareElement) {
+          pipScreenShareElement.srcObject =
+            originalScreenShareElement.srcObject;
+          pipScreenShareElement.play().catch((error) => {
+            console.error('Error playing PiP video:', error);
+          });
+        }
+      });
+    } else {
+      console.warn('Screen share elements not found in PiP or main container.');
+    }
+
+    // Get all video elements with class '.pip-video' inside the PiP window
+    const pipVideoElements = pipBody.querySelectorAll(
+      '.pip-video'
+    ) as NodeListOf<HTMLVideoElement>;
+
+    // Get all original video elements with class '.pip-video' from the main container
+    const originalVideoElements = mainContainer.querySelectorAll(
+      '.pip-video'
+    ) as NodeListOf<HTMLVideoElement>;
+
+    // If there are video elements in both PiP window and main container
+    if (pipVideoElements.length > 0 && originalVideoElements.length > 0) {
+      // Loop through each pip video element and assign the corresponding original video stream
+      pipVideoElements.forEach((pipVideoElement, index) => {
+        const originalVideoElement = originalVideoElements[index];
+        if (originalVideoElement) {
+          pipVideoElement.srcObject = originalVideoElement.srcObject;
+          pipVideoElement.play().catch((error) => {
+            console.error('Error playing PiP video:', error);
+          });
+        }
+      });
     }
 
     // Manually reattach event listeners to each button in the cloned header

@@ -190,7 +190,7 @@
     </header>
 
     <!-- for screen sharing container  -->
-    <!-- <div id="playerContainer" #playerContainer> -->
+    <!-- <div #playerContainer style="grid-column: 1 / 13; grid-row: 2 / 3"> -->
     <ng-container
       *ngIf="
         livekitService.isScreenSharingEnabled === true ||
@@ -202,6 +202,7 @@
         [ngClass]="{
           'screen-share-layout-wrapper': livekitService.isExpanded === true
         }"
+        #screensharePiP
       >
         <div
           class="lk-focus-layout"
@@ -213,7 +214,6 @@
         ></div>
       </div>
     </ng-container>
-    <!-- </div> -->
     <!-- screen sahring for multiple screens  -->
     <div
       class="lk-grid-layout-wrapper"
@@ -234,6 +234,7 @@
         [style.grid-template-columns]="GalleryGridColumnStyle"
       ></div>
     </div>
+    <!-- </div> -->
   </div>
 
   <!-- breakout room modal which includes automatic and manual selection from host  -->

@@ -1873,3 +1873,9 @@ input {
     }
   }
 }
+
+
+.active-speaker {
+  border: 2px solid #4caf50; /* Adjust the color and width as desired */
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+}
