@@ -149,24 +149,64 @@
         </button>
         <div class="line"></div>
 
-        <button data-test="video-test" class="video" (click)="toggleVideo()">
-          <i
-            class="fas"
-            [ngClass]="{
-              'fa-video': (isVideoOn$ | async),
-              'fa-video-slash': !(isVideoOn$ | async)
-            }"
-          ></i>
-        </button>
-        <button class="mic" (click)="toggleMic()">
-          <i
-            class="fas"
-            [ngClass]="{
-              'fa-microphone': (isMicOn$ | async),
-              'fa-microphone-slash': !(isMicOn$ | async)
-            }"
-          ></i>
-        </button>
+        <div class="video-dropdown">
+          <button data-test="video-test" class="video" (click)="toggleVideo()">
+            <i
+              class="fas"
+              [ngClass]="{
+                'fa-video': (isVideoOn$ | async),
+                'fa-video-slash': !(isVideoOn$ | async)
+              }"
+            ></i>
+          </button>
+
+          <!-- Dropdown for selecting speakers -->
+          <div class="dropdown">
+            <button class="dropdown-toggle" (click)="toggleVideoDropdown()">
+              <i class="fas fa-caret-down"></i>
+            </button>
+            <ul *ngIf="isVideoDropdownOpen">
+              <li
+                *ngFor="let video of livekitService.videoDevices"
+                (click)="selectVideo(video.deviceId)"
+                [ngClass]="{ selected: video.deviceId === selectedVideoId }"
+              >
+                {{ video.label || "Unnamed Device" }}
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="mic-dropdown">
+          <button class="mic" (click)="toggleMic()">
+            <i
+              class="fas"
+              [ngClass]="{
+                'fa-microphone': (isMicOn$ | async),
+                'fa-microphone-slash': !(isMicOn$ | async)
+              }"
+            ></i>
+          </button>
+
+          <!-- Dropdown for selecting speakers -->
+          <div class="dropdown">
+            <button class="dropdown-toggle" (click)="toggleMicDropdown()">
+              <i class="fas fa-caret-down"></i>
+            </button>
+            <ul *ngIf="isMicDropdownOpen" class="dropdown-menu">
+              <li
+                *ngFor="let device of livekitService.micDevices"
+                (click)="selectMic(device.deviceId, device.kind)"
+                [ngClass]="{
+                  selected:
+                    device.kind === 'audioinput' &&
+                    device.deviceId === selectedMicId
+                }"
+              >
+                {{ device.label || "Unnamed Mic Device" }}
+              </li>
+            </ul>
+          </div>
+        </div>
         <button class="share" (click)="toggleScreenShare()">
           <span
             class="material-symbols-outlined"
@@ -729,6 +769,18 @@
       <button class="leave-btn" matTooltip="Leave_Meeting" (click)="leaveBtn()">
         <span class="material-symbols-outlined"> call_end </span>
       </button>
+    </div>
+    <div #pipModal class="pip-modal" *ngIf="showModal">
+      <div class="pip-modal-content">
+        <h2>Picture-in-Picture Mode</h2>
+        <p>Allow video feeds to play in Picture-in-Picture mode?</p>
+        <button id="allowButton" class="allow-btn" (click)="allowPiP()">
+          Allow
+        </button>
+        <button id="cancelButton" class="cancel-btn" (click)="cancelPiP()">
+          Cancel
+        </button>
+      </div>
     </div>
   </ng-container>
 </ng-container>

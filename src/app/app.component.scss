@@ -1874,8 +1874,121 @@ input {
   }
 }
 
-
 .active-speaker {
   border: 2px solid #4caf50; /* Adjust the color and width as desired */
   box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+}
+
+.mic-dropdown,
+.video-dropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  .mic {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+  }
+
+  .dropdown {
+    // position: absolute;
+    // top: 100%;
+    // left: 0;
+    // background-color: white;
+    // border: 1px solid #ccc;
+    border-radius: 4px;
+    // padding: 10px;
+    // display: inline-block;
+
+    .dropdown-toggle {
+      // background-color: #007bff;
+      // color: white;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+      border-radius: 4px;
+      i {
+        font-size: 18px;
+        color: #4e4e4e;
+        text-decoration: none;
+        border: none;
+      }
+    }
+
+    ul {
+      position: absolute;
+      background: white;
+      /* top: 15%; */
+      /* bottom: 10%; */
+      z-index: 2;
+      width: 220px;
+      list-style-type: none;
+      padding: 0;
+      margin: 0;
+
+      li {
+        padding: 5px 10px;
+        cursor: pointer;
+        &:hover {
+          background-color: #007bff;
+          color: white;
+        }
+        &.selected {
+          background-color: #007bff;
+          color: white;
+        }
+      }
+    }
+  }
+}
+
+.pip-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+
+  .pip-modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    width: 180px;
+    height: 100px;
+
+    h2 {
+      font-size: 1rem;
+      margin: 0;
+    }
+    p {
+      font-size: 0.7rem;
+    }
+
+    button {
+      margin: 5px;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.6rem;
+    }
+
+    .allow-btn {
+      background-color: #4caf50;
+      color: white;
+    }
+
+    .cancel-btn {
+      background-color: #f44336;
+      color: white;
+    }
+  }
 }

@@ -76,6 +76,12 @@ const PIPGRIDCOLUMN: { [key: number]: string } = {
   styleUrls: ['./app.component.scss'],
 })
 export class AppComponent {
+  isMicDropdownOpen = false; // To toggle mic dropdown visibility
+  isVideoDropdownOpen = false; // To toggle video dropdown visibility
+  selectedMicId: string = ''; // Track selected mic device
+  selectedVideoId: string = ''; // Track selected video device
+
+  // speakerDevices: MediaDeviceInfo[] = [];
   selectedParticipants: { [roomIndex: number]: string[] } = {};
   // websocket variables
   webSocketStatus: 'connected' | 'reconnecting' | 'disconnected' =
@@ -109,6 +115,8 @@ export class AppComponent {
   selectedBreakoutRoom = '';
   // pip
   pipWindow: any = null;
+  showModal = false; // Controls modal visibility
+  @ViewChild('pipModal') pipModal!: ElementRef<HTMLDivElement>;
   @ViewChild('playerContainer') playerContainer!: ElementRef<HTMLDivElement>;
   @ViewChild('pipContainer') pipContainer!: ElementRef<HTMLDivElement>;
   @ViewChild('screensharePiP') screensharePiP!: ElementRef<HTMLDivElement>;
@@ -173,13 +181,23 @@ export class AppComponent {
 
     // Expose livekitService for Cypress
     // this.exposeLivekitServiceForCypress();
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        this.enterPiP();
-      } else {
-        this.onLeavePiP();
-      }
-    });
+    if (this.isMeetingStarted$) {
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          this.enterPiP();
+        } else {
+          this.onLeavePiP();
+        }
+      });
+    }
+    // Get available speakers on component load
+    // this.livekitService.getAvailableSpeakers().then(() => {
+    //   this.speakerDevices = this.livekitService.speakerDevices;
+    // });
+
+    // Initialize the selected devices
+    this.selectedMicId = this.livekitService.selectedMicId;
+    this.selectedVideoId = this.livekitService.selectedVideoId;
 
     // Add an event listener for visibility change
     // document.addEventListener(
@@ -203,6 +221,45 @@ export class AppComponent {
         this.onLeavePiP();
       }
     });
+  }
+
+  // Toggle mic dropdown visibility
+  async toggleMicDropdown() {
+    if (!this.isMicDropdownOpen) {
+      // Fetch devices when the dropdown is opened for the first time
+      await this.livekitService.fetchDevices();
+    }
+
+    this.isMicDropdownOpen = !this.isMicDropdownOpen;
+  }
+  // Toggle video dropdown visibility
+  async toggleVideoDropdown() {
+    if (!this.isVideoDropdownOpen) {
+      // Fetch devices when the dropdown is opened for the first time
+      await this.livekitService.fetchDevices();
+    }
+    this.isVideoDropdownOpen = !this.isVideoDropdownOpen;
+  }
+  // Handle mic or speaker device selection
+  // Handle mic or speaker device selection
+  selectMic(deviceId: string, kind: MediaDeviceKind) {
+    this.livekitService.selectMic(deviceId, kind);
+
+    // Update the selected device ID based on kind
+    if (kind === 'audioinput') {
+      this.selectedMicId = deviceId;
+      console.log(`App Component: Selected microphone ID: ${deviceId}`);
+    }
+
+    this.isMicDropdownOpen = false; // Close the mic dropdown
+  }
+
+  // Handle video device selection
+  selectVideo(deviceId: string) {
+    this.livekitService.selectVideo(deviceId);
+    this.selectedVideoId = deviceId;
+    console.log(`App Component: Selected video device ID: ${deviceId}`);
+    this.isVideoDropdownOpen = false; // Close the video dropdown
   }
 
   // async onVisibilityChange(event: Event) {
@@ -1313,6 +1370,9 @@ export class AppComponent {
    */
   async enterPiP() {
     this.pipMode = true;
+    // if (this.pipWindow) {
+    //   this.showModal = true;
+    // }
 
     const playerContainer = this?.playerContainer?.nativeElement;
     const mainScreenShareContainer = this?.screensharePiP?.nativeElement;
@@ -1454,9 +1514,10 @@ export class AppComponent {
     console.log('updatePiPWindow called'); // Debugging log
 
     if (!this.pipWindow) return;
+    this.showModal = true;
 
-    const mainContainer = this.playerContainer.nativeElement;
-    const mainScreenShareContainer = this.screensharePiP.nativeElement;
+    const mainContainer = this.playerContainer?.nativeElement;
+    const mainScreenShareContainer = this.screensharePiP?.nativeElement;
     const pipBody = this.pipWindow.document.body;
 
     // Clear existing content in the PiP window
@@ -1464,7 +1525,35 @@ export class AppComponent {
 
     // Clone the current state of the main container into the PiP window
     const clonedContainer = mainContainer.cloneNode(true) as HTMLElement;
+    // Clone the modal (if present) into the PiP window
+    // const modalElement = document.querySelector('#pipModal') as HTMLElement; // Update with your modal's ID or class
+    const modalElement = this.pipModal.nativeElement;
+    if (modalElement) {
+      modalElement.remove();
+      const clonedModal = modalElement.cloneNode(true) as HTMLElement;
+      pipBody.appendChild(clonedModal);
+      // Remove the modal from the main DOM
+      // this.renderer.setStyle(this.pipModal.nativeElement, 'display', 'none');
+      // Attach event listeners for modal buttons
+      const allowButton = clonedModal.querySelector('#allowButton'); // Replace with the ID or selector of your allow button
+      const cancelButton = clonedModal.querySelector('#cancelButton'); // Replace with the ID or selector of your cancel button
 
+      if (allowButton) {
+        // Attach the click event
+        this.renderer.listen(allowButton, 'click', () => {
+          console.log('Allow button clicked in PiP modal!');
+          this.allowPiP(); // Call the allowPiP function
+        });
+      }
+
+      if (cancelButton) {
+        // Attach the click event
+        this.renderer.listen(cancelButton, 'click', () => {
+          console.log('Cancel button clicked in PiP modal!');
+          this.cancelPiP(); // Call the cancelPiP function
+        });
+      }
+    }
     // Clone the header from the main document (ng-container with pip header buttons)
     const pipContainer = this.pipContainer.nativeElement;
     const clonedHeader = pipContainer?.cloneNode(true) as HTMLElement;
@@ -1500,7 +1589,7 @@ export class AppComponent {
       pipBody.appendChild(clonedHeader);
     }
 
-    const pipVideoContainer = pipBody.querySelector(
+    const pipVideoContainer = pipBody?.querySelector(
       '.screen-share-layout-wrapper'
     ) as HTMLDivElement;
     if (pipVideoContainer) {
@@ -1508,7 +1597,7 @@ export class AppComponent {
       this.renderer.setStyle(pipVideoContainer, 'margin-left', '0');
     }
     // pipVideoContainer.style.height = '53vh';
-    const pipVideoLayout = pipBody.querySelector(
+    const pipVideoLayout = pipBody?.querySelector(
       '.lk-grid-layout'
     ) as HTMLDivElement;
     if (pipVideoLayout) {
@@ -1516,12 +1605,12 @@ export class AppComponent {
     }
 
     // Get all screenshare elements with class '.pip-video' inside the PiP window
-    const pipScreenShareElements = pipBody.querySelectorAll(
+    const pipScreenShareElements = pipBody?.querySelectorAll(
       '.pip-screenShare'
     ) as NodeListOf<HTMLVideoElement>;
 
     const originalScreenShareElements =
-      mainScreenShareContainer.querySelectorAll(
+      mainScreenShareContainer?.querySelectorAll(
         '.pip-screenShare'
       ) as NodeListOf<HTMLVideoElement>;
     // Ensure there are corresponding screen share elements in both the PiP window and the main container
@@ -1638,6 +1727,35 @@ export class AppComponent {
     this.pipMode = false;
     this.pipWindow.close();
     this.pipWindow = null;
+  }
+
+  allowPiP() {
+    // if (this.pipWindow) {
+    //   this.showModal = false;
+    //   this.updatePiPWindow();
+    // }
+    this.showModal = false;
+    if (this.pipWindow) {
+      const pipBody = this.pipWindow.document.body;
+
+      // Hide the modal in PiP window
+      const modalElement = this.pipModal.nativeElement;
+      if (modalElement) {
+        modalElement.style.display = 'none';
+      }
+
+      // Proceed with interaction restrictions
+      this.updatePiPWindow(); // Update PiP content
+    }
+  }
+
+  cancelPiP() {
+    this.showModal = false; // Hide the modal
+    if (this.pipWindow) {
+      this.pipWindow.close(); // Close PiP window
+      this.pipWindow = null;
+      this.pipMode = false;
+    }
   }
   /**
    * Creates a cloned Header in html whose styling is written here in this CreatepipWrapper function.
