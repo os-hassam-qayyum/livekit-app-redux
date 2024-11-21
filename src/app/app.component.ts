@@ -242,22 +242,31 @@ export class AppComponent {
   }
   // Handle mic or speaker device selection
   // Handle mic or speaker device selection
-  selectMic(deviceId: string, kind: MediaDeviceKind) {
-    this.livekitService.selectMic(deviceId, kind);
+  // selectMic(deviceId: string, kind: MediaDeviceKind) {
+  //   this.livekitService.selectMic(deviceId, kind);
+  //   console.log(`App Component: Selected microphone ID: ${deviceId}`);
+  //   this.isMicDropdownOpen = false; // Close the mic dropdown
+  // }
+  // selectSpeaker(deviceId: string, kind: MediaDeviceKind) {
+  //   this.livekitService.selectSpeaker(deviceId, kind);
+  //   console.log(`App Component: Selected microphone ID: ${deviceId}`);
+  //   this.isMicDropdownOpen = false; // Close the mic dropdown
+  // }
 
-    // Update the selected device ID based on kind
+  async selectMic(deviceId: string, kind: MediaDeviceKind) {
     if (kind === 'audioinput') {
-      this.selectedMicId = deviceId;
-      console.log(`App Component: Selected microphone ID: ${deviceId}`);
+      this.livekitService.selectedMicId = deviceId;
+      console.log(`Microphone selected: ${deviceId}`);
+      // Additional logic for switching microphones can go here
+    } else if (kind === 'audiooutput') {
+      await this.livekitService.setSpeakerDevice(deviceId);
+      console.log(`Speaker selected: ${deviceId}`);
     }
-
-    this.isMicDropdownOpen = false; // Close the mic dropdown
   }
 
   // Handle video device selection
   selectVideo(deviceId: string) {
     this.livekitService.selectVideo(deviceId);
-    this.selectedVideoId = deviceId;
     console.log(`App Component: Selected video device ID: ${deviceId}`);
     this.isVideoDropdownOpen = false; // Close the video dropdown
   }
@@ -805,6 +814,7 @@ export class AppComponent {
    * @returns {Promise<void>}
    */
   async toggleVideo(): Promise<void> {
+    await this.livekitService.connectDefaultDevices();
     this.store.dispatch(LiveKitRoomActions.LiveKitActions.toggleVideo());
   }
 
@@ -816,6 +826,7 @@ export class AppComponent {
    * @returns {Promise<void>}
    */
   async toggleMic(): Promise<void> {
+    await this.livekitService.connectDefaultDevices();
     this.store.dispatch(LiveKitRoomActions.LiveKitActions.toggleMic());
     // this.livekitService.toggleMicrophone().subscribe((isMicOn: boolean) => {
     //   if (isMicOn) {
