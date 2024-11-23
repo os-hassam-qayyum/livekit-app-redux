@@ -630,7 +630,7 @@
   }
 
   .lk-grid-layout {
-    --lk-grid-gap: 0.5rem;
+    --lk-grid-gap: 1.5rem;
     // --lk-col-count: 2;
     // --lk-row-count: 1;
     display: grid;
@@ -651,6 +651,8 @@
       justify-content: flex-start;
       gap: 6px;
       overflow-y: scroll;
+      padding: 5px;
+      overflow-x: hidden;
 
       &::-webkit-scrollbar {
         width: 10px;

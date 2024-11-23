@@ -78,9 +78,17 @@ const PIPGRIDCOLUMN: { [key: number]: string } = {
 export class AppComponent {
   isMicDropdownOpen = false; // To toggle mic dropdown visibility
   isVideoDropdownOpen = false; // To toggle video dropdown visibility
-  selectedMicId: string = ''; // Track selected mic device
-  selectedVideoId: string = ''; // Track selected video device
 
+  videoDevices: MediaDeviceInfo[] = [];
+  micDevices: MediaDeviceInfo[] = [];
+  speakerDevices: MediaDeviceInfo[] = [];
+
+  selectedVideoId: string | null = null;
+  selectedMicId: string | null = null;
+  selectedSpeakerId: string | null = null;
+
+  videoDevicesLoaded = false;
+  audioDevicesLoaded = false;
   // speakerDevices: MediaDeviceInfo[] = [];
   selectedParticipants: { [roomIndex: number]: string[] } = {};
   // websocket variables
@@ -157,7 +165,7 @@ export class AppComponent {
     private renderer: Renderer2
   ) {}
 
-  ngOnInit() {
+  async ngOnInit() {
     // Initialize WebSocket and audio/video handler
     this.initializeWebSocketAndAudioVideoHandler();
 
@@ -195,15 +203,53 @@ export class AppComponent {
     //   this.speakerDevices = this.livekitService.speakerDevices;
     // });
 
-    // Initialize the selected devices
-    this.selectedMicId = this.livekitService.selectedMicId;
-    this.selectedVideoId = this.livekitService.selectedVideoId;
-
     // Add an event listener for visibility change
     // document.addEventListener(
     //   'visibilitychange',
     //   this.onVisibilityChange.bind(this)
     // );
+
+    // Fetch all devices initially
+    try {
+      const devices = await this.livekitService.getAllDevices();
+
+      // Populate the devices lists
+      this.videoDevices = devices.cameras;
+      this.micDevices = devices.microphones;
+      this.speakerDevices = devices.speakers;
+
+      // Select the first device from each category by default
+      if (this.videoDevices.length > 0) {
+        this.selectedVideoId = this.videoDevices[0].deviceId;
+        await this.livekitService.switchDevice(
+          'videoinput',
+          this.selectedVideoId
+        );
+      }
+
+      if (this.micDevices.length > 0) {
+        this.selectedMicId = this.micDevices[0].deviceId;
+        await this.livekitService.switchDevice(
+          'audioinput',
+          this.selectedMicId
+        );
+      }
+
+      if (this.speakerDevices.length > 0) {
+        this.selectedSpeakerId = this.speakerDevices[0].deviceId;
+        await this.livekitService.switchDevice(
+          'audiooutput',
+          this.selectedSpeakerId
+        );
+      }
+
+      console.log('Default devices selected:');
+      console.log('Video:', this.selectedVideoId);
+      console.log('Mic:', this.selectedMicId);
+      console.log('Speaker:', this.selectedSpeakerId);
+    } catch (error) {
+      console.error('Error initializing default devices:', error);
+    }
   }
   // ngOnDestroy(): void {
   //   // Clean up the event listener to avoid memory leaks
@@ -222,54 +268,108 @@ export class AppComponent {
       }
     });
   }
+  async onDeviceSelected(kind: MediaDeviceKind, deviceId: string) {
+    try {
+      console.log(`Selected ${kind}: ${deviceId}`);
+      // Update the selected device
+      if (kind === 'videoinput') this.selectedVideoId = deviceId;
+      if (kind === 'audioinput') this.selectedMicId = deviceId;
+      if (kind === 'audiooutput') this.selectedSpeakerId = deviceId;
 
-  // Toggle mic dropdown visibility
-  async toggleMicDropdown() {
-    if (!this.isMicDropdownOpen) {
-      // Fetch devices when the dropdown is opened for the first time
-      await this.livekitService.fetchDevices();
+      // Switch the active device using the LiveKit service
+      await this.livekitService.switchDevice(kind, deviceId);
+
+      console.log(`Successfully switched ${kind} to device: ${deviceId}`);
+    } catch (error) {
+      console.error(`Error switching ${kind} to device: ${deviceId}`, error);
     }
-
-    this.isMicDropdownOpen = !this.isMicDropdownOpen;
   }
-  // Toggle video dropdown visibility
+
   async toggleVideoDropdown() {
-    if (!this.isVideoDropdownOpen) {
-      // Fetch devices when the dropdown is opened for the first time
-      await this.livekitService.fetchDevices();
+    if (!this.videoDevicesLoaded) {
+      try {
+        this.videoDevices = await this.livekitService.getDevices('videoinput');
+        this.videoDevicesLoaded = true; // Mark as loaded
+        console.log('Video devices loaded:', this.videoDevices);
+      } catch (error) {
+        console.error('Error fetching video devices:', error);
+      }
     }
     this.isVideoDropdownOpen = !this.isVideoDropdownOpen;
   }
-  // Handle mic or speaker device selection
-  // Handle mic or speaker device selection
-  // selectMic(deviceId: string, kind: MediaDeviceKind) {
-  //   this.livekitService.selectMic(deviceId, kind);
-  //   console.log(`App Component: Selected microphone ID: ${deviceId}`);
-  //   this.isMicDropdownOpen = false; // Close the mic dropdown
-  // }
-  // selectSpeaker(deviceId: string, kind: MediaDeviceKind) {
-  //   this.livekitService.selectSpeaker(deviceId, kind);
-  //   console.log(`App Component: Selected microphone ID: ${deviceId}`);
-  //   this.isMicDropdownOpen = false; // Close the mic dropdown
-  // }
 
-  async selectMic(deviceId: string, kind: MediaDeviceKind) {
-    if (kind === 'audioinput') {
-      this.livekitService.selectedMicId = deviceId;
-      console.log(`Microphone selected: ${deviceId}`);
-      // Additional logic for switching microphones can go here
-    } else if (kind === 'audiooutput') {
-      await this.livekitService.setSpeakerDevice(deviceId);
-      console.log(`Speaker selected: ${deviceId}`);
+  async toggleMicDropdown() {
+    if (!this.audioDevicesLoaded) {
+      try {
+        const devices = await this.livekitService.getAllDevices();
+        this.micDevices = devices.microphones;
+        this.speakerDevices = devices.speakers;
+        this.audioDevicesLoaded = true; // Mark as loaded
+        console.log(
+          'Audio devices loaded:',
+          this.micDevices,
+          this.speakerDevices
+        );
+      } catch (error) {
+        console.error('Error fetching audio devices:', error);
+      }
     }
+    this.isMicDropdownOpen = !this.isMicDropdownOpen;
   }
 
-  // Handle video device selection
-  selectVideo(deviceId: string) {
-    this.livekitService.selectVideo(deviceId);
-    console.log(`App Component: Selected video device ID: ${deviceId}`);
-    this.isVideoDropdownOpen = false; // Close the video dropdown
+  async selectVideo(deviceId: string) {
+    this.selectedVideoId = deviceId;
+    await this.livekitService.switchDevice('videoinput', deviceId);
+    console.log('Selected video device:', deviceId);
   }
+
+  async selectMic(deviceId: string) {
+    this.selectedMicId = deviceId;
+    await this.livekitService.switchDevice('audioinput', deviceId);
+    console.log('Selected microphone device:', deviceId);
+  }
+
+  async selectSpeaker(deviceId: string) {
+    this.selectedSpeakerId = deviceId;
+    await this.livekitService.switchDevice('audiooutput', deviceId);
+    console.log('Selected speaker device:', deviceId);
+  }
+
+  // Toggle mic dropdown visibility
+  // async toggleMicDropdown() {
+  //   if (!this.isMicDropdownOpen) {
+  //     // Fetch devices when the dropdown is opened for the first time
+  //     await this.livekitService.fetchDevices();
+  //   }
+
+  //   this.isMicDropdownOpen = !this.isMicDropdownOpen;
+  // }
+  // // Toggle video dropdown visibility
+  // async toggleVideoDropdown() {
+  //   if (!this.isVideoDropdownOpen) {
+  //     // Fetch devices when the dropdown is opened for the first time
+  //     await this.livekitService.fetchDevices();
+  //   }
+  //   this.isVideoDropdownOpen = !this.isVideoDropdownOpen;
+  // }
+  // Handle mic or speaker device selection
+  // async selectMic(deviceId: string, kind: MediaDeviceKind) {
+  //   if (kind === 'audioinput') {
+  //     this.livekitService.selectedMicId = deviceId;
+  //     console.log(`Microphone selected: ${deviceId}`);
+  //     // Additional logic for switching microphones can go here
+  //   } else if (kind === 'audiooutput') {
+  //     await this.livekitService.setSpeakerDevice(deviceId);
+  //     console.log(`Speaker selected: ${deviceId}`);
+  //   }
+  // }
+
+  // // Handle video device selection
+  // selectVideo(deviceId: string) {
+  //   this.livekitService.selectVideo(deviceId);
+  //   console.log(`App Component: Selected video device ID: ${deviceId}`);
+  //   this.isVideoDropdownOpen = false; // Close the video dropdown
+  // }
 
   // async onVisibilityChange(event: Event) {
   //   if (document.visibilityState === 'visible') {
@@ -814,7 +914,7 @@ export class AppComponent {
    * @returns {Promise<void>}
    */
   async toggleVideo(): Promise<void> {
-    await this.livekitService.connectDefaultDevices();
+    // await this.livekitService.connectDefaultDevices();
     this.store.dispatch(LiveKitRoomActions.LiveKitActions.toggleVideo());
   }
 
@@ -826,7 +926,7 @@ export class AppComponent {
    * @returns {Promise<void>}
    */
   async toggleMic(): Promise<void> {
-    await this.livekitService.connectDefaultDevices();
+    // await this.livekitService.connectDefaultDevices();
     this.store.dispatch(LiveKitRoomActions.LiveKitActions.toggleMic());
     // this.livekitService.toggleMicrophone().subscribe((isMicOn: boolean) => {
     //   if (isMicOn) {

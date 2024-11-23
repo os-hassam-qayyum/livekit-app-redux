@@ -148,7 +148,6 @@
           <i class="fas fa-ellipsis-h"></i>
         </button>
         <div class="line"></div>
-
         <div class="video-dropdown">
           <button data-test="video-test" class="video" (click)="toggleVideo()">
             <i
@@ -160,7 +159,78 @@
             ></i>
           </button>
 
-          <!-- Dropdown for selecting speakers -->
+          <!-- Dropdown for selecting video devices -->
+          <div class="dropdown">
+            <button class="dropdown-toggle" (click)="toggleVideoDropdown()">
+              <i class="fas fa-caret-down"></i>
+            </button>
+            <ul *ngIf="isVideoDropdownOpen">
+              <li
+                *ngFor="let video of livekitService.videoDevices"
+                (click)="selectVideo(video.deviceId)"
+                [ngClass]="{
+                  selected: video.deviceId === selectedVideoId
+                }"
+              >
+                {{ video.label || "Unnamed Device" }}
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="mic-dropdown">
+          <button class="mic" (click)="toggleMic()">
+            <i
+              class="fas"
+              [ngClass]="{
+                'fa-microphone': (isMicOn$ | async),
+                'fa-microphone-slash': !(isMicOn$ | async)
+              }"
+            ></i>
+          </button>
+
+          <!-- Dropdown for selecting audio devices -->
+          <div class="dropdown">
+            <button class="dropdown-toggle" (click)="toggleMicDropdown()">
+              <i class="fas fa-caret-down"></i>
+            </button>
+            <ul *ngIf="isMicDropdownOpen" class="dropdown-menu">
+              <li class="dropdown-heading">Select a Microphone</li>
+              <li
+                *ngFor="let mic of livekitService.micDevices"
+                (click)="selectMic(mic.deviceId)"
+                [ngClass]="{
+                  selected: mic.deviceId === selectedMicId
+                }"
+              >
+                {{ mic.label || "Unnamed Mic Device" }}
+              </li>
+
+              <li class="dropdown-heading">Select a Speaker</li>
+              <li
+                *ngFor="let speaker of livekitService.speakerDevices"
+                (click)="selectSpeaker(speaker.deviceId)"
+                [ngClass]="{
+                  selected: speaker.deviceId === selectedSpeakerId
+                }"
+              >
+                {{ speaker.label || "Unnamed Speaker Device" }}
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- <div class="video-dropdown">
+          <button data-test="video-test" class="video" (click)="toggleVideo()">
+            <i
+              class="fas"
+              [ngClass]="{
+                'fa-video': (isVideoOn$ | async),
+                'fa-video-slash': !(isVideoOn$ | async)
+              }"
+            ></i>
+          </button>
+
           <div class="dropdown">
             <button class="dropdown-toggle" (click)="toggleVideoDropdown()">
               <i class="fas fa-caret-down"></i>
@@ -188,8 +258,6 @@
               }"
             ></i>
           </button>
-
-          <!-- Dropdown for selecting speakers -->
           <div class="dropdown">
             <button class="dropdown-toggle" (click)="toggleMicDropdown()">
               <i class="fas fa-caret-down"></i>
@@ -206,7 +274,6 @@
                 {{ device.label || "Unnamed Mic Device" }}
               </li>
 
-              <!-- Speaker devices -->
               <li class="dropdown-heading">Select a Speaker</li>
               <li
                 *ngFor="let speaker of livekitService.speakerDevices"
@@ -220,7 +287,7 @@
               </li>
             </ul>
           </div>
-        </div>
+        </div> -->
         <button class="share" (click)="toggleScreenShare()">
           <span
             class="material-symbols-outlined"
