@@ -174,7 +174,8 @@ export const liveKitRoomReducer = createReducer(
   on(LiveKitRoomActions.LiveKitActions.toggleChatSideWindow, (state) => ({
     ...state,
     chatSideWindowVisible: !state.chatSideWindowVisible,
-    unreadMessagesCount: 0,
+    unreadMessagesCount:
+      !state.chatSideWindowVisible === false ? 0 : state.unreadMessagesCount,
     participantSideWindowVisible:
       state.participantSideWindowVisible && !state.chatSideWindowVisible
         ? false

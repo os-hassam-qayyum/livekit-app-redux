@@ -15,25 +15,7 @@ import {
 import { async, map, Observable, Subscription, take } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store, select } from '@ngrx/store';
-import {
-  isBreakoutModalOpen,
-  isHostMsgModalOpen,
-  isInvitationModalOpen,
-  selectAllMessages,
-  selectBreakoutRoomsData,
-  selectBreakoutSideWindowVisible,
-  selectChatSideWindowVisible,
-  selectDistributionMessage,
-  selectHelpMessageModal,
-  selectIconColor,
-  selectIsMeetingStarted,
-  selectIsMicOn,
-  selectIsScreenSharing,
-  selectIsVideoOn,
-  selectNextRoomIndex,
-  selectParticipantSideWindowVisible,
-  selectUnreadMessagesCount,
-} from './+state/livekit/livekit-room.selectors';
+import { selectLiveKitRoomViewState } from './+state/livekit/livekit-room.selectors';
 import * as LiveKitRoomActions from './+state/livekit/livekit-room.actions';
 import { LivekitService } from './livekit.service';
 import { MatDialog } from '@angular/material/dialog';
@@ -78,7 +60,7 @@ const PIPGRIDCOLUMN: { [key: number]: string } = {
 export class AppComponent {
   isMicDropdownOpen = false; // To toggle mic dropdown visibility
   isVideoDropdownOpen = false; // To toggle video dropdown visibility
-
+  chatSideWindowVisible: boolean = false;
   videoDevices: MediaDeviceInfo[] = [];
   micDevices: MediaDeviceInfo[] = [];
   speakerDevices: MediaDeviceInfo[] = [];
@@ -96,24 +78,8 @@ export class AppComponent {
     'disconnected';
   private statusSubscription!: Subscription;
   // selectors
-  isMeetingStarted$!: Observable<boolean>;
-  allMessages$!: Observable<any[]>;
-  unreadMessagesCount$!: Observable<number>;
-  isVideoOn$!: Observable<boolean>;
-  isMicOn$!: Observable<boolean>;
-  participantSideWindowVisible$!: Observable<boolean>;
-  breakoutSideWindowVisible$!: Observable<boolean>;
-  chatSideWindowVisible$!: Observable<boolean>;
-  isScreenSharing$!: Observable<boolean>;
-  iconColor$!: Observable<string>;
-  distributionMessage$!: Observable<any>;
-  isBreakoutModal$!: Observable<boolean>;
-  isInvitationModal$!: Observable<boolean>;
-  isHelpMsgModal$!: Observable<boolean>;
-  isHostMsgModal$!: Observable<boolean>;
-  breakoutRoomsData$!: Observable<any[]>;
-  nextRoomIndex$!: Observable<number>;
-  remoteParticipantNames$!: Observable<{ [roomIndex: number]: string[] }>;
+  liveKitViewState$!: Observable<any>;
+  speakerModeLayout = false;
   // =========mic adjustment ======
   @ViewChild('audioCanvas', { static: true })
   audioCanvasRef!: ElementRef<HTMLCanvasElement>;
@@ -187,27 +153,6 @@ export class AppComponent {
     // Store local participant data
     this.storeLocalParticipantData();
 
-    // Expose livekitService for Cypress
-    // this.exposeLivekitServiceForCypress();
-    if (this.isMeetingStarted$) {
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-          this.enterPiP();
-        } else {
-          this.onLeavePiP();
-        }
-      });
-    }
-    // Get available speakers on component load
-    // this.livekitService.getAvailableSpeakers().then(() => {
-    //   this.speakerDevices = this.livekitService.speakerDevices;
-    // });
-
-    // Add an event listener for visibility change
-    // document.addEventListener(
-    //   'visibilitychange',
-    //   this.onVisibilityChange.bind(this)
-    // );
 
     // Fetch all devices initially
     try {
@@ -251,13 +196,7 @@ export class AppComponent {
       console.error('Error initializing default devices:', error);
     }
   }
-  // ngOnDestroy(): void {
-  //   // Clean up the event listener to avoid memory leaks
-  //   document.removeEventListener(
-  //     'visibilitychange',
-  //     this.onVisibilityChange.bind(this)
-  //   );
-  // }
+
   ngOnDestroy() {
     // Clean up the event listener when the component is destroyed
     document.removeEventListener('visibilitychange', () => {
@@ -323,6 +262,7 @@ export class AppComponent {
     console.log('Selected video device:', deviceId);
   }
 
+  
   async selectMic(deviceId: string) {
     this.selectedMicId = deviceId;
     await this.livekitService.switchDevice('audioinput', deviceId);
@@ -334,90 +274,8 @@ export class AppComponent {
     await this.livekitService.switchDevice('audiooutput', deviceId);
     console.log('Selected speaker device:', deviceId);
   }
-
-  // Toggle mic dropdown visibility
-  // async toggleMicDropdown() {
-  //   if (!this.isMicDropdownOpen) {
-  //     // Fetch devices when the dropdown is opened for the first time
-  //     await this.livekitService.fetchDevices();
-  //   }
-
-  //   this.isMicDropdownOpen = !this.isMicDropdownOpen;
-  // }
-  // // Toggle video dropdown visibility
-  // async toggleVideoDropdown() {
-  //   if (!this.isVideoDropdownOpen) {
-  //     // Fetch devices when the dropdown is opened for the first time
-  //     await this.livekitService.fetchDevices();
-  //   }
-  //   this.isVideoDropdownOpen = !this.isVideoDropdownOpen;
-  // }
-  // Handle mic or speaker device selection
-  // async selectMic(deviceId: string, kind: MediaDeviceKind) {
-  //   if (kind === 'audioinput') {
-  //     this.livekitService.selectedMicId = deviceId;
-  //     console.log(`Microphone selected: ${deviceId}`);
-  //     // Additional logic for switching microphones can go here
-  //   } else if (kind === 'audiooutput') {
-  //     await this.livekitService.setSpeakerDevice(deviceId);
-  //     console.log(`Speaker selected: ${deviceId}`);
-  //   }
-  // }
-
-  // // Handle video device selection
-  // selectVideo(deviceId: string) {
-  //   this.livekitService.selectVideo(deviceId);
-  //   console.log(`App Component: Selected video device ID: ${deviceId}`);
-  //   this.isVideoDropdownOpen = false; // Close the video dropdown
-  // }
-
-  // async onVisibilityChange(event: Event) {
-  //   if (document.visibilityState === 'visible') {
-  //     if ((window as any).documentPictureInPicture.window) {
-  //       (window as any).documentPictureInPicture.window.close();
-  //       return;
-  //     }
-  //   } else {
-  //     const pipWindow = await (
-  //       window as any
-  //     ).documentPictureInPicture.requestWindow({
-  //       width: 940,
-  //       height: 660,
-  //     });
-  //     // ...
-
-  //     // Copy style sheets over from the initial document
-  //     // so that the player looks the same.
-  //     [...(document.styleSheets as any)].forEach((styleSheet) => {
-  //       try {
-  //         const cssRules = [...styleSheet.cssRules]
-  //           .map((rule) => rule.cssText)
-  //           .join('');
-  //         const style = document.createElement('style');
-
-  //         style.textContent = cssRules;
-  //         pipWindow.document.head.appendChild(style);
-  //       } catch (e) {
-  //         const link = document.createElement('link');
-
-  //         link.rel = 'stylesheet';
-  //         link.type = styleSheet.type;
-  //         link.media = styleSheet.media;
-  //         link.href = styleSheet.href;
-  //         pipWindow.document.head.appendChild(link);
-  //       }
-  //     });
-
-  //     const player = document.querySelector('.os-main-content');
-  //     pipWindow.document.body.append(player);
-  //     // ...
-
-  //     pipWindow.addEventListener('pagehide', (event) => {
-  //       // const vcMainEl = document.querySelector('.vc-el');
-  //       this.originalParent.append(player);
-  //     });
-  //   }
-  // }
+ 
+  
   private initializeWebSocketAndAudioVideoHandler() {
     // Uncomment this if you want to connect the WebSocket
     // this.livekitService.connectWebSocket();
@@ -432,39 +290,23 @@ export class AppComponent {
   }
 
   private initializeStateObservables() {
-    this.isMeetingStarted$ = this.store.pipe(select(selectIsMeetingStarted));
-    this.isScreenSharing$ = this.store.pipe(select(selectIsScreenSharing));
-
-    this.iconColor$ = this.store.pipe(select(selectIconColor));
-    this.isVideoOn$ = this.store.pipe(select(selectIsVideoOn));
-    this.participantSideWindowVisible$ = this.store.pipe(
-      select(selectParticipantSideWindowVisible)
-    );
-    this.breakoutSideWindowVisible$ = this.store.pipe(
-      select(selectBreakoutSideWindowVisible)
-    );
-    this.chatSideWindowVisible$ = this.store.pipe(
-      select(selectChatSideWindowVisible)
+    this.liveKitViewState$ = this.store.pipe(
+      select(selectLiveKitRoomViewState)
     );
 
-    this.allMessages$ = this.store.pipe(select(selectAllMessages));
-    this.unreadMessagesCount$ = this.store.pipe(
-      select(selectUnreadMessagesCount)
-    );
-    this.unreadMessagesCount$.subscribe((unread) => {
-      console.log('ts unread', unread);
+    this.liveKitViewState$.subscribe((state) => {
+      this.breakoutRoomsData = state.breakoutRoomsData;
+      this.chatSideWindowVisible = state.chatSideWindowVisible;
+      if (state.isMeetingStarted) {
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) {
+            this.enterPiP();
+          } else {
+            this.onLeavePiP();
+          }
+        });
+      }
     });
-    this.isMicOn$ = this.store.pipe(select(selectIsMicOn));
-    this.isBreakoutModal$ = this.store.select(isBreakoutModalOpen);
-    this.isInvitationModal$ = this.store.select(isInvitationModalOpen);
-    this.isHostMsgModal$ = this.store.select(isHostMsgModalOpen);
-    this.distributionMessage$ = this.store.select(selectDistributionMessage);
-    this.breakoutRoomsData$ = this.store.select(selectBreakoutRoomsData);
-    this.nextRoomIndex$ = this.store.select(selectNextRoomIndex);
-    this.store.select(selectBreakoutRoomsData).subscribe((rooms) => {
-      this.breakoutRoomsData = rooms;
-    });
-    this.isHelpMsgModal$ = this.store.select(selectHelpMessageModal);
   }
 
   private initializeForms() {
@@ -484,14 +326,6 @@ export class AppComponent {
       selectedParticipants: [[]],
     });
 
-    this.chatSideWindowVisible$.subscribe((visible) => {
-      if (visible) {
-        this.store.dispatch(
-          LiveKitRoomActions.LiveKitActions.resetUnreadMessagesCount()
-        );
-        this.scrollToBottom();
-      }
-    });
   }
 
   private setupMessageSubscriptions() {
@@ -553,21 +387,19 @@ export class AppComponent {
 
     if (!isDuplicate) {
       this.allMessages.push(newMessage);
-      this.chatSideWindowVisible$.subscribe((visible) => {
-        if (!visible) {
-          this.store.dispatch(
-            LiveKitRoomActions.LiveKitActions.updateUnreadMessagesCount({
-              count: this.unreadMessagesCount + 1,
-            })
-          );
-          this.scrollToBottom();
-        } else {
-          // this.unreadMessagesCount = 0;
-          this.store.dispatch(
-            LiveKitRoomActions.LiveKitActions.resetUnreadMessagesCount()
-          );
-        }
-      });
+      if (!this.chatSideWindowVisible) {
+        this.store.dispatch(
+          LiveKitRoomActions.LiveKitActions.updateUnreadMessagesCount({
+            count: this.unreadMessagesCount + 1,
+          })
+        );
+        this.scrollToBottom();
+      } else {
+        // this.unreadMessagesCount = 0;
+        this.store.dispatch(
+          LiveKitRoomActions.LiveKitActions.resetUnreadMessagesCount()
+        );
+      }
     }
     console.log('Updated chat messages:', this.allMessages);
   }
@@ -598,7 +430,6 @@ export class AppComponent {
       data.message.type !== 'handRaise' &&
       data.message.type !== 'breakoutRoom' &&
       data.message.title !== 'test-room' &&
-      // data.message.title !== this.roomName &&
       data.message.content !== 'I need help'
     ) {
       const receivedMsg = data?.message?.message;
@@ -626,17 +457,14 @@ export class AppComponent {
   }
 
   private updateUnreadMessageCount() {
-    this.chatSideWindowVisible$.subscribe((visible) => {
-      if (!visible) {
-        // this.unreadMessagesCount++;
-        this.store.dispatch(
-          LiveKitRoomActions.LiveKitActions.updateUnreadMessagesCount({
-            count: this.unreadMessagesCount + 1,
-          })
-        );
-        this.scrollToBottom();
-      }
-    });
+    if (!this.chatSideWindowVisible) {
+      this.store.dispatch(
+        LiveKitRoomActions.LiveKitActions.updateUnreadMessagesCount({
+          count: this.unreadMessagesCount + 1,
+        })
+      );
+      this.scrollToBottom();
+    }
   }
 
   private attachRemoteVideoTrack() {
@@ -904,6 +732,7 @@ export class AppComponent {
    */
   async toggleScreenShare(): Promise<void> {
     this.store.dispatch(LiveKitRoomActions.LiveKitActions.toggleScreenShare());
+    this.livekitService.speakerModeLayout = false;
   }
 
   /**
@@ -971,13 +800,11 @@ export class AppComponent {
     this.store.dispatch(
       LiveKitRoomActions.LiveKitActions.toggleChatSideWindow()
     );
-    this.chatSideWindowVisible$.subscribe((visible) => {
-      if (!visible) {
-        this.store.dispatch(
-          LiveKitRoomActions.LiveKitActions.resetUnreadMessagesCount()
-        );
-      }
-    });
+    // if (!this.chatSideWindowVisible) {
+    //   this.store.dispatch(
+    //     LiveKitRoomActions.LiveKitActions.resetUnreadMessagesCount()
+    //   );
+    // }
   }
 
   /**
@@ -1777,18 +1604,21 @@ export class AppComponent {
 
       // Observable subscriptions to automatically update the icons in PiP
       if (tooltipText === 'Video') {
-        this.isVideoOn$.subscribe((isVideoOn) => {
-          iconElement?.classList.toggle('fa-video', isVideoOn);
-          iconElement?.classList.toggle('fa-video-slash', !isVideoOn);
+        this.liveKitViewState$.subscribe((viewState) => {
+          iconElement?.classList.toggle('fa-video', viewState.isVideoOn);
+          iconElement?.classList.toggle('fa-video-slash', !viewState.isVideoOn);
         });
         this.renderer.listen(button, 'click', () => {
           console.log('Video button clicked!');
           this.toggleVideo();
         });
       } else if (tooltipText === 'Mic') {
-        this.isMicOn$.subscribe((isMicOn) => {
-          iconElement?.classList.toggle('fa-microphone', isMicOn);
-          iconElement?.classList.toggle('fa-microphone-slash', !isMicOn);
+        this.liveKitViewState$.subscribe((viewState) => {
+          iconElement?.classList.toggle('fa-microphone', viewState.isMicOn);
+          iconElement?.classList.toggle(
+            'fa-microphone-slash',
+            !viewState.isMicOn
+          );
         });
         this.renderer.listen(button, 'click', () => {
           console.log('Mic button clicked!');
@@ -1868,40 +1698,13 @@ export class AppComponent {
       this.pipMode = false;
     }
   }
-  /**
-   * Creates a cloned Header in html whose styling is written here in this CreatepipWrapper function.
-   *  It's a wrapper element for the PiP window that includes both the player container and PiP header.
-   *
-   * This function creates a new wrapper element that arranges the video player container and the PiP
-   * header in a grid layout. The player container is placed in the first grid row, and the PiP header is
-   * placed in the second row. It returns the created wrapper element.
-   *
-   * @function
-   * @param {HTMLElement} playerContainer - The main player container element to be included in PiP mode.
-   * @param {HTMLElement} pipContainer - The PiP header container element.
-   * @returns {HTMLElement} - The created wrapper element containing both the player and header.
-   */
-  // createPiPWrapper(
-  //   playerContainer: HTMLElement,
-  //   pipContainer: HTMLElement
-  // ): HTMLElement {
-  //   const wrapper = this.pipWindow.document.createElement('div');
-  //   wrapper.style.display = 'grid';
-  //   wrapper.style.gridTemplateRows = '1fr auto';
-  //   wrapper.style.height = '100%';
-  //   wrapper.style.overflow = 'hidden';
 
-  //   const playerWrapper = this.pipWindow.document.createElement('div');
-  //   playerWrapper.style.overflow = 'hidden';
-  //   playerWrapper.style.height = '100%';
-  //   playerWrapper.style.gridRow = '1 / 2';
 
-  //   playerWrapper.appendChild(playerContainer);
-  //   wrapper.appendChild(playerWrapper);
-
-  //   pipContainer.style.gridRow = '2 / 3';
-  //   wrapper.appendChild(pipContainer);
-
-  //   return wrapper;
-  // }
+  speakerMode() {
+    this.livekitService.speakerModeLayout =
+      !this.livekitService.speakerModeLayout;
+    console.log('speaker', this.livekitService.speakerModeLayout);
+    // Update the active speaker borders when toggling modes
+    this.livekitService.updateActiveSpeakerBorders();
+  }
 }

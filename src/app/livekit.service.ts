@@ -32,6 +32,7 @@ export class LivekitService {
     label: string;
   }[] = []; // Combined list of audio devices
   currentSpeakerDeviceId: string = '';
+  createdAvatars = new Set();
   selectedMicId: string = ''; // Selected microphone device ID
   selectedVideoId: string = ''; // Selected video device ID
   selectedSpeakerId: string = ''; // Selected video device ID
@@ -59,6 +60,7 @@ export class LivekitService {
   private HEIGHT = 1000;
   audioStream!: MediaStream;
   isMicOn = false;
+  speakerModeLayout = false;
   pipMode: boolean = false;
   // websocket variables
   // private webSocketUrl = 'wss://ws.postman-echo.com/raw';
@@ -825,17 +827,7 @@ export class LivekitService {
 
               // await element.requestPictureInPicture();
             }
-            // // Apply a blue border if the participant is the active speaker
-            // if (
-            //   this.activeSpeakers.some(
-            //     (speaker) => speaker.sid === participant.sid
-            //   )
-            // ) {
-            //   participantTile.style.border = '3px solid blue';
-            // } else {
-            //   participantTile.style.border = '';
-            // }
-            // this.addParticipantToPiP(participant, publication.track);
+
             console.log('local track published', publication.track);
           } else {
             console.error('Participant tile not found');
@@ -948,22 +940,20 @@ export class LivekitService {
       }
     );
 
-    // Listen for changes in active speakers in the room
+   
     this.room.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) => {
-      this.activeSpeakers = speakers;
       console.log('Active speakers:', speakers);
 
-      // Example: Automatically switch to the first active speaker's audio output device if necessary
-      if (speakers.length > 0) {
-        const activeSpeaker = speakers[0];
+      // Update the list of active speakers
+      this.activeSpeakers = speakers;
+      this.updateActiveSpeakerBorders();
+      // Append avatars for active speakers
+      speakers.forEach((speaker) => {
+        // this.createSpeakerAvatar(speaker);
         console.log(
-          `${activeSpeaker.identity} is speaking with audio level ${activeSpeaker.audioLevel}`
+          ` ${speaker.identity} is speaking with audio level ${speaker.audioLevel}`
         );
-        // Optionally switch the speaker; this is just an example, you'll need logic to map the speaker to a device
-        // this.switchSpeaker(someDeviceId);
-        // Trigger UI update for active speaker borders
-        this.updateActiveSpeakerBorders();
-      }
+      });
     });
 
     // Listen for speaking changes on individual participants
@@ -978,68 +968,16 @@ export class LivekitService {
       }
     );
   }
-  // updateActiveSpeakerBorders() {
-  //   // Loop through all participants
-  //   // const participants = this.room.remoteParticipants;
-  //   // Combine the local participant and remote participants into one array using Array.from
-  //   const participants = Array.from([
-  //     this.room.localParticipant,
-  //     ...this.room.remoteParticipants.values(),
-  //   ]);
-
-  //   participants.forEach((participant) => {
-  //     const participantTile = document.getElementById(`${participant.sid}`);
-  //     if (participantTile) {
-  //       // Check if the participant is an active speaker
-  //       const isActiveSpeaker = this.activeSpeakers.some(
-  //         (speaker) => speaker.sid === participant.sid
-  //       );
-
-  //       // Apply the blue border if the participant is an active speaker
-  //       if (isActiveSpeaker) {
-  //         participantTile.style.border = '3px solid blue';
-  //       } else {
-  //         participantTile.style.border = ''; // Remove the border if they are not an active speaker
-  //       }
-  //     }
-  //   });
-  // }
+ 
 
   updateActiveSpeakerBorders() {
-    // Combine the local participant and remote participants into one array using Array.from
     const participants = Array.from([
       this.room.localParticipant,
       ...this.room.remoteParticipants.values(),
     ]);
 
     participants.forEach((participant) => {
-      const participantTile = document.getElementById(`${participant.sid}`);
-      if (participantTile) {
-        // Check if the participant is an active speaker
-        const isActiveSpeaker = this.activeSpeakers.some(
-          (speaker) => speaker.sid === participant.sid
-        );
-
-        // Check the audio level of the active speaker
-        const audioLevel = participant.audioLevel;
-        // Determine if the participant's mic is on
-        const isMicOn = this.room.localParticipant.isMicrophoneEnabled;
-
-        // If the audio level is above 0, apply the active border with a smooth transition
-        if (isActiveSpeaker && audioLevel > 0 && isMicOn) {
-          participantTile.style.transition = 'border 0.3s ease-in-out'; // Smooth transition
-          participantTile.style.border = '4px solid #28a745'; // Apply blue border
-        } else {
-          // Remove the border when audio level is 0 or participant is not speaking
-          participantTile.style.transition = ''; // Reset transition
-          participantTile.style.border = ''; // Remove the border
-        }
-
-        // Log details for debugging
-        console.log(
-          `${participant.identity} - audioLevel: ${audioLevel}, micOn: ${isMicOn}`
-        );
-      }
+      this.createSpeakerAvatar(participant);
     });
   }
 
@@ -1268,15 +1206,6 @@ export class LivekitService {
           existingElement.appendChild(el3);
         }
 
-        // Apply a blue border if the participant is the active speaker
-        if (
-          this.activeSpeakers.some((speaker) => speaker.sid === participant.sid)
-        ) {
-          existingElement.style.border = '3px solid blue';
-        } else {
-          existingElement.style.border = '';
-        }
-
         publication.setVideoQuality(VideoQuality.LOW);
         this.remoteParticipantName = participant.identity; // Associate video element with participant
 
@@ -1405,21 +1334,6 @@ export class LivekitService {
     }
   }
 
-  // addParticipantToPiP(participant: Participant, track: Track) {
-  //   // Avoid duplicates by checking if participant is already in PiP
-  //   const existingParticipant = this.allParticipants.find(
-  //     (p) => p.sid === participant.sid
-  //   );
-  //   if (existingParticipant) return;
-
-  //   const videoSrc = track.attach() as HTMLVideoElement;
-  //   videoSrc.requestPictureInPicture();
-  //   this.allParticipants.push({
-  //     sid: participant.sid,
-  //     videoSrc,
-  //     identity: participant.identity,
-  //   });
-  // }
   /**
    * Enables the camera and microphone for the local participant in the room.
    *
@@ -1445,32 +1359,6 @@ export class LivekitService {
    * @throws {Error} Throws an error if the room is not enabled.
    */
 
-  // toggleMicrophone(): Observable<boolean> {
-  //   if (!this.room) {
-  //     console.error('Room not initialized or enabled.');
-  //     throw new Error('Room not enabled.');
-  //   }
-
-  //   const localParticipant = this.room.localParticipant;
-  //   const isMuted = localParticipant.isMicrophoneEnabled;
-
-  //   console.log('Current microphone status before toggling:', isMuted); // Debug
-
-  //   return from(
-  //     localParticipant
-  //       .setMicrophoneEnabled(!isMuted)
-  //       .then(() => {
-  //         const newMicStatus = !isMuted;
-  //         console.log('Microphone status after toggling:', newMicStatus); // Debug
-  //         this.microphoneStatusChanged.emit(newMicStatus);
-  //         return newMicStatus;
-  //       })
-  //       .catch((error) => {
-  //         console.error('Error setting microphone enabled:', error); // Debug
-  //         throw error;
-  //       })
-  //   );
-  // }
   // =====audio visualization
   toggleMicrophone(): Observable<boolean> {
     if (!this.room) {
@@ -1490,13 +1378,6 @@ export class LivekitService {
           const newMicStatus = !isMuted;
           console.log('Microphone status after toggling:', newMicStatus); // Debug
           this.microphoneStatusChanged.emit(newMicStatus);
-
-          // Start audio capture only if the mic is turned on
-          // if (newMicStatus) {
-          //   await this.startAudioCapture();
-          // } else {
-          //   this.stopAudioCapture();
-          // }
 
           this.isMicOn = newMicStatus; // Update the local mic status
           return newMicStatus;
@@ -1531,29 +1412,6 @@ export class LivekitService {
       })
     );
   }
-
-  /**
-   * Starts the camera and returns the media stream.
-   *
-   * This method accesses the user's camera and returns the resulting media stream.
-   * If an error occurs while accessing the camera, it logs the error to the console,
-   * displays a snackbar message, and returns undefined.
-   *
-   * @returns {Promise<MediaStream | undefined>} A promise that resolves to the media stream if successful, or undefined if an error occurs.
-   */
-  // async startCamera(): Promise<MediaStream | undefined> {
-  //   try {
-  //     const stream = await navigator.mediaDevices.getUserMedia({
-  //       video: true,
-  //     });
-  //     return stream;
-  //   } catch (error) {
-  //     console.error('Error accessing the camera:', error);
-  //     this.openSnackBar(`Error accessing the camera, ${error}`);
-  //     return undefined;
-  //   }
-  // }
-
   /**
    * Toggles screen sharing for the local participant in the room.
    *
@@ -1568,7 +1426,6 @@ export class LivekitService {
 
   async toggleScreenShare(): Promise<boolean> {
     if (this.isScreenSharingEnabled) {
-      // document.querySelector(`.lk-participant-tile[data-participant-id="${this.room.localParticipant.sid}-screenshare"]`);
       const screenShareTileWrapper = document.querySelector(
         '.lk-focus-layout-wrapper'
       );
@@ -1718,182 +1575,7 @@ export class LivekitService {
       }
     }, 100);
   }
-  // old audio vusalize
-  // createAvatar(participant: Participant) {
-  //   const el2 = document.createElement('div');
-  //   el2.setAttribute('class', 'lk-participant-tile');
-  //   el2.setAttribute('id', `${participant.sid}`);
-  //   el2.setAttribute(
-  //     'style',
-  //     `
-  //      position: relative;
-  //      display: flex;
-  //      flex-direction: column;
-  //      gap: 0.375rem;
-  //      border-radius: 0.5rem;
-  //      width: 100%;
-  //      background-color: #000;
-  //    `
-  //   );
-  //   setTimeout(() => {
-  //     const container = document.querySelector('.lk-grid-layout');
-  //     if (container) {
-  //       // Create metadata container
-  //       const el3 = document.createElement('div');
-  //       el3.setAttribute('class', 'lk-participant-metadata');
-  //       el3.setAttribute(
-  //         'style',
-  //         `
-  //          position: absolute;
-  //          right: 0.25rem;
-  //          bottom: 0.25rem;
-  //          left: 0.25rem;
-  //          display: flex;
-  //          flex-direction: row;
-  //          align-items: center;
-  //          justify-content: space-between;
-  //          gap: 0.5rem;
-  //          line-height: 1;
-  //          z-index: 1;
-  //        `
-  //       );
-
-  //       // Create metadata item
-  //       const el4 = document.createElement('div');
-  //       el4.setAttribute('class', 'lk-participant-metadata-item');
-  //       el4.setAttribute(
-  //         'style',
-  //         `
-  //          display: flex;
-  //          align-items: center;
-  //          padding: 0.25rem;
-  //          background-color: rgba(0, 0, 0, 0.5);
-  //          border-radius: calc(var(--lk-border-radius) / 2);
-  //        `
-  //       );
-
-  //       // Create participant name element
-  //       const el5 = document.createElement('span');
-  //       el5.setAttribute('class', 'lk-participant-name');
-  //       el5.setAttribute(
-  //         'style',
-  //         `
-  //           font-size: 0.875rem;
-  //           color: white;
-  //         `
-  //       );
-  //       el5.innerText = participant.identity;
-  //       console.log('checking for audio', participant);
-
-  //       // Create mic-container div
-  //       const micContainer = this.createMicContainer();
-  //       micContainer.setAttribute('class', 'mic-container');
-  //       micContainer.setAttribute(
-  //         'style',
-  //         `
-  //           background: rgba(255,255,255,0.3);
-  //           display: flex;
-  //           margin-left: 8px;
-  //           height: 10vh;
-  //           width: 60%;
-  //           position: relative;
-  //         `
-  //       );
-  //       const dottedLine = document.createElement('div');
-  //       dottedLine.setAttribute(
-  //         'style',
-  //         `position: absolute;
-  //           top: 50%; /* Position it vertically centered */
-  //           left: 0;
-  //           width: 100%;
-  //           height: 7px;
-  //           background-image: radial-gradient(circle, #fff 3px, transparent 1px);
-  //           background-size: 10px 1px;
-  //           background-repeat: repeat-x;
-  // `
-  //       );
-
-  //       // Append the dotted line to micContainer
-  //       micContainer.appendChild(dottedLine);
-  //       el4.appendChild(el5);
-  //       el4.appendChild(micContainer);
-  //       el3.appendChild(el4);
-  //       el2.appendChild(el3);
-
-  //       // Call the startAudioCapture method
-  //       // this.startAudioCapture();
-
-  //       // Create canvas element inside mic-container
-  //       const audioCanvas = document.createElement('canvas');
-  //       audioCanvas.setAttribute('class', 'audioCanvas');
-  //       audioCanvas.setAttribute('width', '100'); // Adjust width as needed
-  //       audioCanvas.setAttribute('height', '100'); // Adjust height as needed
-
-  //       // Append canvas to mic-container
-  //       micContainer.appendChild(audioCanvas);
-
-  //       // Append name and mic-container div
-  //       el4.appendChild(el5);
-  //       el4.appendChild(micContainer);
-  //       el3.appendChild(el4);
-  //       el2.appendChild(el3);
-
-  //       // Create avatar image
-  //       const imgElement = document.createElement('img');
-  //       imgElement.setAttribute('src', '../assets/avatar.png');
-  //       imgElement.style.cssText = `
-  //         position: absolute;
-  //         top: 50%;
-  //         left: 50%;
-  //         transform: translate(-50%, -50%);
-  //         max-width: 60px;
-  //         max-height: 60px;
-  //         min-width: 30px;
-  //         min-height: 30px;
-  //         border-radius: 50%;
-  //         object-fit: cover;
-  //         object-position: center;
-  //       `;
-
-  //       el2.appendChild(imgElement);
-  //       container.appendChild(el2);
-  //     }
-  //   }, 100);
-  // }
-
-  // createMicContainer(): HTMLElement {
-  //   const micContainer = document.createElement('div');
-  //   micContainer.className = 'mic-container';
-  //   micContainer.style.cssText = `
-  //     background: rgba(255, 255, 255, 0.3);
-  //     display: flex;
-  //     align-items: center;
-  //     justify-content: center;
-  //     height: 10vh;
-  //     width: 100%;
-  //     position: relative;
-  //     border-radius: 0.25rem;
-  //     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-  //   `;
-
-  //   // Create canvas element inside mic-container
-  //   const audioCanvas = document.createElement('canvas');
-  //   audioCanvas.className = 'audioCanvas';
-  //   audioCanvas.width = 100; // Adjust width as needed
-  //   audioCanvas.height = 100; // Adjust height as needed
-
-  //   // Append canvas to mic-container
-  //   micContainer.appendChild(audioCanvas);
-
-  //   // Get a reference to the canvas element
-  //   this.micCanvas = audioCanvas as HTMLCanvasElement;
-
-  //   // Call the initCanvas method with the correct canvas element
-  //   this.initCanvas(this.micCanvas);
-
-  //   return micContainer;
-  // }
-
+ 
   toggleExpand(element: any, participantId: any) {
     const originalTileElStyle = `--lk-speaking-indicator-width: 2.5px;
         position: relative;
@@ -1904,19 +1586,14 @@ export class LivekitService {
         overflow: hidden;
         border-radius: 0.5rem;`;
     const allElements = document.querySelectorAll('.lk-focus-layout');
-    // const tileElements = document.querySelectorAll('.lk-participant-tile');
     const tileElements = document.querySelectorAll('[id^="screenshare-"]');
     // Check if the element is currently expanded
     const isExpanded = element.getAttribute('data-expanded') === 'true';
 
     if (isExpanded) {
-      // If the element is expanded, collapse it by resetting the styles
-      // const originalStyle = element.getAttribute('data-original-style');
       element.setAttribute('style', originalTileElStyle);
       element.setAttribute('data-expanded', 'false');
     } else {
-      // Save the original style
-      // const originalStyle = element.getAttribute('style') || '';
       element.setAttribute('data-original-style', originalTileElStyle);
 
       // If the element is not expanded, expand it by setting the expanded styles
@@ -1969,10 +1646,6 @@ export class LivekitService {
     });
     tileElements.forEach((el) => {
       if (el !== element) {
-        // const originalStyle =
-        //   el.getAttribute('data-original-style') ||
-        //   el.getAttribute('style') ||
-        //   '';
         el.setAttribute('data-original-style', originalTileElStyle);
 
         if (!isExpanded) {
@@ -2006,99 +1679,13 @@ export class LivekitService {
     });
   }
 
-  // audio visualizer logic
-  // async startAudioCapture(): Promise<void> {
-  //   try {
-  //     this.audioStream = await navigator.mediaDevices.getUserMedia({
-  //       audio: true,
-  //     });
-  //     this.audioCtx = new AudioContext();
-  //     this.micAnalyzer = this.audioCtx.createAnalyser();
-  //     const source = this.audioCtx.createMediaStreamSource(this.audioStream);
-  //     source.connect(this.micAnalyzer);
-  //     this.micAnalyzer.fftSize = 1024;
-  //     this.micBufferLength = this.micAnalyzer.frequencyBinCount;
-  //     this.micDataArray = new Uint8Array(this.micBufferLength);
 
-  //     setInterval(() => {
-  //       this.micAnalyzer.getByteFrequencyData(this.micDataArray);
-  //       if (this.micDataArray.some((value) => value > 0)) {
-  //         // console.log('Mic data array:', this.micDataArray);
-  //         this.drawMicData();
-  //       }
-  //     }, 100);
-  //   } catch (err) {
-  //     console.error('Error starting audio capture:', err);
-  //   }
-  // }
-
-  // stopAudioCapture(): void {
-  //   if (this.audioStream) {
-  //     this.audioStream.getTracks().forEach((track) => track.stop());
-  //   }
-  //   if (this.audioCtx) {
-  //     this.audioCtx.close();
-  //   }
-  // }
-
-  // handleError(err: any): void {
-  //   console.error('You must give access to your mic in order to proceed', err);
-  // }
-
-  // private drawMicData(): void {
-  //   this.micAnalyzer.getByteFrequencyData(this.micDataArray);
-  //   // console.log('Audio Data:', this.micDataArray);
-
-  //   this.micCtx.clearRect(0, 0, this.WIDTH, this.HEIGHT);
-
-  //   const barWidth = (this.WIDTH / this.micBufferLength) * 7;
-  //   let x = 0;
-
-  //   for (let i = 0; i < this.micBufferLength / 2; i++) {
-  //     const v = this.micDataArray[i] / 255;
-  //     const barHeight = (v * this.HEIGHT) / 2;
-  //     // console.log(`Audio Data at index ${i}: ${this.micDataArray[i]}`);
-  //     const gradient = this.micCtx.createLinearGradient(0, 0, 0, this.HEIGHT);
-  //     gradient.addColorStop(0, '#00bfff');
-  //     gradient.addColorStop(1, '#000080');
-
-  //     this.micCtx.fillStyle = gradient;
-  //     this.micCtx.fillRect(x, this.HEIGHT / 2 - barHeight, barWidth, barHeight);
-  //     this.micCtx.fillRect(x, this.HEIGHT / 2, barWidth, barHeight);
-
-  //     x += barWidth + 2;
-  //   }
-
-  //   requestAnimationFrame(() => this.drawMicData());
-  // }
-
-  // initCanvas(canvas: HTMLCanvasElement): void {
-  //   this.micCanvas = canvas;
-  //   this.micCtx = this.micCanvas.getContext('2d') as CanvasRenderingContext2D;
-  //   this.micCanvas.width = this.WIDTH;
-  //   this.micCanvas.height = this.HEIGHT;
-  // }
   // mic visualizer end
   sendMessageToBreakoutRoom(roomId: string, content: string) {
     const room = this.breakoutRoomsData.find((r) => r.roomName === roomId);
 
     // Return the observable instead of subscribing directly
     return this.meetingService.sendBroadcastMessage(room.roomName, content);
-    // .pipe(
-    //   tap((response) => {
-    //     console.log(
-    //       'Message sent successfully:',
-    //       response,
-    //       room.roomName,
-    //       content
-    //     );
-    //   }),
-    //   catchError((error) => {
-    //     console.error('Error sending message:', error);
-    //     this.openSnackBar('Failed to send message to the breakout room.');
-    //     return throwError(error);
-    //   })
-    // );
   }
 
   sendMessageToMainRoom(breakoutRoomName: string, content: string) {
@@ -2107,266 +1694,8 @@ export class LivekitService {
       breakoutRoomName,
       content
     );
-    // .pipe(
-    //   tap((response) => {
-    //     console.log(
-    //       'Message sent successfully:',
-    //       response,
-    //       breakoutRoomName,
-    //       content
-    //     );
-    //   }),
-
-    //   catchError((error) => {
-    //     console.error('Error sending message:', error);
-    //     this.openSnackBar('Failed to send message to the breakout room.');
-    //     return throwError(error);
-    //   })
-    // );
+   
   }
-  /**
-   * Fetch available media devices (audio and video).
-   */
-  // async fetchDevices() {
-  //   if (!this.devicesFetched) {
-  //     try {
-  //       // Request permissions to access media devices
-  //       // await this.requestMediaPermissions();
-
-  //       // Fetch all available media devices
-  //       const devices = await navigator.mediaDevices.enumerateDevices();
-
-  //       // Combine microphones and speakers into a single array
-  //       this.micDevices = devices
-  //         .filter((device) => device.kind === 'audioinput')
-  //         .map((device) => ({
-  //           kind: device.kind as MediaDeviceKind, // Store the kind (audioinput or audiooutput)
-  //           deviceId: device.deviceId,
-  //           label: device.label || `Unnamed Mic`,
-  //         }));
-
-  //       // Fetch and store video devices
-  //       this.videoDevices = devices
-  //         .filter((device) => device.kind === 'videoinput')
-  //         .map((device) => ({
-  //           kind: device.kind as MediaDeviceKind,
-  //           deviceId: device.deviceId,
-  //           label: device.label || 'Unnamed Camera',
-  //         }));
-
-  //       // Set default microphone
-  //       const defaultMic = this.micDevices.find((d) => d.kind === 'audioinput');
-  //       if (defaultMic) {
-  //         this.selectedMicId = defaultMic.deviceId;
-  //         console.log(`Default microphone selected: ${defaultMic.label}`);
-  //       }
-  //       // Set default video device
-  //       const defaultVideo = this.videoDevices[0];
-  //       if (defaultVideo) {
-  //         this.selectedVideoId = defaultVideo.deviceId;
-  //         console.log(`Default video device selected: ${defaultVideo.label}`);
-  //       }
-
-  //       this.devicesFetched = true;
-  //     } catch (error) {
-  //       console.error('Error fetching devices', error);
-  //     }
-  //   }
-  // }
-
-  /**
-   * Fetch available media devices (audio and video).
-   */
-  // async fetchDevices() {
-  //   try {
-  //     // Fetch all available media devices
-  //     const devices = await navigator.mediaDevices.enumerateDevices();
-
-  //     // Update microphones list
-  //     this.micDevices = devices
-  //       .filter((device) => device.kind === 'audioinput')
-  //       .map((device) => ({
-  //         kind: device.kind as MediaDeviceKind, // Store the kind (audioinput or audiooutput)
-  //         deviceId: device.deviceId,
-  //         label: device.label || `Unnamed Mic`,
-  //       }));
-
-  //     // Update speakers list
-  //     this.speakerDevices = devices
-  //       .filter((device) => device.kind === 'audiooutput')
-  //       .map((device) => ({
-  //         kind: device.kind as MediaDeviceKind,
-  //         deviceId: device.deviceId,
-  //         label: device.label || `Unnamed Speaker`,
-  //       }));
-
-  //     // Update video devices list
-  //     this.videoDevices = devices
-  //       .filter((device) => device.kind === 'videoinput')
-  //       .map((device) => ({
-  //         kind: device.kind as MediaDeviceKind,
-  //         deviceId: device.deviceId,
-  //         label: device.label || 'Unnamed Camera',
-  //       }));
-
-  //     // Log the devices for debugging
-  //     console.log('Updated microphone devices:', this.micDevices);
-  //     console.log('Updated speaker devices:', this.speakerDevices);
-  //     console.log('Updated video devices:', this.videoDevices);
-
-  //     // Set the default microphone (if not already selected)
-  //     if (!this.selectedMicId && this.micDevices.length > 0) {
-  //       this.selectedMicId = this.micDevices[0].deviceId;
-  //       console.log(`Default microphone selected: ${this.micDevices[0].label}`);
-  //     }
-
-  //     // Set the default video device (if not already selected)
-  //     if (!this.selectedVideoId && this.videoDevices.length > 0) {
-  //       this.selectedVideoId = this.videoDevices[0].deviceId;
-  //       console.log(
-  //         `Default video device selected: ${this.videoDevices[0].label}`
-  //       );
-  //     }
-
-  //     // Set the default speaker (if not already selected)
-  //     if (!this.selectedSpeakerId && this.speakerDevices.length > 0) {
-  //       this.selectedSpeakerId = this.speakerDevices[0].deviceId;
-  //       console.log(
-  //         `Default speaker selected: ${this.speakerDevices[0].label}`
-  //       );
-  //     }
-
-  //     this.devicesFetched = true;
-  //   } catch (error) {
-  //     console.error('Error fetching devices', error);
-  //   }
-  // }
-
-  // /**
-  //  * Connect to the default microphone and video device without activating streams unnecessarily.
-  //  */
-  // async connectDefaultDevices(): Promise<void> {
-  //   if (!this.devicesFetched) {
-  //     await this.fetchDevices();
-  //   }
-
-  //   try {
-  //     // Request permissions to access media only if devices haven't been connected yet
-  //     await this.requestMediaPermissions();
-
-  //     console.log('Connecting to default mic and video');
-  //     // Automatically connect to the default mic and video devices
-  //     if (this.selectedMicId) {
-  //       this.selectMic(this.selectedMicId, 'audioinput');
-  //     }
-  //     if (this.selectedSpeakerId) {
-  //       this.selectSpeaker(this.selectedSpeakerId, 'audiooutput');
-  //     }
-  //     if (this.selectedVideoId) {
-  //       this.selectVideo(this.selectedVideoId);
-  //     }
-  //   } catch (error) {
-  //     console.error('Error connecting to default devices:', error);
-  //   }
-  // }
-  // /**
-  //  * Request permissions to access media devices.
-  //  */
-  // private async requestMediaPermissions() {
-  //   try {
-  //     await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-  //   } catch (error) {
-  //     console.error('Error requesting media permissions', error);
-  //   }
-  // }
-
-  // /**
-  //  * Select a microphone or speaker by its device ID.
-  //  * @param deviceId - The ID of the selected device.
-  //  * @param kind - The kind of the device ('audioinput' or 'audiooutput').
-  //  */
-  // selectMic(deviceId: string, kind: MediaDeviceKind) {
-  //   if (kind === 'audioinput') {
-  //     this.selectedMicId = deviceId;
-  //     console.log(
-  //       `Microphone connected: ${this.getDeviceLabel(
-  //         deviceId
-  //       )} (ID: ${deviceId})`
-  //     );
-  //   }
-  //   // else if (kind === 'audiooutput') {
-  //   //   this.currentSpeakerDeviceId = deviceId;
-  //   //   console.log(`Speaker connected: ${this.getDeviceLabel(deviceId)}`);
-  //   // }
-  // }
-
-  // selectSpeaker(deviceId: string, kind: MediaDeviceKind) {
-  //   if (kind === 'audiooutput') {
-  //     this.selectedSpeakerId = deviceId;
-  //     console.log(
-  //       `Microphone connected: ${this.getDeviceLabel(
-  //         deviceId
-  //       )} (ID: ${deviceId})`
-  //     );
-  //   }
-  //   // else if (kind === 'audiooutput') {
-  //   //   this.currentSpeakerDeviceId = deviceId;
-  //   //   console.log(`Speaker connected: ${this.getDeviceLabel(deviceId)}`);
-  //   // }
-  // }
-  // /**
-  //  * Select a video device by its device ID.
-  //  * @param deviceId - The ID of the selected video device.
-  //  */
-  // selectVideo(deviceId: string) {
-  //   this.selectedVideoId = deviceId;
-  //   console.log(
-  //     `Video device connected to: ${this.getDeviceLabel(
-  //       deviceId
-  //     )} (ID: ${deviceId})`
-  //   );
-  // }
-
-  // /**
-  //  * Helper function to get the device label by device ID.
-  //  */
-  // private getDeviceLabel(deviceId: string): string {
-  //   return (
-  //     this.micDevices.find((d) => d.deviceId === deviceId)?.label ||
-  //     this.videoDevices.find((d) => d.deviceId === deviceId)?.label ||
-  //     'Unknown Device'
-  //   );
-  // }
-
-  // async setSpeakerDevice(deviceId: string): Promise<void> {
-  //   try {
-  //     const audioElements = Array.from(
-  //       document.querySelectorAll<HTMLAudioElement>('audio') // Select all audio elements
-  //     );
-  //     for (const audio of audioElements) {
-  //       const audioWithSink = audio as HTMLAudioElement & {
-  //         setSinkId: (sinkId: string) => Promise<void>;
-  //       };
-
-  //       if ('setSinkId' in audioWithSink) {
-  //         try {
-  //           await audioWithSink.setSinkId(deviceId); // Set the audio output device
-  //           console.log(`Speaker set to: ${deviceId}`);
-  //         } catch (error) {
-  //           console.error(`Error setting sink ID: ${error}`);
-  //         }
-  //       } else {
-  //         console.warn('setSinkId is not supported in this browser');
-  //       }
-  //     }
-
-  //     // Update the selected speaker ID
-  //     this.selectedSpeakerId = deviceId;
-  //   } catch (error) {
-  //     console.error('Error setting speaker device:', error);
-  //   }
-  // }
-
   // Fetch devices of a specific kind (camera, microphone, or speaker)
   async getDevices(kind: MediaDeviceKind): Promise<MediaDeviceInfo[]> {
     try {
@@ -2380,20 +1709,24 @@ export class LivekitService {
   }
 
   // Fetch all device types (cameras, microphones, speakers)
-  async getAllDevices(): Promise<{
-    cameras: MediaDeviceInfo[];
-    microphones: MediaDeviceInfo[];
-    speakers: MediaDeviceInfo[];
-  }> {
+  async getAllDevices() {
     try {
       const cameras = await this.getDevices('videoinput');
       const microphones = await this.getDevices('audioinput');
       const speakers = await this.getDevices('audiooutput');
 
-      return { cameras, microphones, speakers };
+      return {
+        cameras,
+        microphones,
+        speakers,
+      };
     } catch (error) {
       console.error('Error fetching devices:', error);
-      return { cameras: [], microphones: [], speakers: [] };
+      return {
+        cameras: [],
+        microphones: [],
+        speakers: [],
+      };
     }
   }
 
@@ -2420,6 +1753,18 @@ export class LivekitService {
   }
 
   // Switch active device (camera, microphone, or speaker)
+  // async switchDevice(kind: MediaDeviceKind, deviceId: string): Promise<void> {
+  //   try {
+  //     const success = await this.room.switchActiveDevice(kind, deviceId);
+  //     if (success) {
+  //       console.log(`Switched ${kind} to device: ${deviceId}`);
+  //     } else {
+  //       console.warn(`Failed to switch ${kind} to device: ${deviceId}`);
+  //     }
+  //   } catch (error) {
+  //     console.error(`Error switching ${kind} to device: ${deviceId}`, error);
+  //   }
+  // }
   async switchDevice(kind: MediaDeviceKind, deviceId: string): Promise<void> {
     try {
       const success = await this.room.switchActiveDevice(kind, deviceId);
@@ -2430,6 +1775,64 @@ export class LivekitService {
       }
     } catch (error) {
       console.error(`Error switching ${kind} to device: ${deviceId}`, error);
+    }
+  }
+
+
+  createSpeakerAvatar(participant: Participant) {
+    const gridLayout = document.querySelector('.lk-grid-layout');
+    const speakerLayout = document.querySelector('.lk-speaker-layout');
+
+    if (!gridLayout || !speakerLayout) {
+      console.error('Grid or Speaker layout not found.');
+      return;
+    }
+
+    // Find the participant's tile
+    const participantTile = document.getElementById(`${participant.sid}`);
+    if (!participantTile) {
+      console.error(`Participant tile with SID ${participant.sid} not found.`);
+      return;
+    }
+
+    if(participantTile){
+      // Check if the participant is an active speaker
+      const isActiveSpeaker = this.activeSpeakers.some(
+        (speaker) => speaker.sid === participant.sid
+      );
+  
+      // Check the audio level of the active speaker
+      const audioLevel = participant.audioLevel;
+      // Determine if the participant's mic is on
+      const isMicOn = this.room.localParticipant.isMicrophoneEnabled;
+  
+      // If the audio level is above 0, apply the active border with a smooth transition
+      if (isActiveSpeaker && audioLevel > 0 && isMicOn) {
+              // Move the participant tile to the speaker layout
+              if (!speakerLayout.contains(participantTile)) {
+                if (gridLayout.contains(participantTile)) {
+                  gridLayout.removeChild(participantTile);
+                }
+                speakerLayout.appendChild(participantTile);
+                // Apply height styling when in speaker layout
+                participantTile.style.height = '100%';
+              }
+        participantTile.style.transition = 'border 0.3s ease-in-out'; // Smooth transition
+        participantTile.style.border = '4px solid #28a745'; // Apply blue border
+      } else {
+              // Move the participant tile back to the grid layout
+              if (!gridLayout.contains(participantTile)) {
+                if (speakerLayout.contains(participantTile)) {
+                  speakerLayout.removeChild(participantTile);
+                }
+                gridLayout.appendChild(participantTile);
+                // Apply height styling when in speaker layout
+                participantTile.style.height = '';
+              }
+        // Remove the border when audio level is 0 or participant is not speaking
+        participantTile.style.transition = ''; // Reset transition
+        participantTile.style.border = ''; // Remove the border
+      }
     }
   }
 }

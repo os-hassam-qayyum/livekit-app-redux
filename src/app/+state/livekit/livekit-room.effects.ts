@@ -15,10 +15,7 @@ import { of, from, forkJoin } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MeetingService } from 'src/app/meeting.service';
 import { LivekitService } from 'src/app/livekit.service';
-import {
-  selectBreakoutRoomsData,
-  selectNextRoomIndex,
-} from './livekit-room.selectors';
+import { selectLiveKitRoomViewState } from './livekit-room.selectors';
 import { Store } from '@ngrx/store';
 
 @Injectable()
@@ -242,10 +239,10 @@ export class LiveKitRoomEffects {
     this.actions$.pipe(
       ofType(LiveKitRoomActions.BreakoutActions.initiateCreateNewRoom),
       mergeMap(() =>
-        this.store.select(selectNextRoomIndex).pipe(
+        this.store.select(selectLiveKitRoomViewState).pipe(
           take(1), // Take the first emitted value
-          map((nextRoomIndex) => {
-            const newRoomName = `Breakout_Room_${nextRoomIndex}`;
+          map((viewState) => {
+            const newRoomName = `Breakout_Room_${viewState.nextRoomIndex}`;
             console.log(newRoomName, 'new room name is');
             return LiveKitRoomActions.BreakoutActions.createNewRoomSuccess({
               roomName: newRoomName,
@@ -266,17 +263,17 @@ export class LiveKitRoomEffects {
           if (roomType === 'manual') {
             console.log('Manual room selection initiated');
 
-            return this.store.select(selectBreakoutRoomsData).pipe(
+            return this.store.select(selectLiveKitRoomViewState).pipe(
               take(1),
-              map((breakoutRoomsData) => {
-                console.log('rooms data is', breakoutRoomsData);
+              map((viewState) => {
+                console.log('rooms data is', viewState.breakoutRoomsData);
                 // Emit updated breakout rooms data, even if it's empty
                 this.livekitService.breakoutRoomsDataUpdated.emit(
-                  breakoutRoomsData
+                  viewState.breakoutRoomsData
                 );
 
-                if (breakoutRoomsData.length > 0) {
-                  breakoutRoomsData.forEach((room) => {
+                if (viewState.breakoutRoomsData.length > 0) {
+                  viewState.breakoutRoomsData.forEach((room) => {
                     const roomParticipants = room.participantIds;
                     const roomName = room.roomName;
 

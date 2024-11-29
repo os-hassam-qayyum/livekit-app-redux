@@ -628,6 +628,13 @@
     height: 90%;
     padding: 10px 10px 0 10px;
   }
+  &.speaker-layout-wrapper {
+    margin-left: 20px;
+    grid-column: 9/ 13; // Change grid-column when screenShareTrack is true
+    overflow: hidden;
+    height: 90%;
+    padding: 10px 10px 0 10px;
+  }
 
   .lk-grid-layout {
     --lk-grid-gap: 1.5rem;
@@ -643,6 +650,7 @@
     max-height: 100%;
 
     // padding: var(--lk-grid-gap);
+    &.speaker-layout,
     &.screen-share-layout {
       // grid-template-columns: 1fr;
       display: flex;
@@ -673,6 +681,18 @@
         }
       }
     }
+  }
+}
+.lk-speaker-layout-wrapper {
+  grid-column: 1/9;
+  grid-row: 2/3;
+  height: 100%;
+  .lk-speaker-layout {
+    width: 100%;
+    margin: 15px;
+    border-radius: 10px;
+    background-color: black;
+    height: 100%;
   }
 }
 

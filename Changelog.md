@@ -86,3 +86,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Button Event Listeners**:
   - Added interactive button listeners (Video, Mic, Raise Hand, and Leave Meeting) within PiP window, enabling full functionality outside the main interface.
+
+## [1.2.1] - 2024-11-11
+
+### Added
+
+- Conducted research on video conference apps such as Zoho Meeting, Google Meet, Zoom, and GoToMeeting to analyze their overlay view displays.
+
+### Changed
+
+- Updated LiveKit participant tile overlay styling based on research findings.
+
+---
+
+## [1.2.2] - 2024-11-12
+
+### Added
+
+- Worked on resolving regression issues related to screen sharing for both remote and local participants.
+- Attempted to display screen share in Picture-in-Picture (PiP) window.
+
+---
+
+## [1.2.3] - 2024-11-13
+
+### Added
+
+- Resolved regression issues with screen sharing for both remote and local participants in the main window.
+- Integrated camera streaming functionality into the PiP window.
+
+---
+
+## [1.2.4] - 2024-11-14
+
+### Added
+
+- Fully resolved issues with screen sharing from remote and local participants in the main window.
+- Fixed camera streaming in PiP window, ensuring proper functionality for both local and remote participants.
+- Started designing classroom UI based on Figma designs in os-fe-dev.
+
+## [1.2.4] - 2024-11-26
+
+### Changed
+
+- Cleaned up the codebase by removing redundant code.
