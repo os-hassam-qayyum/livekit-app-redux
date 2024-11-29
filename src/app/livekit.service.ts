@@ -976,6 +976,27 @@ export class LivekitService {
     ]);
 
     participants.forEach((participant) => {
+      // Find the participant's tile
+      const participantTile = document.getElementById(`${participant.sid}`);
+      if (participantTile) {
+        // Check if the participant is an active speaker
+        const isActiveSpeaker = this.activeSpeakers.some(
+          (speaker) => speaker.sid === participant.sid
+        );
+
+        // Check the audio level of the active speaker
+        const audioLevel = participant.audioLevel;
+
+        // If the audio level is above 0, apply the active border with a smooth transition
+        if (isActiveSpeaker && audioLevel > 0) {
+          participantTile.style.transition = 'border 0.3s ease-in-out'; // Smooth transition
+          participantTile.style.border = '4px solid #28a745'; // Apply blue border
+        } else {
+          // Remove the border when audio level is 0 or participant is not speaking
+          participantTile.style.transition = ''; // Reset transition
+          participantTile.style.border = ''; // Remove the border
+        }
+      }
       this.createSpeakerAvatar(participant);
     });
   }
@@ -1792,44 +1813,36 @@ export class LivekitService {
       return;
     }
 
-    if (participantTile) {
-      // Check if the participant is an active speaker
-      const isActiveSpeaker = this.activeSpeakers.some(
-        (speaker) => speaker.sid === participant.sid
-      );
-
-      // Check the audio level of the active speaker
-      const audioLevel = participant.audioLevel;
-      // Determine if the participant's mic is on
-      const isMicOn = this.room.localParticipant.isMicrophoneEnabled;
-
-      // If the audio level is above 0, apply the active border with a smooth transition
-      if (isActiveSpeaker && audioLevel > 0 && isMicOn) {
-        // Move the participant tile to the speaker layout
-        if (!speakerLayout.contains(participantTile)) {
-          if (gridLayout.contains(participantTile)) {
-            gridLayout.removeChild(participantTile);
-          }
-          speakerLayout.appendChild(participantTile);
-          // Apply height styling when in speaker layout
-          participantTile.style.height = '100%';
+    // Check if the participant is an active speaker
+    const isActiveSpeaker = this.activeSpeakers.some(
+      (speaker) => speaker.sid === participant.sid
+    );
+    // If the audio level is above 0, apply the active border with a smooth transition
+    if (isActiveSpeaker) {
+      // Move the participant tile to the speaker layout
+      if (!speakerLayout.contains(participantTile)) {
+        if (gridLayout.contains(participantTile)) {
+          gridLayout.removeChild(participantTile);
         }
-        participantTile.style.transition = 'border 0.3s ease-in-out'; // Smooth transition
-        participantTile.style.border = '4px solid #28a745'; // Apply blue border
-      } else {
-        // Move the participant tile back to the grid layout
-        if (!gridLayout.contains(participantTile)) {
-          if (speakerLayout.contains(participantTile)) {
-            speakerLayout.removeChild(participantTile);
-          }
-          gridLayout.appendChild(participantTile);
-          // Apply height styling when in speaker layout
-          participantTile.style.height = '';
-        }
-        // Remove the border when audio level is 0 or participant is not speaking
-        participantTile.style.transition = ''; // Reset transition
-        participantTile.style.border = ''; // Remove the border
+        speakerLayout.appendChild(participantTile);
+        // Apply height styling when in speaker layout
+        participantTile.style.height = '100%';
       }
+      participantTile.style.transition = 'border 0.3s ease-in-out'; // Smooth transition
+      participantTile.style.border = '4px solid #28a745'; // Apply blue border
+    } else {
+      // Move the participant tile back to the grid layout
+      if (!gridLayout.contains(participantTile)) {
+        if (speakerLayout.contains(participantTile)) {
+          speakerLayout.removeChild(participantTile);
+        }
+        gridLayout.appendChild(participantTile);
+        // Apply height styling when in speaker layout
+        participantTile.style.height = '';
+      }
+      // Remove the border when audio level is 0 or participant is not speaking
+      participantTile.style.transition = ''; // Reset transition
+      participantTile.style.border = ''; // Remove the border
     }
   }
 }
