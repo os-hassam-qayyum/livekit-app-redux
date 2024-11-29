@@ -838,6 +838,7 @@ export class LivekitService {
         this.screenShareTrackSubscribed.emit(publication.track);
         if (publication.source === Track.Source.ScreenShare) {
           this.localScreenShareCount++;
+          this.speakerModeLayout = false;
           console.error('Local Screen Share count', this.localScreenShareCount);
           setTimeout(() => {
             const el2 = document.createElement('div');
@@ -940,7 +941,6 @@ export class LivekitService {
       }
     );
 
-   
     this.room.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) => {
       console.log('Active speakers:', speakers);
 
@@ -968,7 +968,6 @@ export class LivekitService {
       }
     );
   }
- 
 
   updateActiveSpeakerBorders() {
     const participants = Array.from([
@@ -1252,6 +1251,7 @@ export class LivekitService {
     if (track.source === Track.Source.ScreenShare && track.kind === 'video') {
       this.remoteScreenShare = true;
       this.remoteScreenShareCount++;
+      this.speakerModeLayout = false;
       console.error('Remote Screen Share count', this.remoteScreenShareCount);
       setTimeout(() => {
         const el2 = document.createElement('div');
@@ -1575,7 +1575,7 @@ export class LivekitService {
       }
     }, 100);
   }
- 
+
   toggleExpand(element: any, participantId: any) {
     const originalTileElStyle = `--lk-speaking-indicator-width: 2.5px;
         position: relative;
@@ -1679,7 +1679,6 @@ export class LivekitService {
     });
   }
 
-
   // mic visualizer end
   sendMessageToBreakoutRoom(roomId: string, content: string) {
     const room = this.breakoutRoomsData.find((r) => r.roomName === roomId);
@@ -1694,7 +1693,6 @@ export class LivekitService {
       breakoutRoomName,
       content
     );
-   
   }
   // Fetch devices of a specific kind (camera, microphone, or speaker)
   async getDevices(kind: MediaDeviceKind): Promise<MediaDeviceInfo[]> {
@@ -1778,7 +1776,6 @@ export class LivekitService {
     }
   }
 
-
   createSpeakerAvatar(participant: Participant) {
     const gridLayout = document.querySelector('.lk-grid-layout');
     const speakerLayout = document.querySelector('.lk-speaker-layout');
@@ -1795,40 +1792,40 @@ export class LivekitService {
       return;
     }
 
-    if(participantTile){
+    if (participantTile) {
       // Check if the participant is an active speaker
       const isActiveSpeaker = this.activeSpeakers.some(
         (speaker) => speaker.sid === participant.sid
       );
-  
+
       // Check the audio level of the active speaker
       const audioLevel = participant.audioLevel;
       // Determine if the participant's mic is on
       const isMicOn = this.room.localParticipant.isMicrophoneEnabled;
-  
+
       // If the audio level is above 0, apply the active border with a smooth transition
       if (isActiveSpeaker && audioLevel > 0 && isMicOn) {
-              // Move the participant tile to the speaker layout
-              if (!speakerLayout.contains(participantTile)) {
-                if (gridLayout.contains(participantTile)) {
-                  gridLayout.removeChild(participantTile);
-                }
-                speakerLayout.appendChild(participantTile);
-                // Apply height styling when in speaker layout
-                participantTile.style.height = '100%';
-              }
+        // Move the participant tile to the speaker layout
+        if (!speakerLayout.contains(participantTile)) {
+          if (gridLayout.contains(participantTile)) {
+            gridLayout.removeChild(participantTile);
+          }
+          speakerLayout.appendChild(participantTile);
+          // Apply height styling when in speaker layout
+          participantTile.style.height = '100%';
+        }
         participantTile.style.transition = 'border 0.3s ease-in-out'; // Smooth transition
         participantTile.style.border = '4px solid #28a745'; // Apply blue border
       } else {
-              // Move the participant tile back to the grid layout
-              if (!gridLayout.contains(participantTile)) {
-                if (speakerLayout.contains(participantTile)) {
-                  speakerLayout.removeChild(participantTile);
-                }
-                gridLayout.appendChild(participantTile);
-                // Apply height styling when in speaker layout
-                participantTile.style.height = '';
-              }
+        // Move the participant tile back to the grid layout
+        if (!gridLayout.contains(participantTile)) {
+          if (speakerLayout.contains(participantTile)) {
+            speakerLayout.removeChild(participantTile);
+          }
+          gridLayout.appendChild(participantTile);
+          // Apply height styling when in speaker layout
+          participantTile.style.height = '';
+        }
         // Remove the border when audio level is 0 or participant is not speaking
         participantTile.style.transition = ''; // Reset transition
         participantTile.style.border = ''; // Remove the border
