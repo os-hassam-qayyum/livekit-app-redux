@@ -75,6 +75,7 @@
             class="grid-view"
             matTooltip="Switch Layout"
             (click)="speakerMode()"
+            [disabled]="!hasRemoteParticipants()"
           >
             <i class="far fa-th-large"></i>
           </button>

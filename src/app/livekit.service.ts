@@ -17,7 +17,14 @@ import {
   VideoQuality,
 } from 'livekit-client';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { BehaviorSubject, Observable, RetryConfig, from, of } from 'rxjs';
+import {
+  BehaviorSubject,
+  Observable,
+  RetryConfig,
+  Subject,
+  from,
+  of,
+} from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import { MeetingService } from './meeting.service';
 
@@ -82,11 +89,21 @@ export class LivekitService {
    */
   room!: Room;
 
+  // /**
+  //  * Event emitter for when a remote video track is subscribed.
+  //  * @type {EventEmitter<RemoteTrack>}
+  //  */
+  // remoteVideoTrackSubscribed = new EventEmitter<RemoteTrack>();
+
   /**
    * Event emitter for when a remote video track is subscribed.
-   * @type {EventEmitter<RemoteTrack>}
+   * @type {subject<RemoteTrack>}
    */
-  remoteVideoTrackSubscribed = new EventEmitter<RemoteTrack>();
+  remoteVideoTrackSubscribed = new Subject<{
+    track: RemoteTrack;
+    publication: RemoteTrackPublication;
+    participant: RemoteParticipant;
+  }>();
 
   /**
    * The name of the remote participant.
@@ -94,11 +111,21 @@ export class LivekitService {
    */
   remoteParticipantName: string = '';
 
+  // /**
+  //  * Event emitter for when a remote audio track is subscribed.
+  //  * @type {EventEmitter<void>}
+  //  */
+  // remoteAudioTrackSubscribed = new EventEmitter<void>();
+
   /**
    * Event emitter for when a remote audio track is subscribed.
-   * @type {EventEmitter<void>}
+   * @type {subject<void>}
    */
-  remoteAudioTrackSubscribed = new EventEmitter<void>();
+  remoteAudioTrackSubscribed = new Subject<{
+    track: RemoteTrack;
+    publication: RemoteTrackPublication;
+    participant: RemoteParticipant;
+  }>();
 
   /**
    * Indicates whether screen sharing is enabled.
@@ -106,12 +133,17 @@ export class LivekitService {
    */
   isScreenSharingEnabled = false;
 
+  // /**
+  //  * Event emitter for when the video status changes.
+  //  * @type {EventEmitter<boolean>}
+  //  */
+  // videoStatusChanged = new EventEmitter<boolean>();
+
   /**
    * Event emitter for when the video status changes.
-   * @type {EventEmitter<boolean>}
+   * @type {BehaviorSubject<boolean>}
    */
-  videoStatusChanged = new EventEmitter<boolean>();
-
+  videoStatusChanged = new BehaviorSubject<boolean>(false);
   /**
    * Indicates whether the remote participant is sharing their screen.
    * @type {boolean}
@@ -124,11 +156,17 @@ export class LivekitService {
    */
   participants!: number;
 
+  // /**
+  //  * Event emitter for when a screen share track is subscribed.
+  //  * @type {EventEmitter<any>}
+  //  */
+  // screenShareTrackSubscribed = new EventEmitter<any>();
+
   /**
    * Event emitter for when a screen share track is subscribed.
-   * @type {EventEmitter<any>}
+   * @type {subject<any>}
    */
-  screenShareTrackSubscribed = new EventEmitter<any>();
+  screenShareTrackSubscribed = new Subject<any>();
 
   /**
    * Indicates whether remote screen sharing is active.
@@ -151,15 +189,15 @@ export class LivekitService {
 
   /**
    * Event emitter for when participant names are updated.
-   * @type {EventEmitter<string[]>}
+   * @type {Subject<string[]>}
    */
-  participantNamesUpdated = new EventEmitter<string[]>();
+  participantNamesUpdated = new Subject<string[]>();
 
   /**
    * Event emitter for local participant data.
-   * @type {EventEmitter<any>}
+   * @type {Subject<any>}
    */
-  localParticipantData = new EventEmitter<any>();
+  localParticipantData = new Subject<any>();
 
   /**
    * Holds participant names, used internally.
@@ -177,50 +215,56 @@ export class LivekitService {
 
   /**
    * Event emitter for when the microphone status changes.
-   * @type {EventEmitter<boolean>}
+   * @type {Subject<boolean>}
    */
-  microphoneStatusChanged = new EventEmitter<boolean>();
+  microphoneStatusChanged = new Subject<boolean>();
   localScreenShareCount = 0;
   remoteScreenShareCount = 0;
   isExpanded: boolean = false;
 
   /**
    * Event emitter for when a message is received.
-   * @type {EventEmitter<{ message: any; participant: RemoteParticipant | undefined }>}
+   * @type {subject<{ message: any; participant: RemoteParticipant | undefined }>}
    */
-  msgDataReceived = new EventEmitter<{
+  msgDataReceived = new Subject<{
     message: any;
     participant: RemoteParticipant | undefined;
   }>();
 
   /**
    * Event emitter for when a participant raises or lowers their hand.
-   * @type {EventEmitter<{ participant: RemoteParticipant | undefined; handRaised: boolean }>}
+   * @type {subject<{ participant: RemoteParticipant | undefined; handRaised: boolean }>}
    */
-  public handRaised = new EventEmitter<{
+  public handRaised = new Subject<{
     participant: RemoteParticipant | undefined;
     handRaised: boolean;
   }>();
 
-  public breakoutRoom = new EventEmitter<{
+  public breakoutRoom = new Subject<{
     participant: any;
     roomName: string;
   }>();
   breakoutRoomsData: Array<any> = [];
-  breakoutRoomsDataUpdated: EventEmitter<any[]> = new EventEmitter<any[]>();
-  // public broadcastMessageReceived: EventEmitter<any> = new EventEmitter<any>();
+  breakoutRoomsDataUpdated: Subject<any[]> = new Subject<any[]>();
   /**
    * Event emitter for sending messages.
-   * @type {EventEmitter<any>}
+   * @type {Subject<any>}
    */
-  messageEmitter = new EventEmitter<any>();
+  messageEmitter = new Subject<any>();
 
+  // Subjects to broadcast device changes
+  private deviceListsSubject = new BehaviorSubject({
+    videoDevices: [],
+    micDevices: [],
+    speakerDevices: [],
+  });
   /**
    * Array of message objects containing sender, text, and timestamp information.
    * @type {{ sender: string; text: string; timestamp: Date }[]}
    */
   messages: { sender: string; text: string; timestamp: Date }[] = [];
-
+  // Observable for components to subscribe to
+  deviceLists$ = this.deviceListsSubject.asObservable();
   /**
    * Constructor for initializing the class.
    * @param {MatSnackBar} snackBar - The snack bar service for displaying notifications.
@@ -229,21 +273,16 @@ export class LivekitService {
     public snackBar: MatSnackBar,
     public meetingService: MeetingService
   ) {
-    // // Listen for device changes
-    // navigator.mediaDevices.addEventListener('devicechange', () => {
-    //   console.log('Device change detected. Updating device lists...');
-    //   this.devicesFetched = false;
-    //   // this.fetchDevices();
-    //   this.getAllDevices();
-    // });
-    this.listenForDeviceChanges();
+    this.updateDeviceLists(); // Fetch initial devices
   }
 
   public breakoutRoomCounter = 0;
-  public messageContentReceived: EventEmitter<string[]> = new EventEmitter<
-    string[]
-  >();
-  public messageToMain: EventEmitter<string[]> = new EventEmitter<string[]>();
+  public messageContentReceived: Subject<string[]> = new Subject<string[]>();
+  public messageToMain: Subject<string[]> = new Subject<string[]>();
+  // public messageContentReceived: EventEmitter<string[]> = new EventEmitter<
+  //   string[]
+  // >();
+  // public messageToMain: EventEmitter<string[]> = new EventEmitter<string[]>();
   messageArray: string[] = [];
   messageArrayToMain: string[] = [];
   /**
@@ -260,6 +299,7 @@ export class LivekitService {
     await this.room.connect(wsURL, token);
     console.log('Connected to room', this.room);
     // this.connectWebSocket();
+    // this.remoteVideoTrackSubscribed.asObservable;
     this.updateParticipantNames();
     this.remoteParticipantAfterLocal();
   }
@@ -388,6 +428,56 @@ export class LivekitService {
     await this.room!.localParticipant.publishData(data, { reliable: true });
   }
 
+  // async breakoutRoomAlert(participants: string[], roomName: string) {
+  //   this.breakoutRoomCounter++;
+
+  //   const message = {
+  //     type: 'breakoutRoom',
+  //     participantIds: participants, // The selected participants
+  //     roomName: roomName,
+  //   };
+  //   console.log(`Publishing breakout room alert:`, message);
+  //   await this.publishBreakoutRoom(message, participants);
+  //   // Find if the room already exists in breakoutRoomsData
+  //   const existingRoomIndex = this.breakoutRoomsData.findIndex(
+  //     (room) => room.roomName === roomName
+  //   );
+
+  //   if (existingRoomIndex !== -1) {
+  //     // If the room already exists, update its participantIds
+  //     const existingRoom = this.breakoutRoomsData[existingRoomIndex];
+
+  //     // Ensure no duplicate participants are added
+  //     const updatedParticipants = [
+  //       ...existingRoom.participantIds,
+  //       ...participants.filter((p) => !existingRoom.participantIds.includes(p)),
+  //     ];
+
+  //     // Update the room with the new participant list
+  //     this.breakoutRoomsData[existingRoomIndex] = {
+  //       ...existingRoom,
+  //       participantIds: updatedParticipants,
+  //     };
+  //   } else {
+  //     // Store the room data for tracking
+  //     this.breakoutRoomsData.push({
+  //       participantIds: message.participantIds,
+  //       roomName: message.roomName,
+  //       type: message.type,
+  //     });
+  //   }
+
+  //   // Emit the updated breakout rooms data
+  //   this.breakoutRoomsDataUpdated.emit(this.breakoutRoomsData);
+  //   console.log('checking help message', this.breakoutRoomsData);
+
+  //   console.log(
+  //     `Breakout room '${roomName}' assigned to participants: ${participants.join(
+  //       ', '
+  //     )}`
+  //   );
+  // }
+
   async breakoutRoomAlert(participants: string[], roomName: string) {
     this.breakoutRoomCounter++;
 
@@ -428,7 +518,7 @@ export class LivekitService {
     }
 
     // Emit the updated breakout rooms data
-    this.breakoutRoomsDataUpdated.emit(this.breakoutRoomsData);
+    this.breakoutRoomsDataUpdated.next(this.breakoutRoomsData);
     console.log('checking help message', this.breakoutRoomsData);
 
     console.log(
@@ -505,7 +595,7 @@ export class LivekitService {
       });
 
       // Emit the message
-      this.messageEmitter.emit(dataObj);
+      this.messageEmitter.next(dataObj);
       console.log('Message sent successfully:', dataObj);
     } catch (error: any) {
       console.error('Error sending message:', error);
@@ -557,6 +647,62 @@ export class LivekitService {
      * @param {RemoteParticipant} [participant] - The participant who sent the data.
      * @param {DataPacket_Kind} [kind] - The kind of data packet.
      */
+    // this.room.on(
+    //   RoomEvent.DataReceived,
+    //   (
+    //     payload: Uint8Array,
+    //     participant: RemoteParticipant | undefined,
+    //     kind: DataPacket_Kind | undefined
+    //   ) => {
+    //     const strData = this.decoder.decode(payload);
+    //     const message = JSON.parse(strData);
+    //     console.log('mesg', JSON.parse(strData));
+    //     console.log('participant', participant);
+    //     this.msgDataReceived.emit({ message, participant });
+    //     if (message.type === 'handRaise') {
+    //       this.handRaised.emit({
+    //         participant: participant,
+    //         handRaised: message.handRaised,
+    //       });
+    //     }
+    //     if (message.type === 'breakoutRoom') {
+    //       console.log(
+    //         `Breakout room assigned: ${message.roomName} from host "${participant?.identity}"`
+    //       );
+
+    //       // Ensure the message is only sent to the intended participant
+    //       if (participant) {
+    //         this.breakoutRoom.emit({
+    //           participant: participant,
+    //           roomName: message.roomName, // Use the room name from the message
+    //         });
+    //       }
+    //     }
+    //     if (message.title === 'test-room') {
+    //       console.log(`Received message in breakout room: ${message}`);
+
+    //       // Add the new message content to the array
+    //       this.messageArray.push(message);
+
+    //       // Emit the updated message array
+    //       this.messageContentReceived.emit(this.messageArray);
+    //     } else {
+    //       console.log(`Message not for this breakout room`);
+    //     }
+    //     //======
+    //     if (message.title.includes('Breakout_Room')) {
+    //       console.log(`Received message in main room: ${message}`);
+
+    //       // Add the new message content to the array
+    //       this.messageArrayToMain.push(message);
+
+    //       // Emit the updated message array
+    //       this.messageToMain.emit(this.messageArrayToMain);
+    //     } else {
+    //       console.log(`Message not for this main room`);
+    //     }
+    //   }
+    // );
     this.room.on(
       RoomEvent.DataReceived,
       (
@@ -568,13 +714,17 @@ export class LivekitService {
         const message = JSON.parse(strData);
         console.log('mesg', JSON.parse(strData));
         console.log('participant', participant);
-        this.msgDataReceived.emit({ message, participant });
+
+        // Use next() instead of emit()
+        this.msgDataReceived.next({ message, participant });
+
         if (message.type === 'handRaise') {
-          this.handRaised.emit({
+          this.handRaised.next({
             participant: participant,
             handRaised: message.handRaised,
           });
         }
+
         if (message.type === 'breakoutRoom') {
           console.log(
             `Breakout room assigned: ${message.roomName} from host "${participant?.identity}"`
@@ -582,12 +732,13 @@ export class LivekitService {
 
           // Ensure the message is only sent to the intended participant
           if (participant) {
-            this.breakoutRoom.emit({
+            this.breakoutRoom.next({
               participant: participant,
               roomName: message.roomName, // Use the room name from the message
             });
           }
         }
+
         if (message.title === 'test-room') {
           console.log(`Received message in breakout room: ${message}`);
 
@@ -595,10 +746,11 @@ export class LivekitService {
           this.messageArray.push(message);
 
           // Emit the updated message array
-          this.messageContentReceived.emit(this.messageArray);
+          this.messageContentReceived.next(this.messageArray);
         } else {
           console.log(`Message not for this breakout room`);
         }
+
         //======
         if (message.title.includes('Breakout_Room')) {
           console.log(`Received message in main room: ${message}`);
@@ -607,12 +759,13 @@ export class LivekitService {
           this.messageArrayToMain.push(message);
 
           // Emit the updated message array
-          this.messageToMain.emit(this.messageArrayToMain);
+          this.messageToMain.next(this.messageArrayToMain);
         } else {
           console.log(`Message not for this main room`);
         }
       }
     );
+
     /**
      * Event triggered when a track is muted.
      *
@@ -835,7 +988,7 @@ export class LivekitService {
           }
         }
 
-        this.screenShareTrackSubscribed.emit(publication.track);
+        this.screenShareTrackSubscribed.next(publication.track);
         if (publication.source === Track.Source.ScreenShare) {
           this.localScreenShareCount++;
           this.speakerModeLayout = false;
@@ -967,6 +1120,11 @@ export class LivekitService {
         );
       }
     );
+
+    this.room.on(RoomEvent.MediaDevicesChanged, async () => {
+      console.log('LiveKit device change detected.');
+      await this.updateDeviceLists();
+    });
   }
 
   updateActiveSpeakerBorders() {
@@ -986,7 +1144,6 @@ export class LivekitService {
 
         // Check the audio level of the active speaker
         const audioLevel = participant.audioLevel;
-
         // If the audio level is above 0, apply the active border with a smooth transition
         if (isActiveSpeaker && audioLevel > 0) {
           participantTile.style.transition = 'border 0.3s ease-in-out'; // Smooth transition
@@ -1034,11 +1191,11 @@ export class LivekitService {
    */
   updateParticipantNames() {
     this.participantNames = Array.from(this.room.remoteParticipants.values());
-    this.participantNamesUpdated.emit(this.participantNames);
+    this.participantNamesUpdated.next(this.participantNames);
     console.log('logging ', this.room.localParticipant);
     console.log('logging 3', this.participantNames);
     this.loacalParticipant = this.room.localParticipant;
-    this.localParticipantData.emit(this.loacalParticipant);
+    this.localParticipantData.next(this.loacalParticipant);
 
     console.log('participants remote', this.participantNames);
   }
@@ -1268,7 +1425,7 @@ export class LivekitService {
         console.error('Remote audio container not found');
       }
     }
-    this.screenShareTrackSubscribed.emit(track);
+    this.screenShareTrackSubscribed.next(track);
     if (track.source === Track.Source.ScreenShare && track.kind === 'video') {
       this.remoteScreenShare = true;
       this.remoteScreenShareCount++;
@@ -1398,7 +1555,7 @@ export class LivekitService {
         .then(async () => {
           const newMicStatus = !isMuted;
           console.log('Microphone status after toggling:', newMicStatus); // Debug
-          this.microphoneStatusChanged.emit(newMicStatus);
+          this.microphoneStatusChanged.next(newMicStatus);
 
           this.isMicOn = newMicStatus; // Update the local mic status
           return newMicStatus;
@@ -1428,7 +1585,7 @@ export class LivekitService {
     return from(
       localParticipant.setCameraEnabled(!isVideoEnabled).then(() => {
         const newVideoStatus = !isVideoEnabled;
-        this.videoStatusChanged.emit(newVideoStatus);
+        this.videoStatusChanged.next(newVideoStatus);
         return newVideoStatus;
       })
     );
@@ -1748,13 +1905,14 @@ export class LivekitService {
       };
     }
   }
-
   async updateDeviceLists() {
     try {
       this.videoDevices = await this.getDevices('videoinput');
       this.micDevices = await this.getDevices('audioinput');
       this.speakerDevices = await this.getDevices('audiooutput');
-      console.log('Device lists updated:', {
+
+      // Emit updated device lists
+      this.deviceListsSubject.next({
         videoDevices: this.videoDevices,
         micDevices: this.micDevices,
         speakerDevices: this.speakerDevices,
@@ -1763,13 +1921,12 @@ export class LivekitService {
       console.error('Error updating device lists:', error);
     }
   }
-
-  listenForDeviceChanges() {
-    navigator.mediaDevices.addEventListener('devicechange', async () => {
-      console.log('Device change detected.');
-      await this.updateDeviceLists();
-    });
-  }
+  // listenForDeviceChanges() {
+  //   navigator.mediaDevices.addEventListener('devicechange', async () => {
+  //     console.log('Device change detected.');
+  //     await this.updateDeviceLists();
+  //   });
+  // }
 
   // Switch active device (camera, microphone, or speaker)
   // async switchDevice(kind: MediaDeviceKind, deviceId: string): Promise<void> {
@@ -1814,7 +1971,7 @@ export class LivekitService {
     }
 
     // Check if the participant is an active speaker
-    const isActiveSpeaker = this.activeSpeakers.some(
+    let isActiveSpeaker = this.activeSpeakers.some(
       (speaker) => speaker.sid === participant.sid
     );
     // If the audio level is above 0, apply the active border with a smooth transition
@@ -1845,4 +2002,174 @@ export class LivekitService {
       participantTile.style.border = ''; // Remove the border
     }
   }
+
+  // createSpeakerAvatar() {
+  //   const gridLayout = document.querySelector('.lk-grid-layout');
+  //   const speakerLayout = document.querySelector('.lk-speaker-layout');
+
+  //   if (!gridLayout || !speakerLayout) {
+  //     console.error('Grid or Speaker layout not found.');
+  //     return;
+  //   }
+
+  //   // Find the active speaker among remote participants
+  //   const activeSpeaker = this.activeSpeakers.find((speaker) =>
+  //     Array.from(this.room.remoteParticipants.values()).some(
+  //       (remoteParticipant) => remoteParticipant.sid === speaker.sid
+  //     )
+  //   );
+
+  //   // Fallback to the first remote participant if no active speaker
+  //   const participant =
+  //     activeSpeaker || Array.from(this.room.remoteParticipants.values())[0];
+
+  //   if (!participant) {
+  //     console.warn('No remote participants available to display.');
+  //     return;
+  //   }
+
+  //   // Find the participant's tile
+  //   const participantTile = document.getElementById(`${participant.sid}`);
+  //   if (!participantTile) {
+  //     console.error(`Participant tile with SID ${participant.sid} not found.`);
+  //     return;
+  //   }
+
+  //   // Move the participant tile to the speaker layout
+  //   if (!speakerLayout.contains(participantTile)) {
+  //     if (gridLayout.contains(participantTile)) {
+  //       gridLayout.removeChild(participantTile);
+  //     }
+  //     speakerLayout.appendChild(participantTile);
+  //     participantTile.style.height = '100%';
+  //     participantTile.style.transition = 'border 0.3s ease-in-out'; // Smooth transition
+  //     participantTile.style.border = '4px solid #28a745'; // Active speaker border
+  //   }
+
+  //   // Reset other remote participants to the grid layout
+  //   // Array.from(this.room.remoteParticipants.values()).forEach(
+  //   //   (remoteParticipant) => {
+  //   //     if (remoteParticipant.sid !== participant.sid) {
+  //   //       const remoteTile = document.getElementById(
+  //   //         `${remoteParticipant.sid}`
+  //   //       );
+  //   //       if (remoteTile && !gridLayout.contains(remoteTile)) {
+  //   //         speakerLayout.removeChild(remoteTile);
+  //   //         gridLayout.appendChild(remoteTile);
+  //   //         remoteTile.style.height = ''; // Reset height
+  //   //         remoteTile.style.border = ''; // Reset border
+  //   //       }
+  //   //     }
+  //   //   }
+  //   // );
+  //   // Ensure all remote participants are handled correctly
+  //   Array.from(this.room.remoteParticipants.values()).forEach(
+  //     (remoteParticipant) => {
+  //       const remoteTile = document.getElementById(`${remoteParticipant.sid}`);
+  //       if (remoteTile) {
+  //         if (remoteParticipant.sid !== participant.sid) {
+  //           // Ensure the non-active speaker is in the grid layout
+  //           if (!gridLayout.contains(remoteTile)) {
+  //             speakerLayout.removeChild(remoteTile); // Safely remove from speaker layout
+  //             gridLayout.appendChild(remoteTile); // Append to grid layout
+  //           }
+  //           // Reset styles for the grid layout
+  //           remoteTile.style.height = '';
+  //           remoteTile.style.border = '';
+  //         } else {
+  //           // Handle the active speaker
+  //           if (!speakerLayout.contains(remoteTile)) {
+  //             gridLayout.removeChild(remoteTile); // Safely remove from grid layout
+  //             speakerLayout.appendChild(remoteTile); // Append to speaker layout
+  //           }
+  //           // Apply styles for the speaker layout
+  //           remoteTile.style.height = '100%';
+  //           remoteTile.style.border = '4px solid #28a745';
+  //           remoteTile.style.transition = 'border 0.3s ease-in-out';
+  //         }
+  //       }
+  //     }
+  //   );
+
+  //   // Ensure all participant tiles are in at least one layout
+  //   Array.from(this.room.remoteParticipants.values()).forEach(
+  //     (remoteParticipant) => {
+  //       const remoteTile = document.getElementById(`${remoteParticipant.sid}`);
+  //       if (remoteTile) {
+  //         if (
+  //           !gridLayout.contains(remoteTile) &&
+  //           !speakerLayout.contains(remoteTile)
+  //         ) {
+  //           gridLayout.appendChild(remoteTile); // Add missing tiles back to grid layout
+  //         }
+  //       }
+  //     }
+  //   );
+  // }
+
+  // createSpeakerAvatar() {
+  //   const gridLayout = document.querySelector('.lk-grid-layout');
+  //   const speakerLayout = document.querySelector('.lk-speaker-layout');
+
+  //   if (!gridLayout || !speakerLayout) {
+  //     console.error('Grid or Speaker layout not found.');
+  //     return;
+  //   }
+
+  //   // Handle no active speaker scenario
+  //   let activeSpeaker =
+  //     this.activeSpeakers.length > 0
+  //       ? this.activeSpeakers.find((speaker) =>
+  //           Array.from(this.room.remoteParticipants.values()).some(
+  //             (remoteParticipant) => remoteParticipant.sid === speaker.sid
+  //           )
+  //         )
+  //       : null;
+
+  //   // Default to the first remote participant if no active speaker
+  //   if (!activeSpeaker) {
+  //     activeSpeaker = Array.from(this.room.remoteParticipants.values())[0];
+  //     if (!activeSpeaker) {
+  //       console.warn('No remote participants available to display.');
+  //       return;
+  //     }
+  //   }
+
+  //   // Get the participant's tile
+  //   const participantTile = document.getElementById(`${activeSpeaker.sid}`);
+  //   if (!participantTile) {
+  //     console.error(
+  //       `Participant tile with SID ${activeSpeaker.sid} not found.`
+  //     );
+  //     return;
+  //   }
+
+  //   // Move the active speaker to the speaker layout
+  //   if (!speakerLayout.contains(participantTile)) {
+  //     if (gridLayout.contains(participantTile)) {
+  //       gridLayout.removeChild(participantTile);
+  //     }
+  //     speakerLayout.appendChild(participantTile);
+  //     participantTile.style.height = '100%';
+  //     participantTile.style.transition = 'border 0.3s ease-in-out'; // Smooth transition
+  //     participantTile.style.border = '4px solid #28a745'; // Active speaker border
+  //   }
+
+  //   // Move non-active participants back to grid layout
+  //   Array.from(this.room.remoteParticipants.values()).forEach(
+  //     (remoteParticipant) => {
+  //       if (remoteParticipant.sid !== activeSpeaker.sid) {
+  //         const remoteTile = document.getElementById(
+  //           `${remoteParticipant.sid}`
+  //         );
+  //         if (remoteTile && !gridLayout.contains(remoteTile)) {
+  //           speakerLayout.removeChild(remoteTile);
+  //           gridLayout.appendChild(remoteTile);
+  //           remoteTile.style.height = ''; // Reset height
+  //           remoteTile.style.border = ''; // Reset border
+  //         }
+  //       }
+  //     }
+  //   );
+  // }
 }

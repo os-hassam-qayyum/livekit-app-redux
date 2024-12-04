@@ -12,7 +12,15 @@ import {
   Room,
   Track,
 } from 'livekit-client';
-import { async, map, Observable, Subscription, take } from 'rxjs';
+import {
+  async,
+  distinctUntilChanged,
+  filter,
+  map,
+  Observable,
+  Subscription,
+  take,
+} from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store, select } from '@ngrx/store';
 import { selectLiveKitRoomViewState } from './+state/livekit/livekit-room.selectors';
@@ -123,6 +131,9 @@ export class AppComponent {
     { value: 'automatic', viewValue: 'automatic' },
     { value: 'manual', viewValue: 'manual' },
   ];
+  private subscription!: Subscription;
+  private remoteVideoSubscription!: Subscription;
+  private screenShareSubscription!: Subscription;
   constructor(
     private formBuilder: FormBuilder,
     public livekitService: LivekitService,
@@ -153,7 +164,11 @@ export class AppComponent {
     // Store local participant data
     this.storeLocalParticipantData();
 
-
+    this.livekitService.deviceLists$.subscribe((devices) => {
+      this.videoDevices = devices.videoDevices;
+      this.micDevices = devices.micDevices;
+      this.speakerDevices = devices.speakerDevices;
+    });
     // Fetch all devices initially
     try {
       const devices = await this.livekitService.getAllDevices();
@@ -198,6 +213,15 @@ export class AppComponent {
   }
 
   ngOnDestroy() {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+    }
+    if (this.remoteVideoSubscription) {
+      this.remoteVideoSubscription.unsubscribe();
+    }
+    if (this.screenShareSubscription) {
+      this.screenShareSubscription.unsubscribe();
+    }
     // Clean up the event listener when the component is destroyed
     document.removeEventListener('visibilitychange', () => {
       if (document.hidden) {
@@ -262,7 +286,6 @@ export class AppComponent {
     console.log('Selected video device:', deviceId);
   }
 
-  
   async selectMic(deviceId: string) {
     this.selectedMicId = deviceId;
     await this.livekitService.switchDevice('audioinput', deviceId);
@@ -274,8 +297,7 @@ export class AppComponent {
     await this.livekitService.switchDevice('audiooutput', deviceId);
     console.log('Selected speaker device:', deviceId);
   }
- 
-  
+
   private initializeWebSocketAndAudioVideoHandler() {
     // Uncomment this if you want to connect the WebSocket
     // this.livekitService.connectWebSocket();
@@ -325,7 +347,6 @@ export class AppComponent {
       roomType: ['', Validators.required],
       selectedParticipants: [[]],
     });
-
   }
 
   private setupMessageSubscriptions() {
@@ -500,8 +521,13 @@ export class AppComponent {
   ngAfterViewInit(): void {
     if (this.livekitService.screenShareTrackSubscribed) {
       // Subscribe to the EventEmitter
-      this.livekitService.screenShareTrackSubscribed.subscribe(
-        (track: RemoteTrack | undefined) => {
+      this.livekitService.screenShareTrackSubscribed
+        .pipe(
+          filter(
+            (track) => !!track && track.source === Track.Source.ScreenShare
+          )
+        )
+        .subscribe((track: RemoteTrack | undefined) => {
           if (track && track.source === Track.Source.ScreenShare) {
             this.screenShareTrack = track;
             console.log('ss track', track);
@@ -509,37 +535,31 @@ export class AppComponent {
             this.screenShareTrack = undefined; // Reset if no screen share track
             console.log('else ss track', this.screenShareTrack);
           }
-        }
-      );
+        });
     } else {
       console.error('screenShareTrackSubscribed is undefined');
     }
-    this.livekitService.remoteVideoTrackSubscribed.subscribe(
-      (
-        track: RemoteTrack,
-        publication: RemoteTrackPublication,
-        participant: RemoteParticipant
-      ) => {
+    this.remoteVideoSubscription =
+      this.livekitService.remoteVideoTrackSubscribed
+        .pipe(distinctUntilChanged())
+        .subscribe({
+          next: ({ track, publication, participant }) => {
+            this.livekitService.handleTrackSubscribed(
+              track,
+              publication,
+              participant
+            );
+          },
+        });
+    this.subscription = this.livekitService.remoteAudioTrackSubscribed
+      .pipe(distinctUntilChanged())
+      .subscribe(({ track, publication, participant }) => {
         this.livekitService.handleTrackSubscribed(
           track,
           publication,
           participant
         );
-      }
-    );
-    this.livekitService.remoteAudioTrackSubscribed.subscribe(
-      (
-        track: RemoteTrack,
-        publication: RemoteTrackPublication,
-        participant: RemoteParticipant
-      ) => {
-        this.livekitService.handleTrackSubscribed(
-          track,
-          publication,
-          participant
-        );
-      }
-    );
+      });
     // this.livekitService.initCanvas(this.audioCanvasRef.nativeElement);
   }
   /**
@@ -1699,12 +1719,17 @@ export class AppComponent {
     }
   }
 
-
   speakerMode() {
     this.livekitService.speakerModeLayout =
       !this.livekitService.speakerModeLayout;
     console.log('speaker', this.livekitService.speakerModeLayout);
     // Update the active speaker borders when toggling modes
     this.livekitService.updateActiveSpeakerBorders();
+  }
+  hasRemoteParticipants(): boolean {
+    return (
+      Array.from(this.livekitService.room.remoteParticipants.values()).length >
+      0
+    );
   }
 }
