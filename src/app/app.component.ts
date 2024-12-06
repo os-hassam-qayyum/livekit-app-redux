@@ -1722,9 +1722,14 @@ export class AppComponent {
   speakerMode() {
     this.livekitService.speakerModeLayout =
       !this.livekitService.speakerModeLayout;
-    console.log('speaker', this.livekitService.speakerModeLayout);
-    // Update the active speaker borders when toggling modes
-    this.livekitService.updateActiveSpeakerBorders();
+    console.log('Speaker mode toggled:', this.livekitService.speakerModeLayout);
+
+    if (this.livekitService.speakerModeLayout) {
+      // Show the initial speaker in speaker layout
+      this.livekitService.showInitialSpeaker();
+    } else {
+      this.livekitService.switchSpeakerViewLayout();
+    }
   }
   hasRemoteParticipants(): boolean {
     return (

@@ -1157,6 +1157,23 @@ export class LivekitService {
       this.createSpeakerAvatar(participant);
     });
   }
+  showInitialSpeaker() {
+    const remoteParticipants = Array.from(
+      this.room.remoteParticipants.values()
+    );
+
+    if (remoteParticipants.length > 0) {
+      // Take the first remote participant as the default initial speaker
+      const initialSpeaker = remoteParticipants[0];
+      console.log('Setting initial speaker:', initialSpeaker.sid);
+      this.activeSpeakers.push(initialSpeaker);
+      setTimeout(() => {
+        this.createSpeakerAvatar(initialSpeaker);
+      }, 0);
+    } else {
+      console.warn('No remote participants found.');
+    }
+  }
 
   async getAvailableSpeakers() {
     const devices = await navigator.mediaDevices.enumerateDevices();
@@ -1921,26 +1938,7 @@ export class LivekitService {
       console.error('Error updating device lists:', error);
     }
   }
-  // listenForDeviceChanges() {
-  //   navigator.mediaDevices.addEventListener('devicechange', async () => {
-  //     console.log('Device change detected.');
-  //     await this.updateDeviceLists();
-  //   });
-  // }
 
-  // Switch active device (camera, microphone, or speaker)
-  // async switchDevice(kind: MediaDeviceKind, deviceId: string): Promise<void> {
-  //   try {
-  //     const success = await this.room.switchActiveDevice(kind, deviceId);
-  //     if (success) {
-  //       console.log(`Switched ${kind} to device: ${deviceId}`);
-  //     } else {
-  //       console.warn(`Failed to switch ${kind} to device: ${deviceId}`);
-  //     }
-  //   } catch (error) {
-  //     console.error(`Error switching ${kind} to device: ${deviceId}`, error);
-  //   }
-  // }
   async switchDevice(kind: MediaDeviceKind, deviceId: string): Promise<void> {
     try {
       const success = await this.room.switchActiveDevice(kind, deviceId);
@@ -1954,12 +1952,27 @@ export class LivekitService {
     }
   }
 
-  createSpeakerAvatar(participant: Participant) {
+  switchSpeakerViewLayout() {
     const gridLayout = document.querySelector('.lk-grid-layout');
     const speakerLayout = document.querySelector('.lk-speaker-layout');
+    if (speakerLayout?.firstElementChild) {
+      gridLayout?.appendChild(speakerLayout.firstElementChild);
+      // speakerLayout?.removeChild(speakerLayout.firstElementChild);
+    }
+  }
+  createSpeakerAvatar(participant: Participant) {
+    console.log('function called');
+    const gridLayout = document.querySelector('.lk-grid-layout');
+    const speakerLayout = document.querySelector('.lk-speaker-layout');
+    console.log('speaker mode is', this.speakerModeLayout);
+    console.log('speaker layout ', speakerLayout);
 
-    if (!gridLayout || !speakerLayout) {
-      console.error('Grid or Speaker layout not found.');
+    if (!gridLayout) {
+      console.error('Grid layout not found.');
+      return;
+    }
+    if (!speakerLayout) {
+      console.error('Speaker layout not found.');
       return;
     }
 
@@ -1971,11 +1984,21 @@ export class LivekitService {
     }
 
     // Check if the participant is an active speaker
-    let isActiveSpeaker = this.activeSpeakers.some(
+    const isActiveSpeaker = this.activeSpeakers.some(
       (speaker) => speaker.sid === participant.sid
     );
-    // If the audio level is above 0, apply the active border with a smooth transition
+    console.log('active speaker', this.activeSpeakers);
     if (isActiveSpeaker) {
+      if (speakerLayout.firstElementChild) {
+        const first =
+          speakerLayout.firstElementChild?.getAttribute('id') ===
+          participant.sid;
+        console.log('first child', first);
+        if (!first) {
+          gridLayout.appendChild(speakerLayout.firstElementChild);
+          speakerLayout.removeChild(speakerLayout.firstElementChild);
+        }
+      }
       // Move the participant tile to the speaker layout
       if (!speakerLayout.contains(participantTile)) {
         if (gridLayout.contains(participantTile)) {
@@ -1986,190 +2009,7 @@ export class LivekitService {
         participantTile.style.height = '100%';
       }
       participantTile.style.transition = 'border 0.3s ease-in-out'; // Smooth transition
-      participantTile.style.border = '4px solid #28a745'; // Apply blue border
-    } else {
-      // Move the participant tile back to the grid layout
-      if (!gridLayout.contains(participantTile)) {
-        if (speakerLayout.contains(participantTile)) {
-          speakerLayout.removeChild(participantTile);
-        }
-        gridLayout.appendChild(participantTile);
-        // Apply height styling when in speaker layout
-        participantTile.style.height = '';
-      }
-      // Remove the border when audio level is 0 or participant is not speaking
-      participantTile.style.transition = ''; // Reset transition
-      participantTile.style.border = ''; // Remove the border
+      participantTile.style.border = '4px solid #28a745'; // Apply green border
     }
   }
-
-  // createSpeakerAvatar() {
-  //   const gridLayout = document.querySelector('.lk-grid-layout');
-  //   const speakerLayout = document.querySelector('.lk-speaker-layout');
-
-  //   if (!gridLayout || !speakerLayout) {
-  //     console.error('Grid or Speaker layout not found.');
-  //     return;
-  //   }
-
-  //   // Find the active speaker among remote participants
-  //   const activeSpeaker = this.activeSpeakers.find((speaker) =>
-  //     Array.from(this.room.remoteParticipants.values()).some(
-  //       (remoteParticipant) => remoteParticipant.sid === speaker.sid
-  //     )
-  //   );
-
-  //   // Fallback to the first remote participant if no active speaker
-  //   const participant =
-  //     activeSpeaker || Array.from(this.room.remoteParticipants.values())[0];
-
-  //   if (!participant) {
-  //     console.warn('No remote participants available to display.');
-  //     return;
-  //   }
-
-  //   // Find the participant's tile
-  //   const participantTile = document.getElementById(`${participant.sid}`);
-  //   if (!participantTile) {
-  //     console.error(`Participant tile with SID ${participant.sid} not found.`);
-  //     return;
-  //   }
-
-  //   // Move the participant tile to the speaker layout
-  //   if (!speakerLayout.contains(participantTile)) {
-  //     if (gridLayout.contains(participantTile)) {
-  //       gridLayout.removeChild(participantTile);
-  //     }
-  //     speakerLayout.appendChild(participantTile);
-  //     participantTile.style.height = '100%';
-  //     participantTile.style.transition = 'border 0.3s ease-in-out'; // Smooth transition
-  //     participantTile.style.border = '4px solid #28a745'; // Active speaker border
-  //   }
-
-  //   // Reset other remote participants to the grid layout
-  //   // Array.from(this.room.remoteParticipants.values()).forEach(
-  //   //   (remoteParticipant) => {
-  //   //     if (remoteParticipant.sid !== participant.sid) {
-  //   //       const remoteTile = document.getElementById(
-  //   //         `${remoteParticipant.sid}`
-  //   //       );
-  //   //       if (remoteTile && !gridLayout.contains(remoteTile)) {
-  //   //         speakerLayout.removeChild(remoteTile);
-  //   //         gridLayout.appendChild(remoteTile);
-  //   //         remoteTile.style.height = ''; // Reset height
-  //   //         remoteTile.style.border = ''; // Reset border
-  //   //       }
-  //   //     }
-  //   //   }
-  //   // );
-  //   // Ensure all remote participants are handled correctly
-  //   Array.from(this.room.remoteParticipants.values()).forEach(
-  //     (remoteParticipant) => {
-  //       const remoteTile = document.getElementById(`${remoteParticipant.sid}`);
-  //       if (remoteTile) {
-  //         if (remoteParticipant.sid !== participant.sid) {
-  //           // Ensure the non-active speaker is in the grid layout
-  //           if (!gridLayout.contains(remoteTile)) {
-  //             speakerLayout.removeChild(remoteTile); // Safely remove from speaker layout
-  //             gridLayout.appendChild(remoteTile); // Append to grid layout
-  //           }
-  //           // Reset styles for the grid layout
-  //           remoteTile.style.height = '';
-  //           remoteTile.style.border = '';
-  //         } else {
-  //           // Handle the active speaker
-  //           if (!speakerLayout.contains(remoteTile)) {
-  //             gridLayout.removeChild(remoteTile); // Safely remove from grid layout
-  //             speakerLayout.appendChild(remoteTile); // Append to speaker layout
-  //           }
-  //           // Apply styles for the speaker layout
-  //           remoteTile.style.height = '100%';
-  //           remoteTile.style.border = '4px solid #28a745';
-  //           remoteTile.style.transition = 'border 0.3s ease-in-out';
-  //         }
-  //       }
-  //     }
-  //   );
-
-  //   // Ensure all participant tiles are in at least one layout
-  //   Array.from(this.room.remoteParticipants.values()).forEach(
-  //     (remoteParticipant) => {
-  //       const remoteTile = document.getElementById(`${remoteParticipant.sid}`);
-  //       if (remoteTile) {
-  //         if (
-  //           !gridLayout.contains(remoteTile) &&
-  //           !speakerLayout.contains(remoteTile)
-  //         ) {
-  //           gridLayout.appendChild(remoteTile); // Add missing tiles back to grid layout
-  //         }
-  //       }
-  //     }
-  //   );
-  // }
-
-  // createSpeakerAvatar() {
-  //   const gridLayout = document.querySelector('.lk-grid-layout');
-  //   const speakerLayout = document.querySelector('.lk-speaker-layout');
-
-  //   if (!gridLayout || !speakerLayout) {
-  //     console.error('Grid or Speaker layout not found.');
-  //     return;
-  //   }
-
-  //   // Handle no active speaker scenario
-  //   let activeSpeaker =
-  //     this.activeSpeakers.length > 0
-  //       ? this.activeSpeakers.find((speaker) =>
-  //           Array.from(this.room.remoteParticipants.values()).some(
-  //             (remoteParticipant) => remoteParticipant.sid === speaker.sid
-  //           )
-  //         )
-  //       : null;
-
-  //   // Default to the first remote participant if no active speaker
-  //   if (!activeSpeaker) {
-  //     activeSpeaker = Array.from(this.room.remoteParticipants.values())[0];
-  //     if (!activeSpeaker) {
-  //       console.warn('No remote participants available to display.');
-  //       return;
-  //     }
-  //   }
-
-  //   // Get the participant's tile
-  //   const participantTile = document.getElementById(`${activeSpeaker.sid}`);
-  //   if (!participantTile) {
-  //     console.error(
-  //       `Participant tile with SID ${activeSpeaker.sid} not found.`
-  //     );
-  //     return;
-  //   }
-
-  //   // Move the active speaker to the speaker layout
-  //   if (!speakerLayout.contains(participantTile)) {
-  //     if (gridLayout.contains(participantTile)) {
-  //       gridLayout.removeChild(participantTile);
-  //     }
-  //     speakerLayout.appendChild(participantTile);
-  //     participantTile.style.height = '100%';
-  //     participantTile.style.transition = 'border 0.3s ease-in-out'; // Smooth transition
-  //     participantTile.style.border = '4px solid #28a745'; // Active speaker border
-  //   }
-
-  //   // Move non-active participants back to grid layout
-  //   Array.from(this.room.remoteParticipants.values()).forEach(
-  //     (remoteParticipant) => {
-  //       if (remoteParticipant.sid !== activeSpeaker.sid) {
-  //         const remoteTile = document.getElementById(
-  //           `${remoteParticipant.sid}`
-  //         );
-  //         if (remoteTile && !gridLayout.contains(remoteTile)) {
-  //           speakerLayout.removeChild(remoteTile);
-  //           gridLayout.appendChild(remoteTile);
-  //           remoteTile.style.height = ''; // Reset height
-  //           remoteTile.style.border = ''; // Reset border
-  //         }
-  //       }
-  //     }
-  //   );
-  // }
 }
