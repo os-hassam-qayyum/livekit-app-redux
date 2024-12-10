@@ -753,6 +753,7 @@ export class AppComponent {
   async toggleScreenShare(): Promise<void> {
     this.store.dispatch(LiveKitRoomActions.LiveKitActions.toggleScreenShare());
     this.livekitService.speakerModeLayout = false;
+    this.livekitService.switchSpeakerViewLayout();
   }
 
   /**
@@ -1719,18 +1720,31 @@ export class AppComponent {
     }
   }
 
+  /**
+   * Toggles between speaker mode and grid view layout in the LiveKit service.
+   *
+   * - When enabling speaker mode, it highlights the current active speaker.
+   * - When disabling, it switches back to the default grid view layout.
+   */
   speakerMode() {
     this.livekitService.speakerModeLayout =
       !this.livekitService.speakerModeLayout;
     console.log('Speaker mode toggled:', this.livekitService.speakerModeLayout);
 
     if (this.livekitService.speakerModeLayout) {
-      // Show the initial speaker in speaker layout
+      // Highlight the initial speaker in speaker mode
       this.livekitService.showInitialSpeaker();
     } else {
+      // Revert to grid view layout
       this.livekitService.switchSpeakerViewLayout();
     }
   }
+
+  /**
+   * Checks if there are any remote participants currently connected to the LiveKit room.
+   *
+   * @returns {boolean} - `true` if there are remote participants, otherwise `false`.
+   */
   hasRemoteParticipants(): boolean {
     return (
       Array.from(this.livekitService.room.remoteParticipants.values()).length >

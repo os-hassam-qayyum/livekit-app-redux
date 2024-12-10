@@ -1087,6 +1087,13 @@ export class LivekitService {
         }
       });
     });
+    /**
+     * Handles the `ActiveDeviceChanged` event triggered when a media device is switched.
+     *
+     * @event RoomEvent.ActiveDeviceChanged
+     * @param {MediaDeviceKind} kind - The type of device that changed (e.g., 'audioinput', 'videoinput').
+     * @param {string} deviceId - The ID of the newly active device.
+     */
     this.room.on(
       RoomEvent.ActiveDeviceChanged,
       (kind: MediaDeviceKind, deviceId: string) => {
@@ -1094,22 +1101,29 @@ export class LivekitService {
       }
     );
 
+    /**
+     * Handles the `ActiveSpeakersChanged` event to update active speaker information.
+     *
+     * @event RoomEvent.ActiveSpeakersChanged
+     * @param {Participant[]} speakers - An array of participants who are currently speaking.
+     */
     this.room.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) => {
       console.log('Active speakers:', speakers);
-
-      // Update the list of active speakers
       this.activeSpeakers = speakers;
       this.updateActiveSpeakerBorders();
-      // Append avatars for active speakers
       speakers.forEach((speaker) => {
-        // this.createSpeakerAvatar(speaker);
         console.log(
           ` ${speaker.identity} is speaking with audio level ${speaker.audioLevel}`
         );
       });
     });
 
-    // Listen for speaking changes on individual participants
+    /**
+     * Listens for speaking changes for the local participant.
+     *
+     * @event ParticipantEvent.IsSpeakingChanged
+     * @param {boolean} speaking - Indicates whether the participant is currently speaking.
+     */
     this.room.localParticipant.on(
       ParticipantEvent.IsSpeakingChanged,
       (speaking: boolean) => {
@@ -1121,12 +1135,20 @@ export class LivekitService {
       }
     );
 
+    /**
+     * Handles the `MediaDevicesChanged` event to update the list of available devices.
+     *
+     * @event RoomEvent.MediaDevicesChanged
+     */
     this.room.on(RoomEvent.MediaDevicesChanged, async () => {
       console.log('LiveKit device change detected.');
       await this.updateDeviceLists();
     });
   }
 
+  /**
+   * Updates the border styles for active speaker tiles based on their audio level.
+   */
   updateActiveSpeakerBorders() {
     const participants = Array.from([
       this.room.localParticipant,
@@ -1134,36 +1156,33 @@ export class LivekitService {
     ]);
 
     participants.forEach((participant) => {
-      // Find the participant's tile
       const participantTile = document.getElementById(`${participant.sid}`);
       if (participantTile) {
-        // Check if the participant is an active speaker
         const isActiveSpeaker = this.activeSpeakers.some(
           (speaker) => speaker.sid === participant.sid
         );
-
-        // Check the audio level of the active speaker
         const audioLevel = participant.audioLevel;
-        // If the audio level is above 0, apply the active border with a smooth transition
         if (isActiveSpeaker && audioLevel > 0) {
-          participantTile.style.transition = 'border 0.3s ease-in-out'; // Smooth transition
-          participantTile.style.border = '4px solid #28a745'; // Apply blue border
+          participantTile.style.transition = 'border 0.3s ease-in-out';
+          participantTile.style.border = '4px solid #28a745';
         } else {
-          // Remove the border when audio level is 0 or participant is not speaking
-          participantTile.style.transition = ''; // Reset transition
-          participantTile.style.border = ''; // Remove the border
+          participantTile.style.transition = '';
+          participantTile.style.border = '';
         }
       }
       this.createSpeakerAvatar(participant);
     });
   }
+
+  /**
+   * Displays the first remote participant as the initial speaker.
+   */
   showInitialSpeaker() {
     const remoteParticipants = Array.from(
       this.room.remoteParticipants.values()
     );
 
     if (remoteParticipants.length > 0) {
-      // Take the first remote participant as the default initial speaker
       const initialSpeaker = remoteParticipants[0];
       console.log('Setting initial speaker:', initialSpeaker.sid);
       this.activeSpeakers.push(initialSpeaker);
@@ -1175,17 +1194,28 @@ export class LivekitService {
     }
   }
 
+  /**
+   * Retrieves the list of available audio output (speaker) devices.
+   *
+   * @returns {Promise<void>} - A promise that resolves once the devices are fetched.
+   */
   async getAvailableSpeakers() {
     const devices = await navigator.mediaDevices.enumerateDevices();
     this.speakerDevices = devices.filter(
       (device) => device.kind === 'audiooutput'
     );
   }
+
+  /**
+   * Switches the active audio output (speaker) device for the local participant.
+   *
+   * @param {string} deviceId - The ID of the new speaker device.
+   * @returns {Promise<void>} - A promise that resolves when the speaker is switched.
+   */
   async switchSpeaker(deviceId: string) {
     this.room.localParticipant.audioTrackPublications.forEach(
       (track) => track.audioTrack
     );
-
     this.currentSpeakerDeviceId = deviceId;
   }
   /**
@@ -1875,13 +1905,25 @@ export class LivekitService {
   }
 
   // mic visualizer end
+  /**
+   * Sends a message to a specific breakout room.
+   *
+   * @param {string} roomId - The ID of the breakout room.
+   * @param {string} content - The message content to send.
+   * @returns {Observable<void>} - An observable that completes when the message is sent.
+   */
   sendMessageToBreakoutRoom(roomId: string, content: string) {
     const room = this.breakoutRoomsData.find((r) => r.roomName === roomId);
-
-    // Return the observable instead of subscribing directly
     return this.meetingService.sendBroadcastMessage(room.roomName, content);
   }
 
+  /**
+   * Sends a message from a breakout room to the main room.
+   *
+   * @param {string} breakoutRoomName - The name of the breakout room.
+   * @param {string} content - The message content to send.
+   * @returns {Observable<void>} - An observable that completes when the message is sent.
+   */
   sendMessageToMainRoom(breakoutRoomName: string, content: string) {
     return this.meetingService.sendMessageToMainRoom(
       'test-room',
@@ -1889,10 +1931,16 @@ export class LivekitService {
       content
     );
   }
-  // Fetch devices of a specific kind (camera, microphone, or speaker)
+
+  /**
+   * Fetches media devices of a specific type (camera, microphone, or speaker).
+   *
+   * @param {MediaDeviceKind} kind - The type of media device to fetch.
+   * @returns {Promise<MediaDeviceInfo[]>} - A promise that resolves to a list of devices.
+   */
   async getDevices(kind: MediaDeviceKind): Promise<MediaDeviceInfo[]> {
     try {
-      const devices = await Room.getLocalDevices(kind, true); // Request permissions
+      const devices = await Room.getLocalDevices(kind, true);
       console.log(`Available ${kind}s:`, devices);
       return devices;
     } catch (error) {
@@ -1901,7 +1949,12 @@ export class LivekitService {
     }
   }
 
-  // Fetch all device types (cameras, microphones, speakers)
+  /**
+   * Fetches all media device types (cameras, microphones, and speakers).
+   *
+   * @returns {Promise<{cameras: MediaDeviceInfo[], microphones: MediaDeviceInfo[], speakers: MediaDeviceInfo[]}>}
+   * An object containing lists of all available devices.
+   */
   async getAllDevices() {
     try {
       const cameras = await this.getDevices('videoinput');
@@ -1922,13 +1975,16 @@ export class LivekitService {
       };
     }
   }
+
+  /**
+   * Updates the lists of available media devices and emits the updated lists.
+   */
   async updateDeviceLists() {
     try {
       this.videoDevices = await this.getDevices('videoinput');
       this.micDevices = await this.getDevices('audioinput');
       this.speakerDevices = await this.getDevices('audiooutput');
 
-      // Emit updated device lists
       this.deviceListsSubject.next({
         videoDevices: this.videoDevices,
         micDevices: this.micDevices,
@@ -1939,6 +1995,13 @@ export class LivekitService {
     }
   }
 
+  /**
+   * Switches the active media device for a given type (camera, microphone, or speaker).
+   *
+   * @param {MediaDeviceKind} kind - The type of media device to switch.
+   * @param {string} deviceId - The ID of the device to switch to.
+   * @returns {Promise<void>} - A promise that resolves when the device is switched.
+   */
   async switchDevice(kind: MediaDeviceKind, deviceId: string): Promise<void> {
     try {
       const success = await this.room.switchActiveDevice(kind, deviceId);
@@ -1952,64 +2015,62 @@ export class LivekitService {
     }
   }
 
+  /**
+   * Switches the view layout from speaker mode to grid mode by moving the active speaker tile.
+   */
   switchSpeakerViewLayout() {
     const gridLayout = document.querySelector('.lk-grid-layout');
     const speakerLayout = document.querySelector('.lk-speaker-layout');
     if (speakerLayout?.firstElementChild) {
       gridLayout?.appendChild(speakerLayout.firstElementChild);
-      // speakerLayout?.removeChild(speakerLayout.firstElementChild);
     }
   }
+
+  /**
+   * Moves a participant's tile to the speaker layout or back to the grid layout.
+   *
+   * @param {Participant} participant - The participant whose tile to manage.
+   */
   createSpeakerAvatar(participant: Participant) {
-    console.log('function called');
     const gridLayout = document.querySelector('.lk-grid-layout');
     const speakerLayout = document.querySelector('.lk-speaker-layout');
-    console.log('speaker mode is', this.speakerModeLayout);
-    console.log('speaker layout ', speakerLayout);
 
-    if (!gridLayout) {
-      console.error('Grid layout not found.');
-      return;
-    }
-    if (!speakerLayout) {
-      console.error('Speaker layout not found.');
+    if (!gridLayout || !speakerLayout) {
+      console.error('Grid or Speaker layout not found.');
       return;
     }
 
-    // Find the participant's tile
     const participantTile = document.getElementById(`${participant.sid}`);
     if (!participantTile) {
       console.error(`Participant tile with SID ${participant.sid} not found.`);
       return;
     }
 
-    // Check if the participant is an active speaker
     const isActiveSpeaker = this.activeSpeakers.some(
       (speaker) => speaker.sid === participant.sid
     );
-    console.log('active speaker', this.activeSpeakers);
+
     if (isActiveSpeaker) {
-      if (speakerLayout.firstElementChild) {
-        const first =
-          speakerLayout.firstElementChild?.getAttribute('id') ===
-          participant.sid;
-        console.log('first child', first);
-        if (!first) {
-          gridLayout.appendChild(speakerLayout.firstElementChild);
-          speakerLayout.removeChild(speakerLayout.firstElementChild);
-        }
+      const currentSpeakerTile = speakerLayout.firstElementChild;
+      if (currentSpeakerTile && currentSpeakerTile !== participantTile) {
+        gridLayout.appendChild(currentSpeakerTile);
       }
-      // Move the participant tile to the speaker layout
+
       if (!speakerLayout.contains(participantTile)) {
         if (gridLayout.contains(participantTile)) {
           gridLayout.removeChild(participantTile);
         }
         speakerLayout.appendChild(participantTile);
-        // Apply height styling when in speaker layout
-        participantTile.style.height = '100%';
       }
-      participantTile.style.transition = 'border 0.3s ease-in-out'; // Smooth transition
-      participantTile.style.border = '4px solid #28a745'; // Apply green border
+
+      participantTile.style.height = '100%';
+    } else {
+      if (gridLayout.contains(participantTile)) {
+        participantTile.style.height = '40%';
+      }
     }
+
+    participantTile.style.transition = 'border 0.3s ease-in-out';
+    participantTile.style.border = isActiveSpeaker ? '4px solid #28a745' : '';
   }
 }
