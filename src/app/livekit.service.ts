@@ -627,6 +627,7 @@ export class LivekitService {
   audioVideoHandler() {
     this.room = new Room();
     this.participants = this.room.numParticipants;
+    
     console.log('total participants', this.participants);
     /**
      * Event triggered when the room is connected.

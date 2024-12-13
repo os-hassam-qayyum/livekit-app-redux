@@ -1,7 +1,7 @@
 import { createReducer, on } from '@ngrx/store';
 import * as LiveKitRoomActions from './livekit-room.actions';
 
-export interface Room {
+export interface BreakoutRoom {
   roomName: string;
   participantIds: string[];
   showAvailableParticipants: boolean;
@@ -26,9 +26,10 @@ export interface LiveKitRoomState {
   selectedParticipants: string[];
   numberOfRooms: number | null;
   distributionMessage: string;
-  breakoutRoomsData: Room[];
+  breakoutRoomsData: BreakoutRoom[];
   nextRoomIndex: number;
   helpMessageModal: boolean;
+  loading: boolean;
 }
 
 export const initialState: LiveKitRoomState = {
@@ -53,6 +54,7 @@ export const initialState: LiveKitRoomState = {
   breakoutRoomsData: [],
   nextRoomIndex: 1,
   helpMessageModal: false,
+  loading: false,
 };
 
 export const liveKitRoomReducer = createReducer(
@@ -331,17 +333,18 @@ export const liveKitRoomReducer = createReducer(
     })
   ),
   //creating new rooms
-  on(
-    LiveKitRoomActions.BreakoutActions.createNewRoomSuccess,
-    (state, { roomName }) => ({
-      ...state,
-      breakoutRoomsData: [
-        ...state.breakoutRoomsData,
-        { roomName, participantIds: [], showAvailableParticipants: false },
-      ],
-      nextRoomIndex: state.nextRoomIndex + 1,
-    })
-  ),
+  on(LiveKitRoomActions.BreakoutActions.createNewRoom, (state) => ({
+    ...state,
+
+    breakoutRoomsData: [
+      ...state.breakoutRoomsData,
+      {
+        roomName: `Room ${state.breakoutRoomsData.length + 1}`,
+        participantIds: [],
+        showAvailableParticipants: false,
+      },
+    ],
+  })),
   on(
     LiveKitRoomActions.BreakoutActions.toggleParticipantsList,
     (state, { index }) => {
@@ -388,5 +391,26 @@ export const liveKitRoomReducer = createReducer(
       });
       return { ...state, breakoutRoomsData: rooms };
     }
+  ),
+  on(LiveKitRoomActions.BreakoutActions.loadBreakoutRooms, (state) => ({
+    ...state,
+    loading: true,
+    error: null,
+  })),
+  on(
+    LiveKitRoomActions.BreakoutActions.loadBreakoutRoomsSuccess,
+    (state, { breakoutRoomsData }) => ({
+      ...state,
+      breakoutRoomsData,
+      loading: false,
+    })
+  ),
+  on(
+    LiveKitRoomActions.BreakoutActions.loadBreakoutRoomsFailure,
+    (state, { error }) => ({
+      ...state,
+      error,
+      loading: false,
+    })
   )
 );

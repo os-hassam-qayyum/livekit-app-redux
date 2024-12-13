@@ -28,6 +28,8 @@ import * as LiveKitRoomActions from './+state/livekit/livekit-room.actions';
 import { LivekitService } from './livekit.service';
 import { MatDialog } from '@angular/material/dialog';
 import { FormGroup, FormBuilder, Validators } from '@angular/forms';
+import { BreakoutRoomService } from './breakout-room.service';
+import { BreakoutRoom } from './+state/livekit/livekit-room.reducer';
 
 const GRIDCOLUMN: { [key: number]: string } = {
   1: '1fr',
@@ -66,6 +68,8 @@ const PIPGRIDCOLUMN: { [key: number]: string } = {
   styleUrls: ['./app.component.scss'],
 })
 export class AppComponent {
+  nestBreakoutRooms: BreakoutRoom[] = [];
+  errorMessage = '';
   isMicDropdownOpen = false; // To toggle mic dropdown visibility
   isVideoDropdownOpen = false; // To toggle video dropdown visibility
   chatSideWindowVisible: boolean = false;
@@ -139,7 +143,8 @@ export class AppComponent {
     public livekitService: LivekitService,
     private snackBar: MatSnackBar,
     public store: Store,
-    private renderer: Renderer2
+    private renderer: Renderer2,
+    private breakoutRoomService: BreakoutRoomService
   ) {}
 
   async ngOnInit() {
@@ -318,6 +323,7 @@ export class AppComponent {
 
     this.liveKitViewState$.subscribe((state) => {
       this.breakoutRoomsData = state.breakoutRoomsData;
+      console.log('ngOnInit Breakout Rooms Data:', this.breakoutRoomsData);
       this.chatSideWindowVisible = state.chatSideWindowVisible;
       if (state.isMeetingStarted) {
         document.addEventListener('visibilitychange', () => {
@@ -583,6 +589,7 @@ export class AppComponent {
         roomName: 'test-room',
       })
     );
+    this.store.dispatch(LiveKitRoomActions.BreakoutActions.loadBreakoutRooms());
   }
 
   /**
@@ -1199,7 +1206,7 @@ export class AppComponent {
   //side window of the breakout rooms and modal of automatic and manual working
   createNewRoomSidebar() {
     this.store.dispatch(
-      LiveKitRoomActions.BreakoutActions.initiateCreateNewRoom()
+      LiveKitRoomActions.BreakoutActions.createNewRoom()
     );
   }
 

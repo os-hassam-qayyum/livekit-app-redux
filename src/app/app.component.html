@@ -75,7 +75,11 @@
             class="grid-view"
             matTooltip="Switch Layout"
             (click)="speakerMode()"
-            [disabled]="!hasRemoteParticipants()"
+            [disabled]="
+              !hasRemoteParticipants() ||
+              livekitService.isScreenSharingEnabled === true ||
+              livekitService.remoteScreenShare === true
+            "
           >
             <i class="far fa-th-large"></i>
           </button>

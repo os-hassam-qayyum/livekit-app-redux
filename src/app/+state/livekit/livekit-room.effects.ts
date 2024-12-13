@@ -17,6 +17,7 @@ import { MeetingService } from 'src/app/meeting.service';
 import { LivekitService } from 'src/app/livekit.service';
 import { selectLiveKitRoomViewState } from './livekit-room.selectors';
 import { Store } from '@ngrx/store';
+import { BreakoutRoomService } from 'src/app/breakout-room.service';
 
 @Injectable()
 export class LiveKitRoomEffects {
@@ -25,7 +26,8 @@ export class LiveKitRoomEffects {
     private livekitService: LivekitService,
     private meetingService: MeetingService,
     private snackBar: MatSnackBar,
-    private store: Store
+    private store: Store,
+    private breakoutRoomService: BreakoutRoomService
   ) {}
 
   createMeeting$ = createEffect(() =>
@@ -235,25 +237,25 @@ export class LiveKitRoomEffects {
     )
   );
 
-  initiateCreateNewRoom$ = createEffect(() =>
-    this.actions$.pipe(
-      ofType(LiveKitRoomActions.BreakoutActions.initiateCreateNewRoom),
-      mergeMap(() =>
-        this.store.select(selectLiveKitRoomViewState).pipe(
-          take(1), // Take the first emitted value
-          map((viewState) => {
-            const newRoomName = `Breakout_Room_${viewState.nextRoomIndex}`;
-            console.log(newRoomName, 'new room name is');
-            return LiveKitRoomActions.BreakoutActions.createNewRoomSuccess({
-              roomName: newRoomName,
-            });
-          })
-        )
-      ),
-      // Dispatch the action to create a new room
-      mergeMap((action) => [action])
-    )
-  );
+  // initiateCreateNewRoom$ = createEffect(() =>
+  //   this.actions$.pipe(
+  //     ofType(LiveKitRoomActions.BreakoutActions.initiateCreateNewRoom),
+  //     mergeMap(() =>
+  //       this.store.select(selectLiveKitRoomViewState).pipe(
+  //         take(1), // Take the first emitted value
+  //         map((viewState) => {
+  //           const newRoomName = `Breakout_Room_${viewState.breakoutRoomsData.length + 1}`;
+  //           console.log(newRoomName, 'new room name is');
+  //           return LiveKitRoomActions.BreakoutActions.createNewRoomSuccess({
+  //             roomName: newRoomName,
+  //           });
+  //         })
+  //       )
+  //     ),
+  //     // Dispatch the action to create a new room
+  //     mergeMap((action) => [action])
+  //   )
+  // );
   // manual
   initiateManualRoomSelection$ = createEffect(
     () =>
@@ -345,4 +347,27 @@ export class LiveKitRoomEffects {
     });
     return rooms;
   }
+  loadBreakoutRooms$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(LiveKitRoomActions.BreakoutActions.loadBreakoutRooms), // Action to trigger breakout rooms loading
+      switchMap(() => {
+        const roomName = 'test-room';
+        return this.breakoutRoomService.getAllBreakoutRooms(roomName).pipe(
+          map(
+            (rooms) =>
+              LiveKitRoomActions.BreakoutActions.loadBreakoutRoomsSuccess({
+                breakoutRoomsData: rooms,
+              }) // Action to update state
+          ),
+          catchError((error) =>
+            of(
+              LiveKitRoomActions.BreakoutActions.loadBreakoutRoomsFailure({
+                error: error.message,
+              })
+            )
+          )
+        );
+      })
+    )
+  );
 }

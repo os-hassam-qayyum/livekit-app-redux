@@ -132,5 +132,6 @@ export const selectLiveKitRoomViewState = createSelector(
     breakoutRoomsData: state.breakoutRoomsData,
     nextRoomIndex: state.nextRoomIndex,
     helpMessageModal: state.helpMessageModal,
+    breakoutRoomsLoading: state.loading,
   })
 );
