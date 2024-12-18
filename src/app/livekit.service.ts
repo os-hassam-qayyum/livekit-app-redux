@@ -204,7 +204,7 @@ export class LivekitService {
    * @private
    * @type {any}
    */
-  private participantNames: any;
+  public participantNames: any;
 
   /**
    * Holds local participant data, used internally.
@@ -627,7 +627,7 @@ export class LivekitService {
   audioVideoHandler() {
     this.room = new Room();
     this.participants = this.room.numParticipants;
-    
+
     console.log('total participants', this.participants);
     /**
      * Event triggered when the room is connected.
@@ -753,7 +753,7 @@ export class LivekitService {
         }
 
         //======
-        if (message.title.includes('Breakout_Room')) {
+        if (message.title.includes('Room')) {
           console.log(`Received message in main room: ${message}`);
 
           // Add the new message content to the array

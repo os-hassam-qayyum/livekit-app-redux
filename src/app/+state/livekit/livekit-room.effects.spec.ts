@@ -8,7 +8,7 @@ import { LiveKitRoomEffects } from './livekit-room.effects';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { HttpClientModule } from '@angular/common/http';
-import { Room } from './livekit-room.reducer';
+import { liveKitRoomReducer } from './livekit-room.reducer';
 import {
   selectNextRoomIndex,
   selectBreakoutRoomsData,

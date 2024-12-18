@@ -170,6 +170,10 @@ export const liveKitRoomReducer = createReducer(
         state.chatSideWindowVisible && !state.participantSideWindowVisible
           ? false
           : state.chatSideWindowVisible,
+      breakoutSideWindowVisible:
+        state.breakoutSideWindowVisible && !state.participantSideWindowVisible
+          ? false
+          : state.breakoutSideWindowVisible,
     })
   ),
 
@@ -182,6 +186,10 @@ export const liveKitRoomReducer = createReducer(
       state.participantSideWindowVisible && !state.chatSideWindowVisible
         ? false
         : state.participantSideWindowVisible,
+    breakoutSideWindowVisible:
+      state.breakoutSideWindowVisible && !state.chatSideWindowVisible
+        ? false
+        : state.breakoutSideWindowVisible,
   })),
 
   on(
@@ -257,6 +265,10 @@ export const liveKitRoomReducer = createReducer(
       state.chatSideWindowVisible && !state.breakoutSideWindowVisible
         ? false
         : state.chatSideWindowVisible,
+    participantSideWindowVisible:
+      state.participantSideWindowVisible && !state.breakoutSideWindowVisible
+        ? false
+        : state.participantSideWindowVisible,
   })),
   on(LiveKitRoomActions.BreakoutActions.closeBreakoutSideWindow, (state) => ({
     ...state,
@@ -345,6 +357,34 @@ export const liveKitRoomReducer = createReducer(
       },
     ],
   })),
+  // on(
+  //   LiveKitRoomActions.BreakoutActions.initiateManualRoomSelection,
+  //   (state) => ({
+  //     ...state,
+  //     breakoutRoomsData: [
+  //       ...state.breakoutRoomsData,
+  //       {
+  //         roomName: `Room ${state.breakoutRoomsData.length + 1}`,
+  //         participantIds: [],
+  //         showAvailableParticipants: false,
+  //       },
+  //     ],
+  //   })
+  // ),
+  on(
+    LiveKitRoomActions.BreakoutActions.addParticipantToRoom,
+    (state, { roomName, participantId }) => ({
+      ...state,
+      breakoutRoomsData: state.breakoutRoomsData.map((room) =>
+        room.roomName === roomName
+          ? {
+              ...room,
+              participantIds: [...room.participantIds, participantId],
+            }
+          : room
+      ),
+    })
+  ),
   on(
     LiveKitRoomActions.BreakoutActions.toggleParticipantsList,
     (state, { index }) => {
@@ -360,21 +400,21 @@ export const liveKitRoomReducer = createReducer(
       return { ...state, breakoutRoomsData: rooms };
     }
   ),
-  on(
-    LiveKitRoomActions.BreakoutActions.addParticipant,
-    (state, { roomName, participantId }) => {
-      const rooms = state.breakoutRoomsData.map((room) => {
-        if (room.roomName === roomName) {
-          return {
-            ...room,
-            participantIds: [...room.participantIds, participantId],
-          };
-        }
-        return room;
-      });
-      return { ...state, breakoutRoomsData: rooms };
-    }
-  ),
+  // on(
+  //   LiveKitRoomActions.BreakoutActions.addParticipant,
+  //   (state, { roomName, participantId }) => {
+  //     const rooms = state.breakoutRoomsData.map((room) => {
+  //       if (room.roomName === roomName) {
+  //         return {
+  //           ...room,
+  //           participantIds: [...room.participantIds, participantId],
+  //         };
+  //       }
+  //       return room;
+  //     });
+  //     return { ...state, breakoutRoomsData: rooms };
+  //   }
+  // ),
   on(
     LiveKitRoomActions.BreakoutActions.removeParticipant,
     (state, { roomName, participantId }) => {
@@ -412,5 +452,66 @@ export const liveKitRoomReducer = createReducer(
       error,
       loading: false,
     })
+  ),
+  // Success Action: Update breakout room list with successful invitation
+  on(
+    LiveKitRoomActions.BreakoutActions.breakoutRoomsInvitationSuccess,
+    (state, { roomName, participantIds }) => {
+      // Find the room if it already exists
+      const existingRoomIndex = state.breakoutRoomsData.findIndex(
+        (room) => room.roomName === roomName
+      );
+
+      let updatedRooms: BreakoutRoom[];
+
+      if (existingRoomIndex !== -1) {
+        // Update existing room participants (avoid duplicates)
+        const existingRoom = state.breakoutRoomsData[existingRoomIndex];
+        const updatedParticipants = [
+          ...existingRoom.participantIds,
+          ...participantIds.filter(
+            (id) => !existingRoom.participantIds.includes(id)
+          ),
+        ];
+
+        updatedRooms = [
+          ...state.breakoutRoomsData.slice(0, existingRoomIndex),
+          { ...existingRoom, participantIds: updatedParticipants },
+          ...state.breakoutRoomsData.slice(existingRoomIndex + 1),
+        ];
+      } else {
+        // Add a new room
+        updatedRooms = [
+          ...state.breakoutRoomsData,
+          {
+            roomName,
+            participantIds,
+            showAvailableParticipants: true, // Default value or logic for this property
+          },
+        ];
+      }
+
+      return {
+        ...state,
+        breakoutRooms: updatedRooms,
+        error: null,
+      };
+    }
+  ),
+
+  // Failure Action: Log the error
+  on(
+    LiveKitRoomActions.BreakoutActions.breakoutRoomsInvitationFailure,
+    (state, { roomName, error }) => {
+      console.error(
+        `Error sending breakout room invitation to ${roomName}:`,
+        error
+      );
+
+      return {
+        ...state,
+        error: `Failed to send invitation to room: ${roomName}`,
+      };
+    }
   )
 );

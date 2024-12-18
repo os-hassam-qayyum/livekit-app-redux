@@ -68,6 +68,8 @@ const PIPGRIDCOLUMN: { [key: number]: string } = {
   styleUrls: ['./app.component.scss'],
 })
 export class AppComponent {
+  isBreakoutRoom: boolean = false;
+  isRoomAccordionOpen: boolean[] = [];
   nestBreakoutRooms: BreakoutRoom[] = [];
   errorMessage = '';
   isMicDropdownOpen = false; // To toggle mic dropdown visibility
@@ -356,6 +358,9 @@ export class AppComponent {
   }
 
   private setupMessageSubscriptions() {
+    this.livekitService.breakoutRoom.subscribe((data) => {
+      this.isBreakoutRoom = data?.roomName?.includes('Room'); // Update dynamically
+    });
     this.livekitService.messageToMain.subscribe((msgArrayTomainRoom: any[]) => {
       console.log('Received message in main room:', msgArrayTomainRoom);
       msgArrayTomainRoom.forEach((content) => {
@@ -612,6 +617,7 @@ export class AppComponent {
         totalParticipants,
       })
     );
+    this.store.dispatch(LiveKitRoomActions.BreakoutActions.createNewRoom());
   }
 
   /**
@@ -1003,6 +1009,18 @@ export class AppComponent {
       LiveKitRoomActions.BreakoutActions.closeInvitationModal()
     );
   }
+
+  async submitBreakoutInvitation(): Promise<void> {
+    // Always use 'manual' room type and dispatch the manual room selection action
+    console.log('Manual room selection initiated');
+    this.store.dispatch(
+      LiveKitRoomActions.BreakoutActions.sendBreakoutRoomsInvitation()
+    );
+
+    console.log('Breakout room invitations sent');
+    this.closeBreakoutModal();
+  }
+
   /**
    * Submits the breakout room form to initiate room creation based on selected type.
    *
@@ -1019,7 +1037,7 @@ export class AppComponent {
   async submitBreakoutForm(): Promise<void> {
     const roomType = this.breakoutForm.get('roomType')?.value;
     const numberOfRooms = this.breakoutForm.get('numberOfRooms')?.value;
-
+    console.log('room type is', roomType);
     if (roomType === 'automatic' && numberOfRooms > 0) {
       const participants = this.remoteParticipantNames.map(
         (p: any) => p.identity
@@ -1037,15 +1055,18 @@ export class AppComponent {
 
       // Dispatch action for manual room selection
       this.store.dispatch(
-        LiveKitRoomActions.BreakoutActions.initiateManualRoomSelection({
-          roomType: 'manual',
-        })
+        LiveKitRoomActions.BreakoutActions.sendBreakoutRoomsInvitation()
       );
     }
 
     console.log('Breakout room invitations sent');
     this.closeBreakoutModal();
   }
+
+  isParticipantAvailable(participant: string): boolean {
+    return this.remoteParticipantNames.some((p) => p.identity === participant);
+  }
+
   /**
    * Joins a breakout room by first leaving the current room.
    *
@@ -1205,9 +1226,7 @@ export class AppComponent {
   // Function to submit breakout form
   //side window of the breakout rooms and modal of automatic and manual working
   createNewRoomSidebar() {
-    this.store.dispatch(
-      LiveKitRoomActions.BreakoutActions.createNewRoom()
-    );
+    this.store.dispatch(LiveKitRoomActions.BreakoutActions.createNewRoom());
   }
 
   /**
@@ -1244,7 +1263,7 @@ export class AppComponent {
     const roomName = room.roomName;
     if (event.target.checked) {
       this.store.dispatch(
-        LiveKitRoomActions.BreakoutActions.addParticipant({
+        LiveKitRoomActions.BreakoutActions.addParticipantToRoom({
           roomName,
           participantId: participant.identity,
         })
@@ -1255,6 +1274,25 @@ export class AppComponent {
           roomName,
           participantId: participant.identity,
         })
+      );
+    }
+  }
+
+  toggleRoomAccordion(index: number) {
+    this.isRoomAccordionOpen[index] = !this.isRoomAccordionOpen[index];
+  }
+
+  onRoomSelection(event: Event, participant: any) {
+    const selectedRoomName = (event.target as HTMLSelectElement).value;
+    if (selectedRoomName) {
+      this.store.dispatch(
+        LiveKitRoomActions.BreakoutActions.addParticipantToRoom({
+          roomName: selectedRoomName,
+          participantId: participant.identity,
+        })
+      );
+      console.log(
+        `Participant ${participant.identity} assigned to room ${selectedRoomName}`
       );
     }
   }
