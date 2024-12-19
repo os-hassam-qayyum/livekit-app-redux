@@ -3,6 +3,7 @@ import {
   Component,
   ElementRef,
   Renderer2,
+  TemplateRef,
   ViewChild,
 } from '@angular/core';
 import {
@@ -68,7 +69,10 @@ const PIPGRIDCOLUMN: { [key: number]: string } = {
   styleUrls: ['./app.component.scss'],
 })
 export class AppComponent {
-  isBreakoutRoom: boolean = false;
+  isRedirectionModalVisible: boolean = false;
+  redirectionMessage: string = 'Please wait while we redirect you.';
+  isLeaveAccordionOpen = false;
+  isBreakoutRoom = '';
   isRoomAccordionOpen: boolean[] = [];
   nestBreakoutRooms: BreakoutRoom[] = [];
   errorMessage = '';
@@ -146,7 +150,8 @@ export class AppComponent {
     private snackBar: MatSnackBar,
     public store: Store,
     private renderer: Renderer2,
-    private breakoutRoomService: BreakoutRoomService
+    private breakoutRoomService: BreakoutRoomService,
+    private dialog: MatDialog
   ) {}
 
   async ngOnInit() {
@@ -358,9 +363,6 @@ export class AppComponent {
   }
 
   private setupMessageSubscriptions() {
-    this.livekitService.breakoutRoom.subscribe((data) => {
-      this.isBreakoutRoom = data?.roomName?.includes('Room'); // Update dynamically
-    });
     this.livekitService.messageToMain.subscribe((msgArrayTomainRoom: any[]) => {
       console.log('Received message in main room:', msgArrayTomainRoom);
       msgArrayTomainRoom.forEach((content) => {
@@ -393,6 +395,8 @@ export class AppComponent {
 
     this.livekitService.msgDataReceived.subscribe((data) => {
       this.handleMsgDataReceived(data);
+      this.isBreakoutRoom = data.message.type;
+      console.log('check is it breakout room', this.isBreakoutRoom);
     });
 
     this.livekitService.messageEmitter.subscribe((data: any) => {
@@ -751,7 +755,7 @@ export class AppComponent {
    * @function
    * @returns {Promise<void>}
    */
-  async leaveBtn(): Promise<void> {
+  async leaveMeetingRoom(): Promise<void> {
     this.store.dispatch(LiveKitRoomActions.MeetingActions.leaveMeeting());
     this.onLeavePiP();
   }
@@ -1051,12 +1055,13 @@ export class AppComponent {
         })
       );
     } else if (roomType === 'manual') {
-      console.log('Manual room selection initiated');
+      // console.log('Manual room selection initiated');
 
-      // Dispatch action for manual room selection
-      this.store.dispatch(
-        LiveKitRoomActions.BreakoutActions.sendBreakoutRoomsInvitation()
-      );
+      // // Dispatch action for manual room selection
+      // this.store.dispatch(
+      //   LiveKitRoomActions.BreakoutActions.sendBreakoutRoomsInvitation()
+      // );
+      this.submitBreakoutInvitation();
     }
 
     console.log('Breakout room invitations sent');
@@ -1077,12 +1082,36 @@ export class AppComponent {
    * @function
    * @returns {void} - No return value.
    */
-  joinNow() {
-    // Step 1: Leave the current room
-    this.leaveCurrentMeeting().then(() => {
-      // Step 2: Join the breakout room
-      this.joinBreakoutRoom();
-    });
+  // joinNow() {
+  //   this.isRedirectionModalVisible = true;
+  //   // Step 1: Leave the current room
+  //   this.leaveCurrentMeeting().then(() => {
+  //     // Step 2: Join the breakout room
+  //     this.joinBreakoutRoom();
+  //   });
+  // }
+  joinNow(): void {
+    // Step 1: Show the redirection modal
+    this.redirectionMessage =
+      'Please wait while we redirect you to the breakout room.';
+    this.isRedirectionModalVisible = true;
+
+    // Step 2: Leave the current room
+    this.leaveCurrentMeeting()
+      .then(() => {
+        console.log('Left the current meeting.');
+        // Step 3: Join the breakout room
+        this.joinBreakoutRoom();
+      })
+      .catch((error) => {
+        console.error('Error leaving the current meeting:', error);
+      })
+      .finally(() => {
+        // Step 4: Hide the redirection modal after the operation
+        setTimeout(() => {
+          this.isRedirectionModalVisible = false;
+        }, 2000); // Optional delay for better user experience
+      });
   }
 
   // Step 1: Leave the current meeting
@@ -1157,7 +1186,7 @@ export class AppComponent {
  */
   async hostJoinNow() {
     // Step 1: Leave the current room (disconnect)
-    await this.leaveBtn();
+    await this.leaveMeetingRoom();
     const existingRoom = this.livekitService.breakoutRoomsData.find(
       (room: any) => room.roomName === this.roomName
     );
@@ -1698,7 +1727,7 @@ export class AppComponent {
       } else if (tooltipText === 'Leave_Meeting') {
         this.renderer.listen(button, 'click', () => {
           console.log('Leave button clicked!');
-          this.leaveBtn();
+          this.leaveMeetingRoom();
         });
       }
     });
@@ -1795,5 +1824,52 @@ export class AppComponent {
       Array.from(this.livekitService.room.remoteParticipants.values()).length >
       0
     );
+  }
+
+  // leaveBreakoutRoomAndJoinMainRoom(): void {
+  //   // Step 1: Leave the breakout room
+  //   this.leaveCurrentMeeting().then(() => {
+  //     console.log('Left breakout room');
+  //     // Step 2: Re-join the main room
+  //     this.joinMainRoom();
+  //   });
+  // }
+
+  leaveBreakoutRoomAndJoinMainRoom(): void {
+    this.isLeaveAccordionOpen = false;
+    this.isBreakoutRoom = '';
+    this.redirectionMessage =
+      'Please wait while we redirect you to the main room.';
+    console.log('Showing redirection modal');
+    this.isRedirectionModalVisible = true;
+
+    this.leaveCurrentMeeting()
+      .then(() => {
+        console.log('Left breakout room successfully');
+        this.joinMainRoom();
+      })
+      .catch((error) => {
+        console.error('Error while leaving breakout room:', error);
+      })
+      .finally(() => {
+        console.log('Hiding redirection modal');
+        setTimeout(() => {
+          this.isRedirectionModalVisible = false;
+        }, 2000);
+      });
+  }
+  // Function to re-join the main room
+  joinMainRoom(): void {
+    const mainRoomName = 'test-room';
+    this.store.dispatch(
+      LiveKitRoomActions.MeetingActions.createMeeting({
+        participantNames: [this.participantName],
+        roomName: mainRoomName,
+      })
+    );
+    console.log('Joined main room');
+  }
+  leaveBtnAccordion() {
+    this.isLeaveAccordionOpen = !this.isLeaveAccordionOpen;
   }
 }

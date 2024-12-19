@@ -91,9 +91,13 @@ export const BreakoutActions = createActionGroup({
     sendBreakoutRoomsInvitation: emptyProps(),
     breakoutRoomsInvitationSuccess: props<{
       roomName: string;
-      participantIds: string[];
     }>(),
-    breakoutRoomsInvitationFailure: props<{ roomName: string; error: any }>(),
+    breakoutRoomsInvitationFailure: props<{ error: any }>(),
+    // breakoutRoomsInvitationSuccess: props<{
+    //   roomName: string;
+    //   participantIds: string[];
+    // }>(),
+    // breakoutRoomsInvitationFailure: props<{ roomName: string; error: any }>(),
     ToggleParticipantsList: props<{ index: number }>(),
     AddParticipant: props<{ roomName: string; participantId: string }>(),
     RemoveParticipant: props<{ roomName: string; participantId: string }>(),
@@ -101,7 +105,6 @@ export const BreakoutActions = createActionGroup({
     loadBreakoutRoomsSuccess: props<{ breakoutRoomsData: any[] }>(),
     loadBreakoutRoomsFailure: props<{ error: string }>(),
     // manual and automatic rooms
-    InitiateManualRoomSelection: props<{ roomType: string }>(),
     addParticipantToRoom: props<{ roomName: string; participantId: string }>(),
     InitiateAutomaticRoomCreation: props<{
       participants: string[];

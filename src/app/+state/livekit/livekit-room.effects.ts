@@ -271,46 +271,39 @@ export class LiveKitRoomEffects {
     this.actions$.pipe(
       ofType(LiveKitRoomActions.BreakoutActions.sendBreakoutRoomsInvitation),
       concatLatestFrom(() => this.store.select(selectBreakoutRoomsData)),
-      switchMap(([action, viewState]) => {
-        console.log('Manual room selection initiated');
-        console.log('Rooms data:', viewState);
+      mergeMap(([action, viewState]) => {
+        try {
+          console.log('Manual room selection initiated');
+          console.log('Rooms data:', viewState);
 
-        const roomAlerts = viewState.map((room) => {
-          const { roomName, participantIds } = room;
+          // Process each room and send invitations
+          viewState.forEach((room) => {
+            const { roomName, participantIds } = room;
 
-          if (participantIds && participantIds.length > 0) {
-            console.log(`Sending invitations to room: ${roomName}`);
-            return from(
-              this.livekitService.breakoutRoomAlert(participantIds, roomName)
-            ).pipe(
-              map(() =>
-                LiveKitRoomActions.BreakoutActions.breakoutRoomsInvitationSuccess(
-                  {
-                    roomName,
-                    participantIds,
-                  }
-                )
-              ),
-              catchError((error) => {
-                console.error(
-                  `Failed to send invitation to room: ${roomName}`,
-                  error
-                );
-                return [
-                  LiveKitRoomActions.BreakoutActions.breakoutRoomsInvitationFailure(
-                    { roomName, error }
-                  ),
-                ];
-              })
-            );
-          } else {
-            console.log(`No participants in room: ${roomName}`);
-            return EMPTY;
-          }
-        });
+            if (participantIds && participantIds.length > 0) {
+              console.log(`Sending invitations to room: ${roomName}`);
+              this.livekitService.breakoutRoomAlert(participantIds, roomName);
+            } else {
+              console.log(`No participants in room: ${roomName}`);
+            }
+          });
 
-        // Execute all roomAlerts and merge the results
-        return from(roomAlerts).pipe(switchMap((alerts) => alerts));
+          // Dispatch success action
+          return of(
+            LiveKitRoomActions.BreakoutActions.breakoutRoomsInvitationSuccess({
+              roomName: 'Invitations sent successfully',
+            })
+          );
+        } catch (error) {
+          console.error('Error during manual room selection:', error);
+
+          // Dispatch failure action
+          return of(
+            LiveKitRoomActions.BreakoutActions.breakoutRoomsInvitationFailure({
+              error: 'Failed to send invitations',
+            })
+          );
+        }
       })
     )
   );

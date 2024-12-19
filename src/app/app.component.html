@@ -134,7 +134,7 @@
           <button
             matTooltip="Ask for Help To Main Room"
             (click)="sendHelpRequest()"
-            *ngIf="isBreakoutRoom"
+            *ngIf="isBreakoutRoom === 'breakoutRoom'"
           >
             <i class="fas fa-user-headset"></i>
           </button>
@@ -278,12 +278,37 @@
               stop_screen_share
             </span>
           </button>
-          <button class="leave-btn" (click)="leaveBtn()">
+          <!-- <button class="leave-btn" (click)="leaveBtn()">
             <h2>Leave</h2>
             <div class="chevron-icon"><i class="fas fa-chevron-down"></i></div>
-          </button>
+          </button> -->
+          <div class="leave-container">
+            <button
+              class="leave-btn"
+              matTooltip="Leave Meeting"
+              (click)="leaveBtnAccordion()"
+            >
+              <h2>Leave</h2>
+              <div class="chevron-icon">
+                <i class="fas fa-chevron-down"></i>
+              </div>
+            </button>
+            <div class="accordion" *ngIf="isLeaveAccordionOpen">
+              <button class="accordion-option" (click)="leaveMeetingRoom()">
+                Leave Meeting
+              </button>
+              <button
+                *ngIf="isBreakoutRoom === 'breakoutRoom'"
+                class="accordion-option"
+                (click)="leaveBreakoutRoomAndJoinMainRoom()"
+              >
+                Leave Breakout Room
+              </button>
+            </div>
+          </div>
         </div>
       </header>
+
       <!-- for active speaker view  -->
 
       <!-- for screen sharing container  -->
@@ -991,6 +1016,16 @@
       </div>
     </div>
   </div>
+
+  <ng-container *ngIf="isRedirectionModalVisible">
+    <div class="redirection-modal-overlay">
+      <div class="redirection-modal-content">
+        <h3>Redirecting...</h3>
+        <p>{{ redirectionMessage }}</p>
+        <mat-progress-spinner mode="indeterminate"></mat-progress-spinner>
+      </div>
+    </div>
+  </ng-container>
 
   <!-- Modal for asking asking help to host from breakout rooms participants -->
   <div
