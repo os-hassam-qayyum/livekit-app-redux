@@ -365,7 +365,8 @@ export class LiveKitRoomEffects {
     this.actions$.pipe(
       ofType(LiveKitRoomActions.BreakoutActions.loadBreakoutRooms), // Action to trigger breakout rooms loading
       switchMap(() => {
-        const roomName = 'test-room';
+        // const roomName = 'test-room';
+        const roomName = this.livekitService.getRoomName();
         return this.breakoutRoomService.getAllBreakoutRooms(roomName).pipe(
           map(
             (rooms) =>

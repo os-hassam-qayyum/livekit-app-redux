@@ -20,6 +20,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { HttpClientModule } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { CustomRoutingModule } from './custom-routing.module';
 
 @NgModule({
   declarations: [AppComponent, ErrorDialogComponent],
@@ -43,6 +44,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
     BrowserAnimationsModule,
     HttpClientModule,
     MatProgressSpinnerModule,
+    CustomRoutingModule,
   ],
   providers: [],
   bootstrap: [AppComponent],

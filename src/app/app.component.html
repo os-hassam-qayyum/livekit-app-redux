@@ -1,6 +1,11 @@
+<!-- <router-outlet></router-outlet> -->
 <ng-container *ngIf="liveKitViewState$ | async as liveKitViewState">
   <div
-    *ngIf="!liveKitViewState.isMeetingStarted"
+    *ngIf="
+      !liveKitViewState.isMeetingStarted &&
+      isRouteInitialized &&
+      (isRoomNameAvailable$ | async)
+    "
     class="container"
     data-test="meetingForm"
   >

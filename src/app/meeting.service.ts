@@ -13,6 +13,7 @@ export class MeetingService {
   createMeeting(participantName: string, roomName: string): Observable<any> {
     const body = { participantName, roomName };
     return this.http.post<any>(this.apiUrl, body);
+    // return this.http.post<any>(`${this.apiUrl}/${roomName}`, body); // Pass roomName in URL
   }
 
   sendBroadcastMessage(roomName: string, content: string): Observable<any> {

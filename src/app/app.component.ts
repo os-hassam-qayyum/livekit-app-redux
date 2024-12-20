@@ -15,6 +15,7 @@ import {
 } from 'livekit-client';
 import {
   async,
+  BehaviorSubject,
   distinctUntilChanged,
   filter,
   map,
@@ -31,6 +32,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { FormGroup, FormBuilder, Validators } from '@angular/forms';
 import { BreakoutRoomService } from './breakout-room.service';
 import { BreakoutRoom } from './+state/livekit/livekit-room.reducer';
+import { ActivatedRoute, Router } from '@angular/router';
 
 const GRIDCOLUMN: { [key: number]: string } = {
   1: '1fr',
@@ -135,7 +137,11 @@ export class AppComponent {
   totalParticipants!: number;
   breakoutForm!: FormGroup;
   hostName!: string | undefined;
-  roomName: any;
+  roomName: string | null = null;
+  isRoomNameAvailable$: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(
+    false
+  ); // Track room name availability
+  isRouteInitialized: boolean = false; // Track if route is initialized
 
   breakoutRoomTypes = [
     { value: 'automatic', viewValue: 'automatic' },
@@ -151,10 +157,31 @@ export class AppComponent {
     public store: Store,
     private renderer: Renderer2,
     private breakoutRoomService: BreakoutRoomService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private route: ActivatedRoute,
+    private router: Router
   ) {}
 
   async ngOnInit() {
+    this.route.paramMap.subscribe((params) => {
+      const room = params.get('roomName');
+      console.log('Route parameter "roomName":', room);
+      console.log('Route parameters:', params);
+      console.log('ActivatedRoute paramMap:', this.route.snapshot.paramMap);
+      if (room) {
+        this.roomName = room;
+        this.livekitService.setRoomName(room);
+        this.isRoomNameAvailable$.next(true);
+        console.log(`Room name from route: ${this.roomName}`);
+        // this.startMeeting(); // Automatically start the meeting for the room
+      } else {
+        this.isRoomNameAvailable$.next(false);
+        console.error('No room name provided in the route!');
+        // this.router.navigate(['/meeting/test-room']); // Fallback to a default room
+      }
+      // Mark route as initialized to avoid re-rendering the button
+      this.isRouteInitialized = true;
+    });
     // Initialize WebSocket and audio/video handler
     this.initializeWebSocketAndAudioVideoHandler();
 
@@ -386,7 +413,8 @@ export class AppComponent {
       (contentArray: any[]) => {
         console.log('Received message content array:', contentArray);
         contentArray.forEach((content) => {
-          if (content.content && content.title === 'test-room') {
+          // if (content.content && content.title === 'test-room') {
+          if (content.content && content.title === this.roomName) {
             this.handleNewMessage(content);
           }
         });
@@ -465,7 +493,8 @@ export class AppComponent {
     if (
       data.message.type !== 'handRaise' &&
       data.message.type !== 'breakoutRoom' &&
-      data.message.title !== 'test-room' &&
+      // data.message.title !== 'test-room' &&
+      data.message.title !== this.roomName &&
       data.message.content !== 'I need help'
     ) {
       const receivedMsg = data?.message?.message;
@@ -592,13 +621,22 @@ export class AppComponent {
    * @returns {Promise<void>} - A promise that resolves when the meeting has been initiated.
    */
   async startMeeting() {
-    this.store.dispatch(
-      LiveKitRoomActions.MeetingActions.createMeeting({
-        participantNames: [this.participantName],
-        roomName: 'test-room',
-      })
-    );
-    this.store.dispatch(LiveKitRoomActions.BreakoutActions.loadBreakoutRooms());
+    console.log(`Current roomName: ${this.roomName}`);
+    if (this.roomName) {
+      console.log(`Current roomName: ${this.roomName}`);
+      this.store.dispatch(
+        LiveKitRoomActions.MeetingActions.createMeeting({
+          participantNames: [this.participantName],
+          roomName: this.roomName, // Use the roomName dynamically
+        })
+      );
+      console.log(`Starting meeting in room: ${this.roomName}`);
+      this.store.dispatch(
+        LiveKitRoomActions.BreakoutActions.loadBreakoutRooms()
+      );
+    } else {
+      console.error('Cannot start meeting: Room name is undefined!');
+    }
   }
 
   /**
@@ -1860,7 +1898,8 @@ export class AppComponent {
   }
   // Function to re-join the main room
   joinMainRoom(): void {
-    const mainRoomName = 'test-room';
+    // const mainRoomName = 'test-room';
+    const mainRoomName = this.roomName;
     this.store.dispatch(
       LiveKitRoomActions.MeetingActions.createMeeting({
         participantNames: [this.participantName],

@@ -32,6 +32,8 @@ import { MeetingService } from './meeting.service';
   providedIn: 'root',
 })
 export class LivekitService {
+  private roomNameSubject = new BehaviorSubject<string | null>(null);
+  roomName$ = this.roomNameSubject.asObservable();
   activeSpeakers: Participant[] = []; // Track current active speakers
   speakerDevices: {
     kind: MediaDeviceKind;
@@ -294,6 +296,13 @@ export class LivekitService {
    * @returns {Promise<void>} A promise that resolves when the connection is established.
    */
 
+  setRoomName(roomName: string) {
+    this.roomNameSubject.next(roomName);
+  }
+
+  getRoomName() {
+    return this.roomNameSubject.value;
+  }
   async connectToRoom(wsURL: string, token: string): Promise<void> {
     // this.audioVideoHandler();
     await this.room.connect(wsURL, token);
@@ -740,7 +749,8 @@ export class LivekitService {
           }
         }
 
-        if (message.title === 'test-room') {
+        // if (message.title === 'test-room') {
+        if (message.title === this.getRoomName()) {
           console.log(`Received message in breakout room: ${message}`);
 
           // Add the new message content to the array
@@ -1926,8 +1936,10 @@ export class LivekitService {
    * @returns {Observable<void>} - An observable that completes when the message is sent.
    */
   sendMessageToMainRoom(breakoutRoomName: string, content: string) {
+    const roomName = this.getRoomName();
     return this.meetingService.sendMessageToMainRoom(
-      'test-room',
+      // 'test-room',
+      roomName,
       breakoutRoomName,
       content
     );
