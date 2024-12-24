@@ -1,0 +1,1095 @@
+<ng-container *ngIf="liveKitViewState$ | async as liveKitViewState">
+  <div
+    *ngIf="
+      !liveKitViewState.isMeetingStarted &&
+      isRouteInitialized &&
+      (isRoomNameAvailable$ | async)
+    "
+    class="container"
+    data-test="meetingForm"
+  >
+    <div class="form">
+      <div class="startMeeting-container">
+        <div>
+          <input
+            type="text"
+            [(ngModel)]="participantName"
+            placeholder="Enter your Name"
+          />
+          <button
+            (click)="startMeeting()"
+            data-cy="submit"
+            type="submit"
+            class="startBtn"
+          >
+            Start Meeting
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <ng-container *ngIf="liveKitViewState.isMeetingStarted">
+    <!-- container for audio  -->
+    <div id="remoteAudioContainer"></div>
+    <!-- send message to breakout rooms from host modal  -->
+    <div class="host-to-br-msg-modal" *ngIf="liveKitViewState.isHostMsgModal">
+      <div class="msg-modal-content">
+        <!-- Modal Header -->
+        <div class="modal-header">
+          <h2>Send Message to Breakout Room</h2>
+          <span class="close" (click)="closeHostToBrMsgModal()">&times;</span>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="modal-body">
+          <!-- Input field to type the message -->
+          <input
+            type="text"
+            [(ngModel)]="messageContent"
+            placeholder="Enter your message"
+            class="message-input"
+          />
+
+          <!-- Dropdown to select the breakout room -->
+          <select [(ngModel)]="selectedBreakoutRoom" class="breakout-select">
+            <option value="" disabled [selected]>Select Breakout Room</option>
+            <option
+              *ngFor="let room of liveKitViewState.breakoutRoomsData"
+              [value]="room.roomName"
+            >
+              {{ room.roomName }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="modal-footer">
+          <!-- Button to send the message -->
+          <button class="send-btn" (click)="sendMessageToBreakoutRoom()">
+            Send Message
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="os-main-content" data-test="meetingStarted">
+      <!-- header showing when meeting get started  -->
+      <header class="header">
+        <div class="left-header" data-test="left-header">
+          <button
+            class="grid-view"
+            matTooltip="Switch Layout"
+            (click)="speakerMode()"
+            [disabled]="
+              !hasRemoteParticipants() ||
+              livekitService.isScreenSharingEnabled === true ||
+              livekitService.remoteScreenShare === true
+            "
+          >
+            <i class="far fa-th-large"></i>
+          </button>
+          <button
+            class="grid-view"
+            matTooltip="Open breakout modal"
+            (click)="openBreakoutModal()"
+            *ngIf="
+              !liveKitViewState.breakoutRoomsData ||
+              liveKitViewState.breakoutRoomsData.length === 0
+            "
+          >
+            <i class="fas fa-columns"></i>
+          </button>
+          <button
+            class="grid-view disabled-msg-btn"
+            matTooltip="Send Message to Breakout room"
+            (click)="openHostToBrMsgModal()"
+            [disabled]="liveKitViewState.breakoutRoomsData?.length === 0"
+          >
+            <i class="far fa-comments"></i>
+          </button>
+          <button
+            data-cy="raise-hand"
+            *ngIf="localParticipant.isLocal"
+            (click)="toggleRaiseHand()"
+            [matTooltip]="
+              (liveKitViewState$ | async)?.handRaised
+                ? 'Lower Hand'
+                : 'Raise Hand'
+            "
+          >
+            <i
+              class="fas fa-hand-paper"
+              [ngClass]="{ 'hand-raised': localParticipant.handRaised }"
+            ></i>
+          </button>
+          <!-- <div
+              class="websocket-status"
+              [ngClass]="{
+                'status-connected': webSocketStatus === 'connected',
+                'status-reconnecting': webSocketStatus === 'reconnecting',
+                'status-disconnected': webSocketStatus === 'disconnected'
+              }"
+            ></div>
+            <span>{{ webSocketStatus | titlecase }}</span> -->
+        </div>
+        <div class="right-header">
+          <button matTooltip="Picture in picture mode" (click)="enterPiP()">
+            <span class="material-symbols-outlined"> pip </span>
+          </button>
+          <button
+            matTooltip="Ask for Help To Main Room"
+            (click)="sendHelpRequest()"
+            *ngIf="isBreakoutRoom === 'breakoutRoom'"
+          >
+            <i class="fas fa-user-headset"></i>
+          </button>
+
+          <button
+            class="people"
+            matTooltip="Breakout Rooms"
+            (click)="openPBreakoutSideWindow()"
+            *ngIf="
+              liveKitViewState.breakoutRoomsData &&
+              liveKitViewState.breakoutRoomsData.length > 0
+            "
+          >
+            <i class="fas fa-th-large"></i>
+            <span
+              *ngIf="
+                liveKitViewState.breakoutRoomsData &&
+                liveKitViewState.breakoutRoomsData.length > 0
+              "
+              class="badge"
+              >{{ liveKitViewState.breakoutRoomsData.length }}</span
+            >
+          </button>
+          <button
+            class="people"
+            matTooltip="Participants"
+            (click)="openParticipantSideWindow()"
+          >
+            <i class="fal fa-user-friends"></i>
+          </button>
+
+          <button class="chat" matTooltip="Chat" (click)="openChatSideWindow()">
+            <i class="far fa-comment-lines"></i>
+            <span
+              *ngIf="
+                !liveKitViewState.chatSideWindowVisible &&
+                liveKitViewState.unreadMessagesCount > 0
+              "
+              class="badge"
+              >0{{ liveKitViewState.unreadMessagesCount }}</span
+            >
+          </button>
+          <div class="line"></div>
+          <div class="video-dropdown">
+            <button
+              data-test="video-test"
+              class="video"
+              (click)="toggleVideo()"
+              [matTooltip]="
+                (liveKitViewState$ | async)?.isVideoOn
+                  ? 'Camera Off'
+                  : 'Camera On'
+              "
+            >
+              <i
+                class="fas"
+                [ngClass]="{
+                  'fa-video': liveKitViewState.isVideoOn,
+                  'fa-video-slash': !liveKitViewState.isVideoOn
+                }"
+              ></i>
+            </button>
+
+            <!-- Dropdown for selecting video devices -->
+            <div class="dropdown">
+              <button class="dropdown-toggle" (click)="toggleVideoDropdown()">
+                <i class="fas fa-caret-down"></i>
+              </button>
+              <ul *ngIf="isVideoDropdownOpen">
+                <li
+                  *ngFor="let video of videoDevices"
+                  (click)="selectVideo(video.deviceId)"
+                  [ngClass]="{
+                    selected: video.deviceId === selectedVideoId
+                  }"
+                >
+                  {{ video.label || "Unnamed Device" }}
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="mic-dropdown">
+            <button
+              class="mic"
+              (click)="toggleMic()"
+              [matTooltip]="
+                (liveKitViewState$ | async)?.isMicOn ? 'Mic Off' : 'Mic On'
+              "
+            >
+              <i
+                class="fas"
+                [ngClass]="{
+                  'fa-microphone': liveKitViewState.isMicOn,
+                  'fa-microphone-slash': !liveKitViewState.isMicOn
+                }"
+              ></i>
+            </button>
+
+            <div class="dropdown">
+              <button class="dropdown-toggle" (click)="toggleMicDropdown()">
+                <i class="fas fa-caret-down"></i>
+              </button>
+              <ul *ngIf="isMicDropdownOpen" class="dropdown-menu">
+                <li class="dropdown-heading">Select a Microphone</li>
+                <li
+                  *ngFor="let mic of micDevices"
+                  (click)="selectMic(mic.deviceId)"
+                  [ngClass]="{
+                    selected: mic.deviceId === selectedMicId
+                  }"
+                >
+                  {{ mic.label || "Unnamed Mic Device" }}
+                </li>
+
+                <li class="dropdown-heading">Select a Speaker</li>
+                <li
+                  *ngFor="let speaker of speakerDevices"
+                  (click)="selectSpeaker(speaker.deviceId)"
+                  [ngClass]="{
+                    selected: speaker.deviceId === selectedSpeakerId
+                  }"
+                >
+                  {{ speaker.label || "Unnamed Speaker Device" }}
+                </li>
+              </ul>
+            </div>
+          </div>
+          <button class="share" (click)="toggleScreenShare()">
+            <span
+              class="material-symbols-outlined"
+              *ngIf="!livekitService.isScreenSharingEnabled"
+            >
+              screen_share
+            </span>
+            <span
+              class="material-symbols-outlined"
+              *ngIf="livekitService.isScreenSharingEnabled"
+              [ngStyle]="{ color: liveKitViewState.iconColor }"
+            >
+              stop_screen_share
+            </span>
+          </button>
+          <!-- <button class="leave-btn" (click)="leaveBtn()">
+              <h2>Leave</h2>
+              <div class="chevron-icon"><i class="fas fa-chevron-down"></i></div>
+            </button> -->
+          <div class="leave-container">
+            <button
+              class="leave-btn"
+              matTooltip="Leave Meeting"
+              (click)="leaveBtnAccordion()"
+            >
+              <h2>Leave</h2>
+              <div class="chevron-icon">
+                <i class="fas fa-chevron-down"></i>
+              </div>
+            </button>
+            <div class="accordion" *ngIf="isLeaveAccordionOpen">
+              <button class="accordion-option" (click)="leaveMeetingRoom()">
+                Leave Meeting
+              </button>
+              <button
+                *ngIf="isBreakoutRoom === 'breakoutRoom'"
+                class="accordion-option"
+                (click)="leaveBreakoutRoomAndJoinMainRoom()"
+              >
+                Leave Breakout Room
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- for active speaker view  -->
+
+      <!-- for screen sharing container  -->
+      <!-- //////////////////////////////////////// -->
+      <ng-container
+        *ngIf="
+          livekitService.isScreenSharingEnabled === true ||
+          livekitService.remoteScreenShare === true
+        "
+      >
+        <div
+          class="lk-focus-layout-wrapper"
+          [ngClass]="{
+            'screen-share-layout-wrapper': livekitService.isExpanded === true
+          }"
+          #screensharePiP
+        >
+          <div
+            class="lk-focus-layout"
+            [ngClass]="{ expanded: livekitService.isExpanded }"
+            [ngClass]="{
+              'screen-share-layout': livekitService.isExpanded === true
+            }"
+            [style.grid-template-columns]="ScreenGalleryGridColumnStyle"
+          ></div>
+        </div>
+      </ng-container>
+
+      <div
+        class="lk-grid-layout-wrapper"
+        [ngClass]="{
+          'speaker-layout-wrapper': livekitService.speakerModeLayout,
+          'screen-share-layout-wrapper':
+            !livekitService.speakerModeLayout &&
+            (livekitService.isScreenSharingEnabled === true ||
+              livekitService.remoteScreenShare === true)
+        }"
+        #playerContainer
+      >
+        <div
+          class="lk-grid-layout"
+          [ngClass]="{
+            'speaker-layout': livekitService.speakerModeLayout,
+            'screen-share-layout':
+              !livekitService.speakerModeLayout &&
+              (livekitService.isScreenSharingEnabled === true ||
+                livekitService.remoteScreenShare === true)
+          }"
+          [style.grid-template-columns]="GalleryGridColumnStyle"
+        ></div>
+      </div>
+      <div
+        class="lk-speaker-layout-wrapper"
+        *ngIf="livekitService.speakerModeLayout"
+      >
+        <div class="lk-speaker-layout">
+          <!-- Active speaker tile will be moved here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- breakout room modal which includes automatic and manual selection from host  -->
+    <div
+      class="modal-overlay"
+      *ngIf="liveKitViewState.isBreakoutModalOpen"
+      (click)="closeBreakoutModal()"
+    ></div>
+    <div class="modal-content" *ngIf="liveKitViewState.isBreakoutModalOpen">
+      <div class="modal-header">
+        <h2>Breakout Rooms</h2>
+        <button class="close-button" (click)="closeBreakoutModal()">
+          &times;
+        </button>
+      </div>
+      <form [formGroup]="breakoutForm" (ngSubmit)="submitBreakoutForm()">
+        <div class="modal-body">
+          <div class="radio-group">
+            <label>Room Type:</label>
+            <div
+              class="breakout-room-types"
+              *ngFor="let type of breakoutRoomTypes"
+            >
+              <input
+                type="radio"
+                [value]="type.value"
+                formControlName="roomType"
+                id="{{ type.value }}"
+              />
+              <label for="{{ type.value }}">{{ type.viewValue }}</label>
+            </div>
+          </div>
+          <!-- Number of Rooms Input -->
+          <div *ngIf="breakoutForm.get('roomType')?.value === 'automatic'">
+            <div *ngIf="totalParticipants > 0; else noParticipants">
+              <div class="total-rooms">
+                <label for="numberOfRooms">
+                  Assign {{ totalParticipants }} participants into
+                  <input
+                    id="numberOfRooms"
+                    formControlName="numberOfRooms"
+                    type="number"
+                    (input)="calculateDistribution()"
+                  />
+                  room
+                </label>
+              </div>
+              <div *ngIf="liveKitViewState.distributionMessage">
+                <p class="rooms-msg">
+                  {{ liveKitViewState.distributionMessage }}
+                </p>
+              </div>
+            </div>
+            <ng-template #noParticipants>
+              <p>No participants in the meeting</p>
+            </ng-template>
+          </div>
+
+          <!-- new logic for manual   -->
+          <div *ngIf="breakoutForm.get('roomType')?.value === 'manual'">
+            <div class="create-room-section">
+              <label>Add New Room</label>
+              <button type="button" (click)="createNewRoomSidebar()">
+                Add
+              </button>
+            </div>
+
+            <div class="breakout-container">
+              <!-- Iterate over breakoutRoomsData to display room names and participants -->
+              <div
+                class="breakout"
+                *ngFor="
+                  let room of liveKitViewState.breakoutRoomsData;
+                  let i = index
+                "
+              >
+                <div class="room">
+                  <!-- Display Room Name -->
+                  <div class="room-header">
+                    <span class="room-name">{{ room.roomName }}</span>
+
+                    <!-- Button to toggle the available participants list -->
+                    <button
+                      class="allocated-btn"
+                      type="button"
+                      (click)="toggleParticipantsList(i)"
+                    >
+                      Add participants <i class="fa fa-angle-down"></i>
+                    </button>
+                  </div>
+
+                  <!-- List of participants in the room with checkboxes -->
+                  <div
+                    *ngIf="room.participantIds.length > 0; else noParticipants"
+                  >
+                    <h4 class="allocated-headings">Assigned Participants</h4>
+                    <ul class="participants-list">
+                      <li *ngFor="let participant of room.participantIds">
+                        <label>
+                          <input
+                            type="checkbox"
+                            (change)="
+                              onParticipantSelected(
+                                room,
+                                { identity: participant },
+                                $event
+                              )
+                            "
+                            [checked]="true"
+                          />
+                          {{ participant }}
+                        </label>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <!-- Template for no participants -->
+                  <ng-template #noParticipants>
+                    <p>No participants assigned to this room</p>
+                  </ng-template>
+
+                  <!-- Available participants with checkboxes, disabling those already assigned -->
+                  <div *ngIf="room.showAvailableParticipants">
+                    <h4 class="allocated-headings">Available Participants</h4>
+                    <div
+                      *ngIf="
+                        getAvailableParticipants(room).length > 0;
+                        else noMoreParticipants
+                      "
+                    >
+                      <ul class="available-participants-list">
+                        <li
+                          *ngFor="
+                            let participant of getAvailableParticipants(room)
+                          "
+                          class="available-participant"
+                        >
+                          <label>
+                            <input
+                              type="checkbox"
+                              (change)="
+                                onParticipantSelected(room, participant, $event)
+                              "
+                              [checked]="
+                                isParticipantAssigned(room, participant)
+                              "
+                              [disabled]="
+                                isParticipantAssigned(room, participant)
+                              "
+                            />
+                            {{ participant.identity }}
+                          </label>
+                        </li>
+                      </ul>
+                    </div>
+                    <ng-template #noMoreParticipants>
+                      <p>No more participants available for this room</p>
+                    </ng-template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Room Type Radio Buttons -->
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="modal-submit-btn">
+            Create Breakout Room
+          </button>
+        </div>
+      </form>
+    </div>
+    <!-- chat side window  -->
+    <div class="closeChatSideWindow" (click)="closeChatSideWindow()">
+      <div
+        *ngIf="liveKitViewState.chatSideWindowVisible"
+        class="chat-side-window-container"
+      >
+        <div class="chat-side-window" (click)="$event.stopPropagation()">
+          <div class="chat-detail">
+            <div class="os-content-card-nav">
+              <div class="chat-head">
+                <h2>Chat</h2>
+              </div>
+            </div>
+            <div class="os-content-card-body">
+              <div class="os-content-body" #messageContainer>
+                <div *ngFor="let message of allMessages; let i = index">
+                  <div
+                    class="main-receiver"
+                    *ngIf="message.type === 'received'"
+                  >
+                    <div class="receive">
+                      <div class="avatar">
+                        <p *ngIf="shouldShowAvatar(i)">
+                          {{
+                            message.senderName?.charAt(0)?.toUpperCase() || ""
+                          }}
+                        </p>
+                      </div>
+                      <div class="receive-msg">
+                        <div class="head">
+                          <div class="receiver-name">
+                            <h2 *ngIf="shouldShowAvatar(i)">
+                              {{ message.senderName }}
+                            </h2>
+                          </div>
+                          <div class="msg-tym">
+                            {{ message.receivingTime | date : "shortTime" }}
+                          </div>
+                        </div>
+                        <div class="msg-detail">
+                          {{ message.receivedMsg }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="main-sender" *ngIf="message.type === 'sent'">
+                    <div class="send">
+                      <div class="msg-tym">
+                        {{ message.sendingTime | date : "shortTime" }}
+                      </div>
+                      <div class="msg-detail">{{ message.sendMessage }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="new-footer-card">
+              <form [formGroup]="chatForm" (ngSubmit)="sendMessage()" class="">
+                <div class="dropdwn">
+                  <label for="participant">To: </label>
+                  <div class="select-dropdown">
+                    <select formControlName="participant">
+                      <option selected value="">EveryOne</option>
+                      <option
+                        *ngFor="let participant of remoteParticipantNames"
+                        [value]="participant.identity"
+                      >
+                        {{ participant.identity }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+                <div class="footer-flex">
+                  <!-- <div class="add"><i class="fas fa-plus"></i></div> -->
+                  <div class="search">
+                    <input
+                      type="text"
+                      class="sendTerm"
+                      placeholder="send a message"
+                      formControlName="message"
+                    />
+                    <div class="emoji">
+                      <i class="fas fa-face-smile"></i>
+                    </div>
+                  </div>
+                  <button type="submit" class="sendButton">
+                    <i class="send fas fa-paper-plane"></i>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- participant side window  -->
+    <div
+      class="closeParticipantSideWindow"
+      (click)="closeParticipantSideWindow()"
+    >
+      <div
+        *ngIf="liveKitViewState.participantSideWindowVisible"
+        class="participants-side-window-container"
+      >
+        <div
+          class="participants-side-window"
+          (click)="$event.stopPropagation()"
+        >
+          <h2>Participants</h2>
+
+          <div class="participant-container">
+            <div class="participant">
+              <div class="left-side">
+                <div class="avatar">
+                  <p>{{ extractInitials(localParticipant.identity) }}</p>
+                </div>
+                <div class="name">{{ localParticipant.identity }}(You)</div>
+
+                <span
+                  *ngIf="handRaiseStates[localParticipant?.identity]"
+                  class="raised-hand-icon"
+                  >✋</span
+                >
+              </div>
+              <div class="right-side">
+                <div class="screen-share-icon">
+                  <span
+                    class="material-symbols-outlined"
+                    *ngIf="liveKitViewState.isScreenSharing"
+                  >
+                    screen_share
+                  </span>
+                </div>
+                <div class="video-icon">
+                  <i
+                    class="fas"
+                    [ngClass]="{
+                      'fa-video': liveKitViewState.isVideoOn,
+                      'fa-video-slash': !liveKitViewState.isVideoOn
+                    }"
+                  ></i>
+                </div>
+                <div class="mic-icon">
+                  <i
+                    class="fas"
+                    [ngClass]="{
+                      'fa-microphone': liveKitViewState.isMicOn,
+                      'fa-microphone-slash': !liveKitViewState.isMicOn
+                    }"
+                  ></i>
+                </div>
+              </div>
+            </div>
+            <div
+              *ngFor="let participant of remoteParticipantNames"
+              class="participant"
+            >
+              <div class="left-side">
+                <div class="avatar">
+                  <p>{{ extractInitials(participant.identity) }}</p>
+                </div>
+                <div class="name">{{ participant.identity }}</div>
+                <span
+                  *ngIf="handRaiseStates[participant?.identity]"
+                  class="raised-hand-icon"
+                  >✋</span
+                >
+              </div>
+              <div class="right-side">
+                <div class="video-icon">
+                  <i
+                    class="fas"
+                    [ngClass]="{
+                      'fa-video-slash': !participant.isCameraEnabled,
+                      'fa-video': participant.isCameraEnabled
+                    }"
+                  ></i>
+                </div>
+                <div class="mic-icon">
+                  <i
+                    class="fas"
+                    [ngClass]="{
+                      'fa-microphone': participant.isMicrophoneEnabled,
+                      'fa-microphone-slash': !participant.isMicrophoneEnabled
+                    }"
+                  ></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- breakout side window  -->
+    <div class="closeBreakoutSideWindow" (click)="closeParticipantSideWindow()">
+      <div
+        *ngIf="liveKitViewState.breakoutSideWindowVisible"
+        class="breakout-side-window-container"
+      >
+        <div class="breakout-side-window" (click)="$event.stopPropagation()">
+          <div class="breakout-header">
+            <h2>Breakout rooms</h2>
+          </div>
+          <div class="inside-breakout-window">
+            <button
+              (click)="submitBreakoutInvitation()"
+              class="sidenav-invitation-btn"
+            >
+              Send Invitation
+            </button>
+            <div class="unassigned-participants">
+              <h4 class="allocated-headings">UnAllocated Participants</h4>
+
+              <!-- Check if participants are available -->
+              <div
+                *ngIf="
+                  getAvailableParticipants(room).length > 0;
+                  else noMoreParticipants
+                "
+              >
+                <ul class="available-participants-list">
+                  <!-- Loop through unassigned participants -->
+                  <li
+                    *ngFor="
+                      let participant of getAvailableParticipants(room);
+                      let i = index
+                    "
+                    class="available-participant"
+                  >
+                    <div class="participant-header">
+                      <label>{{ participant.identity }}</label>
+                      <!-- Assign Button -->
+                      <button
+                        class="assign-btn"
+                        (click)="toggleRoomAccordion(i)"
+                      >
+                        Assign
+                      </button>
+                    </div>
+
+                    <!-- Accordion Content -->
+                    <div
+                      *ngIf="isRoomAccordionOpen[i]"
+                      class="accordion-content"
+                    >
+                      <!-- Replace input checkbox with dropdown -->
+                      <div class="dropdown-container">
+                        <select
+                          class="room-dropdown"
+                          (change)="onRoomSelection($event, participant)"
+                        >
+                          <option value="" disabled selected>
+                            Select a room
+                          </option>
+                          <option
+                            *ngFor="
+                              let room of liveKitViewState.breakoutRoomsData
+                            "
+                            [value]="room.roomName"
+                          >
+                            {{ room.roomName }}
+                          </option>
+                        </select>
+                      </div>
+                      <!-- <div class="room-inputs">
+                          <div
+                            *ngFor="let room of liveKitViewState.breakoutRoomsData"
+                            class="room-item"
+                          >
+                            <input
+                              type="checkbox"
+                              [id]="'room-checkbox-' + room.roomName"
+                              (change)="onRoomSelection(room, participant)"
+                            />
+                            <label
+                              [for]="'room-checkbox-' + room.roomName"
+                              class="room-label"
+                            >
+                              {{ room.roomName }}
+                            </label>
+                          </div>
+                        </div> -->
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
+              <!-- Template when no participants are available -->
+              <ng-template #noMoreParticipants>
+                <p>No more participants available for this room</p>
+              </ng-template>
+            </div>
+
+            <div class="create-room-section">
+              <label>Create New Room</label>
+              <button type="button" (click)="createNewRoomSidebar()">
+                Create
+              </button>
+            </div>
+            <div class="breakout-container">
+              <div
+                class="breakout"
+                *ngFor="
+                  let room of liveKitViewState.breakoutRoomsData;
+                  let i = index
+                "
+              >
+                <div class="room">
+                  <div class="room-header">
+                    <span class="room-name">{{ room.roomName }}</span>
+                    <button
+                      class="allocated-btn"
+                      (click)="toggleParticipantsList(i)"
+                    >
+                      Add Participants <i class="fa fa-angle-down"></i>
+                    </button>
+                  </div>
+
+                  <div
+                    *ngIf="room.participantIds.length > 0; else noParticipants"
+                  >
+                    <h4 class="allocated-headings">Assigned Participants</h4>
+                    <ul class="participants-list">
+                      <li
+                        *ngFor="let participant of room.participantIds"
+                        [class.unavailable]="
+                          !isParticipantAvailable(participant)
+                        "
+                      >
+                        <label>
+                          <input
+                            type="checkbox"
+                            [disabled]="!isParticipantAvailable(participant)"
+                            [checked]="isParticipantAvailable(participant)"
+                          />
+                          {{ participant }}
+                          <span
+                            *ngIf="!isParticipantAvailable(participant)"
+                            class="error-text"
+                          >
+                            (Unavailable)
+                          </span>
+                        </label>
+                      </li>
+                      <!-- <li *ngFor="let participant of room.participantIds">
+                          <label>
+                            <input
+                              type="checkbox"
+                              (change)="
+                                onParticipantSelected(
+                                  room,
+                                  { identity: participant },
+                                  $event
+                                )
+                              "
+                              [checked]="true"
+                            />
+                            {{ participant }}
+                          </label>
+                        </li> -->
+                    </ul>
+                  </div>
+
+                  <ng-template #noParticipants>
+                    <p>No participants assigned to this room</p>
+                  </ng-template>
+
+                  <div *ngIf="room.showAvailableParticipants">
+                    <h4 class="allocated-headings">Available Participants</h4>
+                    <div
+                      *ngIf="
+                        getAvailableParticipants(room).length > 0;
+                        else noMoreParticipants
+                      "
+                    >
+                      <ul class="available-participants-list">
+                        <li
+                          *ngFor="
+                            let participant of getAvailableParticipants(room)
+                          "
+                          class="available-participant"
+                        >
+                          <label>
+                            <input
+                              type="checkbox"
+                              (change)="
+                                onParticipantSelected(room, participant, $event)
+                              "
+                              [checked]="
+                                isParticipantAssigned(room, participant)
+                              "
+                              [disabled]="
+                                isParticipantAssigned(room, participant)
+                              "
+                            />
+                            {{ participant.identity }}
+                          </label>
+                        </li>
+                      </ul>
+                    </div>
+                    <ng-template #noMoreParticipants>
+                      <p>No more participants available for this room</p>
+                    </ng-template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="breakout-side-footer">
+            <!-- Host's button to close all breakout rooms -->
+            <div class="host-controls">
+              <button (click)="closeAllBreakoutRooms()">Close All Rooms</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- <ng-container *ngIf="pipMode === true">
+        <div class="pip-container" #pipContainer id="pipHeader">
+          <button
+            data-test="video-test"
+            matTooltip="Video"
+            class="video"
+            (click)="toggleVideo()"
+          >
+            <i
+              class="fas"
+              [ngClass]="{
+                'fa-video': liveKitViewState.isVideoOn,
+                'fa-video-slash': !liveKitViewState.isVideoOn
+              }"
+            ></i>
+          </button>
+          <button class="mic" matTooltip="Mic" (click)="toggleMic()">
+            <i
+              class="fas"
+              [ngClass]="{
+                'fa-microphone': liveKitViewState.isMicOn,
+                'fa-microphone-slash': !liveKitViewState.isMicOn
+              }"
+            ></i>
+          </button>
+          <button
+            data-cy="raise-hand"
+            *ngIf="localParticipant.isLocal"
+            (click)="toggleRaiseHand()"
+            matTooltip="Raise Hand"
+          >
+            <i
+              class="fas fa-hand-paper"
+              [ngClass]="{ 'hand-raised': localParticipant.handRaised }"
+            ></i>
+          </button>
+          <button class="more" matTooltip="More">
+            <i class="fas fa-ellipsis-h"></i>
+          </button>
+          <button
+            class="leave-btn"
+            matTooltip="Leave_Meeting"
+            (click)="leaveBtn()"
+          >
+            <span class="material-symbols-outlined"> call_end </span>
+          </button>
+        </div>
+        <div #pipModal class="pip-modal" *ngIf="showModal">
+          <div class="pip-modal-content">
+            <h2>Picture-in-Picture Mode</h2>
+            <p>Allow video feeds to play in Picture-in-Picture mode?</p>
+            <button id="allowButton" class="allow-btn" (click)="allowPiP()">
+              Allow
+            </button>
+            <button id="cancelButton" class="cancel-btn" (click)="cancelPiP()">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </ng-container> -->
+  </ng-container>
+
+  <!-- Breakout Room Modal which is sent to participants for invitation -->
+  <div *ngIf="liveKitViewState.isInvitationModalOpen" class="br-modal">
+    <div class="br-modal-content">
+      <span class="close" (click)="closeInvitationModal()">&times;</span>
+      <h2>Breakout Room Created</h2>
+      <p>{{ hostName }} is inviting you to join {{ roomName }}</p>
+      <div class="br-modal-flex">
+        <button (click)="closeInvitationModal()">Close</button>
+        <button class="join" (click)="joinNow()">Join Now</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" *ngIf="showCloseRoomModal">
+    <div class="modal-container">
+      <h3>Breakout Room Closing</h3>
+      <p>
+        This breakout room will close in
+        <span id="countdown">{{ countdown }}</span> seconds. You will be
+        redirected to the main room automatically.
+      </p>
+      <div class="modal-actions">
+        <button (click)="leaveBreakoutRoomAndJoinMainRoom()">
+          Leave Room Now
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <ng-container *ngIf="isRedirectionModalVisible">
+    <div class="redirection-modal-overlay">
+      <div class="redirection-modal-content">
+        <h3>Redirecting...</h3>
+        <p>{{ redirectionMessage }}</p>
+        <mat-progress-spinner mode="indeterminate"></mat-progress-spinner>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Modal for asking asking help to host from breakout rooms participants -->
+  <div
+    class="receive-msg-modal"
+    *ngIf="
+      liveKitViewState.helpMessageModal && allMessagesToMainRoom.length > 0
+    "
+  >
+    <div class="modal-header">
+      <h2>Messages in Main Room</h2>
+      <button class="close-btn" (click)="closeReceiveMsgModal()">
+        &times;
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="messages-container">
+        <div *ngFor="let message of allMessagesToMainRoom" class="message">
+          <strong>{{ message.senderName }}:</strong>
+          <p>{{ message.receivedMsg }}</p>
+          <span>{{ message.receivingTime | date : "short" }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button (click)="hostJoinNow()">Host Join Now</button>
+    </div>
+  </div>
+</ng-container>

@@ -246,6 +246,10 @@ export class LivekitService {
     participant: any;
     roomName: string;
   }>();
+  public closeRoomAlert = new Subject<{
+    participant: any;
+    countdown: number;
+  }>();
   breakoutRoomsData: Array<any> = [];
   breakoutRoomsDataUpdated: Subject<any[]> = new Subject<any[]>();
   /**
@@ -724,7 +728,21 @@ export class LivekitService {
         const message = JSON.parse(strData);
         console.log('mesg', JSON.parse(strData));
         console.log('participant', participant);
-
+        // Parse the content field if it exists
+        if (message.content) {
+          try {
+            const parsedContent = JSON.parse(message.content);
+            message.type = parsedContent.type;
+            message.countdown = parsedContent.countdown;
+          } catch (error) {
+            console.error(
+              'Failed to parse content field:',
+              message.content,
+              error
+            );
+          }
+        }
+        console.log('Processed Message:', message);
         // Use next() instead of emit()
         this.msgDataReceived.next({ message, participant });
 
@@ -748,6 +766,15 @@ export class LivekitService {
             });
           }
         }
+        if (message.type === 'closeRoomAlert') {
+          console.log(
+            `Close Room Alert received: Countdown = ${message.countdown}`
+          );
+          this.closeRoomAlert.next({
+            participant: participant,
+            countdown: message.countdown || 60,
+          });
+        }
 
         // if (message.title === 'test-room') {
         if (message.title === this.getRoomName()) {
@@ -763,7 +790,7 @@ export class LivekitService {
         }
 
         //======
-        if (message.title.includes('Room')) {
+        if (message.title.includes(`${this.getRoomName()} Room`)) {
           console.log(`Received message in main room: ${message}`);
 
           // Add the new message content to the array
@@ -1926,6 +1953,35 @@ export class LivekitService {
   sendMessageToBreakoutRoom(roomId: string, content: string) {
     const room = this.breakoutRoomsData.find((r) => r.roomName === roomId);
     return this.meetingService.sendBroadcastMessage(room.roomName, content);
+  }
+
+  sendCloseAlertToBreakoutRooms() {
+    if (this.breakoutRoomsData && this.breakoutRoomsData.length > 0) {
+      this.breakoutRoomsData.forEach((room) => {
+        const alertContent = JSON.stringify({
+          type: 'closeRoomAlert',
+          countdown: 60, // Countdown duration in seconds
+        });
+
+        this.meetingService
+          .sendCloseBreakoutRoomAlert(room.roomName, alertContent)
+          .subscribe({
+            next: () => {
+              console.log(
+                `Close alert sent successfully to breakout room: ${room.roomName}`
+              );
+            },
+            error: (err) => {
+              console.error(
+                `Failed to send close alert to breakout room: ${room.roomName}`,
+                err
+              );
+            },
+          });
+      });
+    } else {
+      console.warn('No breakout rooms available to send close alert.');
+    }
   }
 
   /**

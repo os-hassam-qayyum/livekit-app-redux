@@ -118,6 +118,10 @@ export const selectBreakoutRoomsLoading = createSelector(
     return state.loading;
   }
 );
+export const selectGetRoomName = createSelector(
+  selectLiveKitRoomState,
+  (state: LiveKitRoomState) => state.roomName
+);
 
 export const selectLiveKitRoomViewState = createSelector(
   selectIsMeetingStarted,
@@ -138,6 +142,7 @@ export const selectLiveKitRoomViewState = createSelector(
   selectNextRoomIndex,
   selectHelpMessageModal,
   selectBreakoutRoomsLoading,
+  selectGetRoomName,
   (
     isMeetingStarted,
     isVideoOn,
@@ -156,7 +161,8 @@ export const selectLiveKitRoomViewState = createSelector(
     breakoutRoomsData,
     nextRoomIndex,
     helpMessageModal,
-    breakoutRoomsLoading
+    breakoutRoomsLoading,
+    getRoomName
   ) => ({
     isMeetingStarted,
     isVideoOn,
@@ -176,5 +182,6 @@ export const selectLiveKitRoomViewState = createSelector(
     nextRoomIndex,
     helpMessageModal,
     breakoutRoomsLoading,
+    getRoomName,
   })
 );

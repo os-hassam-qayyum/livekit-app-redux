@@ -10,6 +10,7 @@ export const MeetingActions = createActionGroup({
     leaveMeeting: emptyProps(),
     leaveMeetingSuccess: emptyProps(),
     leaveMeetingFailure: props<{ error: any }>(),
+    setRoomName: props<{ roomName: string }>(),
   },
 });
 
@@ -93,11 +94,6 @@ export const BreakoutActions = createActionGroup({
       roomName: string;
     }>(),
     breakoutRoomsInvitationFailure: props<{ error: any }>(),
-    // breakoutRoomsInvitationSuccess: props<{
-    //   roomName: string;
-    //   participantIds: string[];
-    // }>(),
-    // breakoutRoomsInvitationFailure: props<{ roomName: string; error: any }>(),
     ToggleParticipantsList: props<{ index: number }>(),
     AddParticipant: props<{ roomName: string; participantId: string }>(),
     RemoveParticipant: props<{ roomName: string; participantId: string }>(),

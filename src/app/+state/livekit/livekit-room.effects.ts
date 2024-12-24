@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Actions, concatLatestFrom, createEffect, ofType } from '@ngrx/effects';
 import * as LiveKitRoomActions from './livekit-room.actions';
-
+import { v4 as uuidv4 } from 'uuid';
 import {
   catchError,
   map,
@@ -240,33 +240,6 @@ export class LiveKitRoomEffects {
     )
   );
 
-  // initiateManualRoomSelection$ = createEffect(
-  //   () =>
-  //     this.actions$.pipe(
-  //       ofType(LiveKitRoomActions.BreakoutActions.sendBreakoutRoomsInvitation),
-  //       concatLatestFrom(() => this.store.select(selectBreakoutRoomsData)),
-  //       switchMap(([action, viewState]) => {
-  //         console.log('Manual room selection initiated');
-  //         console.log('Rooms data:', viewState);
-
-  //         // Send invitations for each room with participants
-  //         viewState.forEach((room) => {
-  //           const { roomName, participantIds } = room;
-
-  //           if (participantIds && participantIds.length > 0) {
-  //             console.log(`Sending invitations to room: ${roomName}`);
-  //             this.livekitService.breakoutRoomAlert(participantIds, roomName);
-  //           } else {
-  //             console.log(`No participants in room: ${roomName}`);
-  //           }
-  //         });
-
-  //         return EMPTY; // Return an empty observable since no further actions are dispatched
-  //       })
-  //     ),
-  //   { dispatch: false }
-  // );
-
   initiateManualRoomSelection$ = createEffect(() =>
     this.actions$.pipe(
       ofType(LiveKitRoomActions.BreakoutActions.sendBreakoutRoomsInvitation),
@@ -321,11 +294,12 @@ export class LiveKitRoomEffects {
             participants,
             numberOfRooms
           );
+          const roomName = this.livekitService.getRoomName();
 
           // Step 2: Prepare breakout room data
           const breakoutRoomsData = rooms.map((roomParticipants, index) => ({
             participantIds: roomParticipants,
-            roomName: `Room ${index + 1}`,
+            roomName: `${roomName} Room ${index + 1}`,
             type: 'automatic',
           }));
 

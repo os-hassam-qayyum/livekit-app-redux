@@ -30,6 +30,7 @@ export interface LiveKitRoomState {
   nextRoomIndex: number;
   helpMessageModal: boolean;
   loading: boolean;
+  roomName: string;
 }
 
 export const initialState: LiveKitRoomState = {
@@ -55,10 +56,15 @@ export const initialState: LiveKitRoomState = {
   nextRoomIndex: 1,
   helpMessageModal: false,
   loading: false,
+  roomName: '',
 };
 
 export const liveKitRoomReducer = createReducer(
   initialState,
+  on(LiveKitRoomActions.MeetingActions.setRoomName, (state, { roomName }) => ({
+    ...state,
+    roomName: roomName,
+  })),
   on(
     LiveKitRoomActions.MeetingActions.createMeetingSuccess,
     (state, { token }) => ({
@@ -351,7 +357,10 @@ export const liveKitRoomReducer = createReducer(
     breakoutRoomsData: [
       ...state.breakoutRoomsData,
       {
-        roomName: `Room ${state.breakoutRoomsData.length + 1}`,
+        // roomName: `Room ${state.breakoutRoomsData.length + 1}`,
+        roomName: `${state.roomName} Room ${
+          state.breakoutRoomsData.length + 1
+        }`,
         participantIds: [],
         showAvailableParticipants: false,
       },

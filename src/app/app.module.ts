@@ -20,10 +20,10 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { HttpClientModule } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { CustomRoutingModule } from './custom-routing.module';
+import { LivekitRoomComponent } from './livekit-room/livekit-room.component';
 
 @NgModule({
-  declarations: [AppComponent, ErrorDialogComponent],
+  declarations: [AppComponent, ErrorDialogComponent, LivekitRoomComponent],
   imports: [
     BrowserModule,
     AppRoutingModule,
@@ -44,7 +44,6 @@ import { CustomRoutingModule } from './custom-routing.module';
     BrowserAnimationsModule,
     HttpClientModule,
     MatProgressSpinnerModule,
-    CustomRoutingModule,
   ],
   providers: [],
   bootstrap: [AppComponent],
