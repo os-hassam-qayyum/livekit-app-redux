@@ -516,7 +516,6 @@ export class LivekitRoomComponent {
       this.showCloseRoomModal = true;
       this.countdown = data.message.countdown || 60;
       this.startCountdown();
-      return;
     }
 
     if (
@@ -527,7 +526,7 @@ export class LivekitRoomComponent {
       data.message.content !== 'I need help' &&
       data.message.type !== 'closeRoomAlert'
     ) {
-      const receivedMsg = data?.message?.message;
+      const receivedMsg = data?.message?.message || data?.message?.content;
       const senderName = data?.participant?.identity;
       const receivingTime = data?.message?.timestamp;
       this.allMessages.push({
@@ -551,7 +550,7 @@ export class LivekitRoomComponent {
     this.scrollToBottom();
   }
 
-  private updateUnreadMessageCount() {
+ updateUnreadMessageCount() {
     if (!this.chatSideWindowVisible) {
       this.store.dispatch(
         LiveKitRoomActions.LiveKitActions.updateUnreadMessagesCount({
@@ -1380,8 +1379,8 @@ export class LivekitRoomComponent {
     this.isRoomAccordionOpen[index] = !this.isRoomAccordionOpen[index];
   }
 
-  onRoomSelection(event: Event, participant: any) {
-    const selectedRoomName = (event.target as HTMLSelectElement).value;
+  onRoomSelection(room: any, participant: any) {
+    const selectedRoomName = room.roomName;
     if (selectedRoomName) {
       this.store.dispatch(
         LiveKitRoomActions.BreakoutActions.addParticipantToRoom({

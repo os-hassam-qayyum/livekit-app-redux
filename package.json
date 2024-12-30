@@ -6,7 +6,7 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test --karma-config ./karma.conf.js --include src/app/+state/livekit/livekit-room.effects.spec.ts --code-coverage"
+    "test": "ng test --karma-config ./karma.conf.js --include src/app/livekit.service.spec.ts"
   },
   "private": true,
   "dependencies": {

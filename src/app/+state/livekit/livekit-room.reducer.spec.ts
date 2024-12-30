@@ -1,12 +1,29 @@
-import { liveKitRoomReducer, initialState } from './livekit-room.reducer';
+import {
+  liveKitRoomReducer,
+  initialState,
+  LiveKitRoomState,
+} from './livekit-room.reducer';
 import * as LiveKitRoomActions from './livekit-room.actions';
 describe('LiveKit Room Reducer', () => {
+  let initial: LiveKitRoomState;
+
+  beforeEach(() => {
+    initial = { ...initialState };
+  });
   it('should return the initial state', () => {
     const result = liveKitRoomReducer(undefined, { type: '' });
     expect(result).toEqual(initialState);
   });
 
   describe('Meeting Actions Unit tests', () => {
+    it('should set the room name on setRoomName action', () => {
+      const action = LiveKitRoomActions.MeetingActions.setRoomName({
+        roomName: 'Test Room',
+      });
+      const state = liveKitRoomReducer(initial, action);
+      expect(state.roomName).toEqual('Test Room');
+    });
+
     it('should handle createMeetingSuccess', () => {
       const token = 'test-token';
       const action = LiveKitRoomActions.MeetingActions.createMeetingSuccess({
@@ -39,6 +56,7 @@ describe('LiveKit Room Reducer', () => {
       expect(result.isMeetingStarted).toBe(false);
       expect(result.error).toBe(error);
     });
+
     it('should handle leaveMeetingSuccess', () => {
       const action = LiveKitRoomActions.MeetingActions.leaveMeetingSuccess();
       const stateWithMeetingStarted = {
@@ -57,23 +75,6 @@ describe('LiveKit Room Reducer', () => {
       expect(result.error).toBe(error);
     });
 
-    it('should handle createNewRoomSuccess with multiple rooms', () => {
-      const roomName1 = 'Room 1';
-      const roomName2 = 'Room 2';
-      const action1 = LiveKitRoomActions.BreakoutActions.createNewRoomSuccess({
-        roomName: roomName1,
-      });
-      const resultAfterFirst = liveKitRoomReducer(initialState, action1);
-
-      const action2 = LiveKitRoomActions.BreakoutActions.createNewRoomSuccess({
-        roomName: roomName2,
-      });
-      const resultAfterSecond = liveKitRoomReducer(resultAfterFirst, action2);
-
-      expect(resultAfterSecond.breakoutRoomsData.length).toBe(2); // Ensure two rooms are created
-      expect(resultAfterSecond.breakoutRoomsData[0].roomName).toBe(roomName1);
-      expect(resultAfterSecond.breakoutRoomsData[1].roomName).toBe(roomName2);
-    });
     //   const action = LiveKitRoomActions.MeetingActions.leaveMeetingSuccess();
     //   const stateNotInMeeting = { ...initialState, isMeetingStarted: false };
     //   const result = liveKitRoomReducer(stateNotInMeeting, action);
@@ -215,6 +216,24 @@ describe('LiveKit Room Reducer', () => {
       const result = liveKitRoomReducer(initialState, action);
       expect(result.unreadMessagesCount).toBe(5);
     });
+    it('should reset unread messages count on resetUnreadMessagesCount action', () => {
+      const action =
+        LiveKitRoomActions.LiveKitActions.resetUnreadMessagesCount();
+      const state = liveKitRoomReducer(
+        { ...initial, unreadMessagesCount: 10 },
+        action
+      );
+      expect(state.unreadMessagesCount).toBe(0);
+    });
+
+    it('should update messages on updateMessages action', () => {
+      const newMessages = [{ message: 'Hello' }];
+      const action = LiveKitRoomActions.LiveKitActions.updateMessages({
+        allMessages: newMessages,
+      });
+      const state = liveKitRoomReducer(initial, action);
+      expect(state.allMessages).toEqual(newMessages);
+    });
 
     it('should handle receiveMessage', () => {
       const action = LiveKitRoomActions.ChatActions.receiveMessage({
@@ -241,7 +260,7 @@ describe('LiveKit Room Reducer', () => {
   describe('Add and Remove Participants', () => {
     it('should handle addParticipant', () => {
       const roomName = 'Room 1';
-      const action = LiveKitRoomActions.BreakoutActions.addParticipant({
+      const action = LiveKitRoomActions.BreakoutActions.addParticipantToRoom({
         roomName,
         participantId: 'user1',
       });
@@ -422,6 +441,96 @@ describe('LiveKit Room Reducer', () => {
       const stateWithModalOpen = { ...initialState, helpMessageModal: true };
       const result = liveKitRoomReducer(stateWithModalOpen, action);
       expect(result.helpMessageModal).toBe(false); // Should close the help message modal
+    });
+  });
+  describe('LiveKit Breakout Room Reducer', () => {
+    describe('createNewRoom action', () => {
+      it('should add a new room to breakoutRoomsData', () => {
+        const state = {
+          ...initialState,
+          breakoutRoomsData: [
+            {
+              roomName: 'Room 1',
+              participantIds: [],
+              showAvailableParticipants: false,
+            },
+          ],
+        };
+
+        const action = LiveKitRoomActions.BreakoutActions.createNewRoom();
+        const result = liveKitRoomReducer(state, action);
+
+        expect(result.breakoutRoomsData.length).toBe(2);
+        expect(result.breakoutRoomsData[1]).toEqual({
+          roomName: `${state.roomName} Room 2`,
+          participantIds: [],
+          showAvailableParticipants: false,
+        });
+      });
+    });
+
+    describe('loadBreakoutRooms action', () => {
+      it('should set loading to true and reset error', () => {
+        const state = {
+          ...initialState,
+          loading: false,
+          error: 'Some error',
+        };
+
+        const action = LiveKitRoomActions.BreakoutActions.loadBreakoutRooms();
+        const result = liveKitRoomReducer(state, action);
+
+        expect(result.loading).toBeTrue();
+        expect(result.error).toBeNull();
+      });
+    });
+
+    describe('loadBreakoutRoomsSuccess action', () => {
+      it('should set breakoutRoomsData and set loading to false', () => {
+        const newBreakoutRoomsData = [
+          {
+            roomName: 'Room A',
+            participantIds: [],
+            showAvailableParticipants: false,
+          },
+        ];
+
+        const state = {
+          ...initialState,
+          loading: true,
+          breakoutRoomsData: [],
+        };
+
+        const action =
+          LiveKitRoomActions.BreakoutActions.loadBreakoutRoomsSuccess({
+            breakoutRoomsData: newBreakoutRoomsData,
+          });
+        const result = liveKitRoomReducer(state, action);
+
+        expect(result.breakoutRoomsData).toEqual(newBreakoutRoomsData);
+        expect(result.loading).toBeFalse();
+      });
+    });
+
+    describe('loadBreakoutRoomsFailure action', () => {
+      it('should set error and set loading to false', () => {
+        const error = 'Failed to load breakout rooms';
+
+        const state = {
+          ...initialState,
+          loading: true,
+          error: null,
+        };
+
+        const action =
+          LiveKitRoomActions.BreakoutActions.loadBreakoutRoomsFailure({
+            error,
+          });
+        const result = liveKitRoomReducer(state, action);
+
+        expect(result.error).toBe(error);
+        expect(result.loading).toBeFalse();
+      });
     });
   });
 });

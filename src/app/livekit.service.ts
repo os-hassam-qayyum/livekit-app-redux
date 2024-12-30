@@ -35,17 +35,17 @@ export class LivekitService {
   private roomNameSubject = new BehaviorSubject<string | null>(null);
   roomName$ = this.roomNameSubject.asObservable();
   activeSpeakers: Participant[] = []; // Track current active speakers
-  speakerDevices: {
-    kind: MediaDeviceKind;
-    deviceId: string;
-    label: string;
-  }[] = []; // Combined list of audio devices
   currentSpeakerDeviceId: string = '';
   createdAvatars = new Set();
   selectedMicId: string = ''; // Selected microphone device ID
   selectedVideoId: string = ''; // Selected video device ID
   selectedSpeakerId: string = ''; // Selected video device ID
   devicesFetched: boolean = false; // Flag to indicate if devices have been fetched
+  speakerDevices: {
+    kind: MediaDeviceKind;
+    deviceId: string;
+    label: string;
+  }[] = []; // Combined list of audio devices
   micDevices: {
     kind: MediaDeviceKind;
     deviceId: string;
@@ -259,7 +259,7 @@ export class LivekitService {
   messageEmitter = new Subject<any>();
 
   // Subjects to broadcast device changes
-  private deviceListsSubject = new BehaviorSubject({
+  deviceListsSubject = new BehaviorSubject({
     videoDevices: [],
     micDevices: [],
     speakerDevices: [],

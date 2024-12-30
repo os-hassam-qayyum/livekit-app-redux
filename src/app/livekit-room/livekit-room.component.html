@@ -32,7 +32,10 @@
     <!-- container for audio  -->
     <div id="remoteAudioContainer"></div>
     <!-- send message to breakout rooms from host modal  -->
-    <div class="host-to-br-msg-modal" *ngIf="liveKitViewState.isHostMsgModal">
+    <div
+      class="host-to-br-msg-modal"
+      *ngIf="liveKitViewState.isHostMsgModalOpen"
+    >
       <div class="msg-modal-content">
         <!-- Modal Header -->
         <div class="modal-header">

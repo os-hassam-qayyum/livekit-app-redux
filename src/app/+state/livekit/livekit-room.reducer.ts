@@ -366,20 +366,6 @@ export const liveKitRoomReducer = createReducer(
       },
     ],
   })),
-  // on(
-  //   LiveKitRoomActions.BreakoutActions.initiateManualRoomSelection,
-  //   (state) => ({
-  //     ...state,
-  //     breakoutRoomsData: [
-  //       ...state.breakoutRoomsData,
-  //       {
-  //         roomName: `Room ${state.breakoutRoomsData.length + 1}`,
-  //         participantIds: [],
-  //         showAvailableParticipants: false,
-  //       },
-  //     ],
-  //   })
-  // ),
   on(
     LiveKitRoomActions.BreakoutActions.addParticipantToRoom,
     (state, { roomName, participantId }) => ({
@@ -409,21 +395,6 @@ export const liveKitRoomReducer = createReducer(
       return { ...state, breakoutRoomsData: rooms };
     }
   ),
-  // on(
-  //   LiveKitRoomActions.BreakoutActions.addParticipant,
-  //   (state, { roomName, participantId }) => {
-  //     const rooms = state.breakoutRoomsData.map((room) => {
-  //       if (room.roomName === roomName) {
-  //         return {
-  //           ...room,
-  //           participantIds: [...room.participantIds, participantId],
-  //         };
-  //       }
-  //       return room;
-  //     });
-  //     return { ...state, breakoutRoomsData: rooms };
-  //   }
-  // ),
   on(
     LiveKitRoomActions.BreakoutActions.removeParticipant,
     (state, { roomName, participantId }) => {

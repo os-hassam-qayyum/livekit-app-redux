@@ -13,6 +13,9 @@ import {
   selectNextRoomIndex,
   selectBreakoutRoomsData,
 } from './livekit-room.selectors';
+import { MeetingService } from 'src/app/meeting.service';
+import { Room } from 'livekit-client';
+import { BreakoutRoomService } from 'src/app/breakout-room.service';
 
 describe('LiveKitRoomEffects', () => {
   let actions$: Observable<Action>;
@@ -20,6 +23,11 @@ describe('LiveKitRoomEffects', () => {
   let livekitService: jasmine.SpyObj<LivekitService>;
   const initialState = { nextRoomIndex: 1 };
   let store: MockStore;
+  let breakoutRoomService: jasmine.SpyObj<BreakoutRoomService>;
+  let snackBar: jasmine.SpyObj<MatSnackBar>;
+  let meetingService = jasmine.createSpyObj('MeetingService', [
+    'createMeeting',
+  ]);
 
   beforeEach(() => {
     const livekitServiceSpy = jasmine.createSpyObj('LiveKitService', [
@@ -37,6 +45,12 @@ describe('LiveKitRoomEffects', () => {
     livekitServiceSpy.breakoutRoomsDataUpdated = {
       emit: jasmine.createSpy('emit'),
     };
+    const breakoutRoomServiceSpy = jasmine.createSpyObj(
+      'BreakoutRoomService',
+      []
+    );
+    const storeSpy = jasmine.createSpyObj('Store', ['select']);
+    const snackBarSpy = jasmine.createSpyObj('MatSnackBar', ['open']);
 
     TestBed.configureTestingModule({
       imports: [MatSnackBarModule, HttpClientModule, StoreModule.forRoot({})],
@@ -49,16 +63,72 @@ describe('LiveKitRoomEffects', () => {
           provide: MatSnackBar,
           useValue: jasmine.createSpyObj('MatSnackBar', ['open']),
         },
+        { provide: BreakoutRoomService, useValue: breakoutRoomServiceSpy },
+        { provide: Store, useValue: storeSpy },
+        { provide: MatSnackBar, useValue: snackBarSpy },
       ],
     });
 
     effects = TestBed.inject(LiveKitRoomEffects);
+    livekitService = TestBed.inject(
+      LivekitService
+    ) as jasmine.SpyObj<LivekitService>;
+    breakoutRoomService = TestBed.inject(
+      BreakoutRoomService
+    ) as jasmine.SpyObj<BreakoutRoomService>;
+    snackBar = TestBed.inject(MatSnackBar) as jasmine.SpyObj<MatSnackBar>;
     store = TestBed.inject(Store) as MockStore;
     livekitService = TestBed.inject(
       LivekitService
     ) as jasmine.SpyObj<LivekitService>;
+    meetingService = TestBed.inject(
+      MeetingService
+    ) as jasmine.SpyObj<MeetingService>;
   });
 
+  it('should dispatch startMeeting on successful meeting creation', (done) => {
+    const action = LiveKitRoomActions.MeetingActions.createMeeting({
+      roomName: 'test-room',
+      participantNames: ['participant1', 'participant2'],
+    });
+
+    const response = { token: 'token1' };
+    meetingService.createMeeting.and.returnValue(of(response)); // Mocking the service call
+
+    const expectedAction = LiveKitRoomActions.LiveKitActions.startMeeting({
+      wsURL: 'wss://hassam-app-fu1y3ybu.livekit.cloud',
+      token: response.token,
+    });
+
+    actions$ = of(action);
+
+    effects.createMeeting$.subscribe((result) => {
+      expect(result).toEqual(expectedAction); // Check that the correct action is dispatched
+      done();
+    });
+  });
+
+  it('should dispatch createMeetingFailure on error', (done) => {
+    const action = LiveKitRoomActions.MeetingActions.createMeeting({
+      roomName: 'test-room',
+      participantNames: ['participant1', 'participant2'],
+    });
+
+    const error = new Error('Failed to create meeting');
+    meetingService.createMeeting.and.returnValue(of({ error })); // Mocking the error response
+
+    const expectedFailureAction =
+      LiveKitRoomActions.MeetingActions.createMeetingFailure({
+        error: error.message,
+      });
+
+    actions$ = of(action);
+
+    effects.createMeeting$.subscribe((result) => {
+      expect(result).toEqual(expectedFailureAction); // Check that failure action is dispatched
+      done();
+    });
+  });
   describe('startMeeting$', () => {
     it('should dispatch startMeetingSuccess on successful connection', (done) => {
       const wsURL = 'wss://example.com';
@@ -405,34 +475,72 @@ describe('LiveKitRoomEffects', () => {
       });
     });
   });
-  describe('initiateCreateNewRoom$', () => {
-    it('should dispatch createNewRoomSuccess with the new room name', (done) => {
-      const action = LiveKitRoomActions.BreakoutActions.initiateCreateNewRoom();
-      actions$ = of(action);
+  // describe('initiateManualRoomSelection$', () => {
+  //   it('should call breakoutRoomAlert if breakoutRoomsData has participants', (done) => {
+  //     const action =
+  //       LiveKitRoomActions.BreakoutActions.initiateManualRoomSelection({
+  //         roomType: 'manual',
+  //       });
+  //     actions$ = of(action);
 
-      // Mock the selector to return the nextRoomIndex
-      store.overrideSelector(selectNextRoomIndex, 1); // Simulating that the next room index is 1
+  //     // Mock the selector to return an array of breakout rooms with participants
+  //     const breakoutRoomsData: Room[] = [
+  //       {
+  //         roomName: 'Room 1',
+  //         participantIds: ['user1', 'user2'],
+  //         showAvailableParticipants: true,
+  //       },
+  //       {
+  //         roomName: 'Room 2',
+  //         participantIds: [],
+  //         showAvailableParticipants: false,
+  //       },
+  //     ];
+  //     store.overrideSelector(selectBreakoutRoomsData, breakoutRoomsData);
 
-      effects.initiateCreateNewRoom$.subscribe((result) => {
-        expect(result).toEqual(
-          LiveKitRoomActions.BreakoutActions.createNewRoomSuccess({
-            roomName: 'Breakout_Room_1', // Expected room name
-          })
-        );
-        done();
-      });
-    });
-  });
+  //     effects.initiateManualRoomSelection$.subscribe(() => {
+  //       expect(livekitService.breakoutRoomAlert).toHaveBeenCalledWith(
+  //         ['user1', 'user2'],
+  //         'Room 1'
+  //       );
+  //       expect(livekitService.breakoutRoomAlert).not.toHaveBeenCalledWith(
+  //         [],
+  //         'Room 2'
+  //       );
+  //       expect(
+  //         livekitService.breakoutRoomsDataUpdated.emit
+  //       ).toHaveBeenCalledWith(breakoutRoomsData);
+  //       done();
+  //     });
+  //   });
+
+  //   it('should not call breakoutRoomAlert if no breakout rooms are configured', (done) => {
+  //     const action =
+  //       LiveKitRoomActions.BreakoutActions.initiateManualRoomSelection({
+  //         roomType: 'manual',
+  //       });
+  //     actions$ = of(action);
+
+  //     // Mock the selector to return an empty array
+  //     store.overrideSelector(selectBreakoutRoomsData, []);
+
+  //     effects.initiateManualRoomSelection$.subscribe(() => {
+  //       expect(livekitService.breakoutRoomAlert).not.toHaveBeenCalled();
+  //       expect(
+  //         livekitService.breakoutRoomsDataUpdated.emit
+  //       ).toHaveBeenCalledWith([]); // If needed
+  //       done();
+  //     });
+  //   });
+  // });
   describe('initiateManualRoomSelection$', () => {
     it('should call breakoutRoomAlert if breakoutRoomsData has participants', (done) => {
       const action =
-        LiveKitRoomActions.BreakoutActions.initiateManualRoomSelection({
-          roomType: 'manual',
-        });
+        LiveKitRoomActions.BreakoutActions.sendBreakoutRoomsInvitation();
       actions$ = of(action);
 
       // Mock the selector to return an array of breakout rooms with participants
-      const breakoutRoomsData: Room[] = [
+      const breakoutRoomsData = [
         {
           roomName: 'Room 1',
           participantIds: ['user1', 'user2'],
@@ -446,6 +554,9 @@ describe('LiveKitRoomEffects', () => {
       ];
       store.overrideSelector(selectBreakoutRoomsData, breakoutRoomsData);
 
+      // Mock breakoutRoomAlert to return a resolved promise
+      livekitService.breakoutRoomAlert.and.returnValue(Promise.resolve());
+
       effects.initiateManualRoomSelection$.subscribe(() => {
         expect(livekitService.breakoutRoomAlert).toHaveBeenCalledWith(
           ['user1', 'user2'],
@@ -455,29 +566,94 @@ describe('LiveKitRoomEffects', () => {
           [],
           'Room 2'
         );
+
+        // Ensure that breakoutRoomsDataUpdated is emitted with the data
         expect(
-          livekitService.breakoutRoomsDataUpdated.emit
+          livekitService.breakoutRoomsDataUpdated.next
         ).toHaveBeenCalledWith(breakoutRoomsData);
-        done();
+
+        done(); // Mark test as done
       });
     });
 
     it('should not call breakoutRoomAlert if no breakout rooms are configured', (done) => {
       const action =
-        LiveKitRoomActions.BreakoutActions.initiateManualRoomSelection({
-          roomType: 'manual',
-        });
+        LiveKitRoomActions.BreakoutActions.sendBreakoutRoomsInvitation();
       actions$ = of(action);
 
-      // Mock the selector to return an empty array
+      // Mock the selector to return an empty array (no breakout rooms)
       store.overrideSelector(selectBreakoutRoomsData, []);
 
+      livekitService.breakoutRoomAlert.and.returnValue(Promise.resolve());
+
       effects.initiateManualRoomSelection$.subscribe(() => {
+        // Verify that breakoutRoomAlert is not called
         expect(livekitService.breakoutRoomAlert).not.toHaveBeenCalled();
+
+        // Ensure breakoutRoomsDataUpdated is emitted with an empty array
         expect(
-          livekitService.breakoutRoomsDataUpdated.emit
-        ).toHaveBeenCalledWith([]); // If needed
-        done();
+          livekitService.breakoutRoomsDataUpdated.next
+        ).toHaveBeenCalledWith([]);
+
+        done(); // Mark test as done
+      });
+    });
+
+    it('should dispatch breakoutRoomsInvitationSuccess when invitations are sent successfully', (done) => {
+      const action =
+        LiveKitRoomActions.BreakoutActions.sendBreakoutRoomsInvitation();
+      actions$ = of(action);
+
+      // Mock the selector to return an array of breakout rooms with participants
+      const breakoutRoomsData = [
+        {
+          roomName: 'Room 1',
+          participantIds: ['user1', 'user2'],
+          showAvailableParticipants: true,
+        },
+      ];
+      store.overrideSelector(selectBreakoutRoomsData, breakoutRoomsData);
+
+      // Mock breakoutRoomAlert to return a resolved promise
+      livekitService.breakoutRoomAlert.and.returnValue(Promise.resolve());
+
+      effects.initiateManualRoomSelection$.subscribe((resultAction) => {
+        expect(resultAction).toEqual(
+          LiveKitRoomActions.BreakoutActions.breakoutRoomsInvitationSuccess({
+            roomName: 'Invitations sent successfully',
+          })
+        );
+
+        done(); // Mark test as done
+      });
+    });
+
+    it('should dispatch breakoutRoomsInvitationFailure when there is an error sending invitations', (done) => {
+      const action =
+        LiveKitRoomActions.BreakoutActions.sendBreakoutRoomsInvitation();
+      actions$ = of(action);
+
+      // Mock the selector to return an array of breakout rooms with participants
+      const breakoutRoomsData = [
+        {
+          roomName: 'Room 1',
+          participantIds: ['user1', 'user2'],
+          showAvailableParticipants: true,
+        },
+      ];
+      store.overrideSelector(selectBreakoutRoomsData, breakoutRoomsData);
+
+      // Simulate an error when sending invitations
+      livekitService.breakoutRoomAlert.and.returnValue(Promise.reject('Error'));
+
+      effects.initiateManualRoomSelection$.subscribe((resultAction) => {
+        expect(resultAction).toEqual(
+          LiveKitRoomActions.BreakoutActions.breakoutRoomsInvitationFailure({
+            error: 'Failed to send invitations',
+          })
+        );
+
+        done(); // Mark test as done
       });
     });
   });
@@ -577,6 +753,90 @@ describe('LiveKitRoomEffects', () => {
         numberOfRooms
       );
       expect(result).toEqual(expected);
+    });
+  });
+  it('should create automatic breakout rooms and send invitations', (done) => {
+    const participants = [
+      'participant1',
+      'participant2',
+      'participant3',
+      'participant4',
+    ];
+    const numberOfRooms = 2;
+    const action =
+      LiveKitRoomActions.BreakoutActions.initiateAutomaticRoomCreation({
+        participants,
+        numberOfRooms,
+      });
+
+    // Prepare expected breakout rooms data
+    const breakoutRoomsData = [
+      {
+        participantIds: ['participant1', 'participant3'],
+        roomName: 'Breakout_Room_1',
+        type: 'automatic',
+      },
+      {
+        participantIds: ['participant2', 'participant4'],
+        roomName: 'Breakout_Room_2',
+        type: 'automatic',
+      },
+    ];
+
+    // Mock the breakoutRoomAlert method to return a resolved Promise
+    livekitService.breakoutRoomAlert.and.returnValue(Promise.resolve());
+
+    livekitService.breakoutRoomsDataUpdated.next = jasmine.createSpy('emit');
+
+    actions$ = of(action);
+
+    effects.createAutomaticRooms$.subscribe(() => {
+      // Verify breakoutRoomAlert was called with correct data
+      expect(livekitService.breakoutRoomAlert).toHaveBeenCalledTimes(2); // It should have been called for each room
+      expect(livekitService.breakoutRoomAlert).toHaveBeenCalledWith(
+        ['participant1', 'participant3'],
+        'Breakout_Room_1'
+      );
+      expect(livekitService.breakoutRoomAlert).toHaveBeenCalledWith(
+        ['participant2', 'participant4'],
+        'Breakout_Room_2'
+      );
+
+      // Verify that breakoutRoomsDataUpdated.emit was triggered
+      expect(livekitService.breakoutRoomsDataUpdated.next).toHaveBeenCalledWith(
+        breakoutRoomsData
+      );
+
+      done(); // Mark test as done
+    });
+  });
+
+  it('should handle empty participant list gracefully', (done) => {
+    const participants: string[] = [];
+    const numberOfRooms = 2;
+    const action =
+      LiveKitRoomActions.BreakoutActions.initiateAutomaticRoomCreation({
+        participants,
+        numberOfRooms,
+      });
+
+    // Mock the breakoutRoomAlert method to return a resolved Promise
+    livekitService.breakoutRoomAlert.and.returnValue(Promise.resolve());
+
+    livekitService.breakoutRoomsDataUpdated.next = jasmine.createSpy('emit');
+
+    actions$ = of(action);
+
+    effects.createAutomaticRooms$.subscribe(() => {
+      // Verify that no breakoutRoomAlert method was called due to empty participants
+      expect(livekitService.breakoutRoomAlert).toHaveBeenCalledTimes(0); // No alerts should be sent
+
+      // Verify that breakoutRoomsDataUpdated.emit was not triggered
+      expect(
+        livekitService.breakoutRoomsDataUpdated.next
+      ).toHaveBeenCalledTimes(0);
+
+      done(); // Mark test as done
     });
   });
 });
