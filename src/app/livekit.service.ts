@@ -1,7 +1,9 @@
 import { EventEmitter, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import {
+  AudioTrack,
   DataPacket_Kind,
+  LocalAudioTrack,
   LocalParticipant,
   LocalTrackPublication,
   Participant,
@@ -661,62 +663,6 @@ export class LivekitService {
      * @param {RemoteParticipant} [participant] - The participant who sent the data.
      * @param {DataPacket_Kind} [kind] - The kind of data packet.
      */
-    // this.room.on(
-    //   RoomEvent.DataReceived,
-    //   (
-    //     payload: Uint8Array,
-    //     participant: RemoteParticipant | undefined,
-    //     kind: DataPacket_Kind | undefined
-    //   ) => {
-    //     const strData = this.decoder.decode(payload);
-    //     const message = JSON.parse(strData);
-    //     console.log('mesg', JSON.parse(strData));
-    //     console.log('participant', participant);
-    //     this.msgDataReceived.emit({ message, participant });
-    //     if (message.type === 'handRaise') {
-    //       this.handRaised.emit({
-    //         participant: participant,
-    //         handRaised: message.handRaised,
-    //       });
-    //     }
-    //     if (message.type === 'breakoutRoom') {
-    //       console.log(
-    //         `Breakout room assigned: ${message.roomName} from host "${participant?.identity}"`
-    //       );
-
-    //       // Ensure the message is only sent to the intended participant
-    //       if (participant) {
-    //         this.breakoutRoom.emit({
-    //           participant: participant,
-    //           roomName: message.roomName, // Use the room name from the message
-    //         });
-    //       }
-    //     }
-    //     if (message.title === 'test-room') {
-    //       console.log(`Received message in breakout room: ${message}`);
-
-    //       // Add the new message content to the array
-    //       this.messageArray.push(message);
-
-    //       // Emit the updated message array
-    //       this.messageContentReceived.emit(this.messageArray);
-    //     } else {
-    //       console.log(`Message not for this breakout room`);
-    //     }
-    //     //======
-    //     if (message.title.includes('Breakout_Room')) {
-    //       console.log(`Received message in main room: ${message}`);
-
-    //       // Add the new message content to the array
-    //       this.messageArrayToMain.push(message);
-
-    //       // Emit the updated message array
-    //       this.messageToMain.emit(this.messageArrayToMain);
-    //     } else {
-    //       console.log(`Message not for this main room`);
-    //     }
-    //   }
-    // );
     this.room.on(
       RoomEvent.DataReceived,
       (
@@ -1025,6 +971,51 @@ export class LivekitService {
             this.openSnackBar(`Video could not open. Try again later`);
           }
         }
+        if (publication.track && publication.track.kind === 'audio') {
+          const participantTile = document.getElementById(`${participant.sid}`);
+          if (participantTile) {
+            // Remove any existing microphone visualizations
+            let micVisualization =
+              participantTile.querySelector('.mic-visualization');
+            if (micVisualization) {
+              participantTile.removeChild(micVisualization);
+            }
+
+            // Create and append the mic visualization container
+            micVisualization = document.createElement('div');
+            micVisualization.classList.add('mic-visualization');
+            micVisualization.setAttribute(
+              'style',
+              `
+              height: 10vh;
+              width: 10vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              background: rgb(20, 112, 233);
+              border-radius: 100%;
+            `
+            );
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 150; // Set desired canvas size
+            canvas.height = 150;
+            canvas.style.borderRadius = '5px';
+            canvas.style.width = '3rem';
+            canvas.style.height = '70%';
+
+            micVisualization.appendChild(canvas);
+            participantTile.appendChild(micVisualization);
+
+            // Start microphone visualization
+            const audioTrack = publication.track as LocalAudioTrack; // Type assertion
+            this.startMicVisualization(canvas, audioTrack);
+          } else {
+            console.error(
+              `Participant tile for ${participant.identity} not found`
+            );
+          }
+        }
 
         this.screenShareTrackSubscribed.next(publication.track);
         if (publication.source === Track.Source.ScreenShare) {
@@ -1182,6 +1173,63 @@ export class LivekitService {
       console.log('LiveKit device change detected.');
       await this.updateDeviceLists();
     });
+  }
+
+  private async startMicVisualization(
+    canvas: HTMLCanvasElement,
+    track: AudioTrack
+  ): Promise<void> {
+    const audioCtx = new AudioContext();
+    const micAnalyzer = audioCtx.createAnalyser();
+    micAnalyzer.fftSize = 1024;
+
+    const micBufferLength = micAnalyzer.frequencyBinCount;
+    const micDataArray = new Uint8Array(micBufferLength);
+
+    const mediaStream = new MediaStream([track.mediaStreamTrack]);
+    const source = audioCtx.createMediaStreamSource(mediaStream);
+    source.connect(micAnalyzer);
+
+    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+    const WIDTH = canvas.width;
+    const HEIGHT = canvas.height;
+
+    const drawAudioData = () => {
+      requestAnimationFrame(drawAudioData);
+
+      ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+      const numBars = 3;
+      const barWidth = WIDTH / (numBars * 1.5);
+      const spacing = WIDTH / numBars - barWidth;
+
+      micAnalyzer.getByteFrequencyData(micDataArray);
+
+      const leftBarValue = micDataArray[0] / 255;
+      const centerBarValue = micDataArray[1] / 255;
+      const rightBarValue = micDataArray[2] / 255;
+
+      const barHeights = [
+        Math.max(leftBarValue, rightBarValue) * HEIGHT * 0.5,
+        centerBarValue * HEIGHT * 1.5,
+        Math.max(leftBarValue, rightBarValue) * HEIGHT * 0.5,
+      ];
+
+      for (let i = 0; i < numBars; i++) {
+        const barHeight = barHeights[i];
+
+        ctx.fillStyle = '#fff'; // White color for the bars
+        ctx.beginPath();
+        ctx.moveTo(i * (barWidth + spacing), HEIGHT / 2 - barHeight);
+        ctx.lineTo(i * (barWidth + spacing) + barWidth, HEIGHT / 2 - barHeight);
+        ctx.lineTo(i * (barWidth + spacing) + barWidth, HEIGHT / 2 + barHeight);
+        ctx.lineTo(i * (barWidth + spacing), HEIGHT / 2 + barHeight);
+        ctx.closePath();
+        ctx.fill();
+      }
+    };
+
+    drawAudioData();
   }
 
   /**
@@ -1502,13 +1550,55 @@ export class LivekitService {
       }
     }
     if (track.kind === 'audio') {
-      const container = document.getElementById('remoteAudioContainer');
-      if (container) {
+      // const container = document.getElementById('remoteAudioContainer');
+      // if (container) {
+      const participantTile = document.getElementById(`${participant.sid}`);
+      if (participantTile) {
         const element = track.attach();
-        container.appendChild(element);
-      } else {
-        console.error('Remote audio container not found');
+        participantTile.appendChild(element);
+        // Remove any existing microphone visualizations
+        let micVisualization =
+          participantTile.querySelector('.mic-visualization');
+        if (micVisualization) {
+          participantTile.removeChild(micVisualization);
+        }
+
+        // Create and append the mic visualization container
+        micVisualization = document.createElement('div');
+        micVisualization.classList.add('mic-visualization');
+        micVisualization.setAttribute(
+          'style',
+          `
+            height: 10vh;
+            width: 10vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(20, 112, 233, 0.8);
+            border-radius: 50%;
+            position: absolute;
+            bottom: 1rem;
+            left: 1rem;
+          `
+        );
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 150; // Set desired canvas size
+        canvas.height = 150;
+        canvas.style.borderRadius = '50%';
+        canvas.style.width = '80%';
+        canvas.style.height = '80%';
+
+        micVisualization.appendChild(canvas);
+        participantTile.appendChild(micVisualization);
+
+        // Start microphone visualization
+        const audioTrack = publication.track as AudioTrack; // Type assertion for generic audio tracks
+        this.startMicVisualization(canvas, audioTrack);
       }
+      // } else {
+      //   console.error('Remote audio container not found');
+      // }
     }
     this.screenShareTrackSubscribed.next(track);
     if (track.source === Track.Source.ScreenShare && track.kind === 'video') {
