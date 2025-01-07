@@ -31,9 +31,11 @@ export const LiveKitActions = createActionGroup({
     toggleVideo: emptyProps(),
     toggleVideoSuccess: props<{ isVideoOn: boolean }>(),
     toggleVideoFailure: props<{ error: string }>(),
+    setVideoLoading: props<{ isLoading: boolean }>(),
     toggleMic: emptyProps(),
     toggleMicSuccess: props<{ isMicOn: boolean }>(),
     toggleMicFailure: props<{ error: string }>(),
+    setMicLoading: props<{ isLoading: boolean }>(),
     toggleParticipantSideWindow: emptyProps(),
     toggleChatSideWindow: emptyProps(),
     closeChatSideWindow: emptyProps(),
@@ -91,7 +93,7 @@ export const BreakoutActions = createActionGroup({
     CreateNewRoom: emptyProps(),
     sendBreakoutRoomsInvitation: emptyProps(),
     breakoutRoomsInvitationSuccess: props<{
-      roomName: string;
+      message: string;
     }>(),
     breakoutRoomsInvitationFailure: props<{ error: any }>(),
     ToggleParticipantsList: props<{ index: number }>(),

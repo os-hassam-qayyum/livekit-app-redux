@@ -135,9 +135,9 @@
             <span>{{ webSocketStatus | titlecase }}</span> -->
         </div>
         <div class="right-header">
-          <button matTooltip="Picture in picture mode" (click)="enterPiP()">
+          <!-- <button matTooltip="Picture in picture mode" (click)="enterPiP()">
             <span class="material-symbols-outlined"> pip </span>
-          </button>
+          </button> -->
           <button
             matTooltip="Ask for Help To Main Room"
             (click)="sendHelpRequest()"
@@ -190,24 +190,36 @@
               data-test="video-test"
               class="video"
               (click)="toggleVideo()"
+              [disabled]="liveKitViewState.isVideoLoading"
               [matTooltip]="
                 (liveKitViewState$ | async)?.isVideoOn
                   ? 'Camera Off'
                   : 'Camera On'
               "
             >
-              <i
-                class="fas"
-                [ngClass]="{
-                  'fa-video': liveKitViewState.isVideoOn,
-                  'fa-video-slash': !liveKitViewState.isVideoOn
-                }"
-              ></i>
+              <ng-container
+                *ngIf="liveKitViewState.isVideoLoading; else videoIcon"
+              >
+                <span class="loader"></span>
+              </ng-container>
+              <ng-template #videoIcon>
+                <i
+                  class="fas"
+                  [ngClass]="{
+                    'fa-video': liveKitViewState.isVideoOn,
+                    'fa-video-slash': !liveKitViewState.isVideoOn
+                  }"
+                ></i>
+              </ng-template>
             </button>
 
             <!-- Dropdown for selecting video devices -->
             <div class="dropdown">
-              <button class="dropdown-toggle" (click)="toggleVideoDropdown()">
+              <button
+                class="dropdown-toggle"
+                [disabled]="liveKitViewState.isVideoLoading"
+                (click)="toggleVideoDropdown()"
+              >
                 <i class="fas fa-caret-down"></i>
               </button>
               <ul *ngIf="isVideoDropdownOpen">
@@ -228,21 +240,31 @@
             <button
               class="mic"
               (click)="toggleMic()"
+              [disabled]="liveKitViewState.isMicLoading"
               [matTooltip]="
                 (liveKitViewState$ | async)?.isMicOn ? 'Mic Off' : 'Mic On'
               "
             >
-              <i
-                class="fas"
-                [ngClass]="{
-                  'fa-microphone': liveKitViewState.isMicOn,
-                  'fa-microphone-slash': !liveKitViewState.isMicOn
-                }"
-              ></i>
+              <ng-container *ngIf="liveKitViewState.isMicLoading; else micIcon">
+                <span class="loader"></span>
+              </ng-container>
+              <ng-template #micIcon>
+                <i
+                  class="fas"
+                  [ngClass]="{
+                    'fa-microphone': liveKitViewState.isMicOn,
+                    'fa-microphone-slash': !liveKitViewState.isMicOn
+                  }"
+                ></i>
+              </ng-template>
             </button>
 
             <div class="dropdown">
-              <button class="dropdown-toggle" (click)="toggleMicDropdown()">
+              <button
+                class="dropdown-toggle"
+                [disabled]="liveKitViewState.isMicLoading"
+                (click)="toggleMicDropdown()"
+              >
                 <i class="fas fa-caret-down"></i>
               </button>
               <ul *ngIf="isMicDropdownOpen" class="dropdown-menu">

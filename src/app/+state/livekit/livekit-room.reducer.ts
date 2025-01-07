@@ -12,6 +12,8 @@ export interface LiveKitRoomState {
   unreadMessagesCount: number;
   isVideoOn: boolean;
   isMicOn: boolean;
+  isVideoLoading: boolean;
+  isMicLoading: boolean;
   isScreenSharing: boolean;
   iconColor: string;
   participantSideWindowVisible: boolean;
@@ -39,6 +41,8 @@ export const initialState: LiveKitRoomState = {
   unreadMessagesCount: 0,
   isVideoOn: false,
   isMicOn: false,
+  isVideoLoading: false,
+  isMicLoading: false,
   isScreenSharing: false,
   iconColor: 'black',
   participantSideWindowVisible: false,
@@ -125,11 +129,26 @@ export const liveKitRoomReducer = createReducer(
     })
   ),
   on(
+    LiveKitRoomActions.LiveKitActions.setVideoLoading,
+    (state, { isLoading }) => ({
+      ...state,
+      isVideoLoading: isLoading,
+    })
+  ),
+  on(
+    LiveKitRoomActions.LiveKitActions.setMicLoading,
+    (state, { isLoading }) => ({
+      ...state,
+      isMicLoading: isLoading,
+    })
+  ),
+  on(
     LiveKitRoomActions.LiveKitActions.toggleVideoSuccess,
     (state, { isVideoOn }) => ({
       ...state,
 
       isVideoOn,
+      isVideoLoading: false,
     })
   ),
   on(
@@ -137,6 +156,7 @@ export const liveKitRoomReducer = createReducer(
     (state, { error }) => ({
       ...state,
       error,
+      isVideoLoading: false,
     })
   ),
   on(
@@ -146,6 +166,7 @@ export const liveKitRoomReducer = createReducer(
       return {
         ...state,
         isMicOn,
+        isMicLoading: false,
       };
     }
   ),
@@ -154,6 +175,7 @@ export const liveKitRoomReducer = createReducer(
     (state, { error }) => ({
       ...state,
       error,
+      isMicLoading: false,
     })
   ),
 

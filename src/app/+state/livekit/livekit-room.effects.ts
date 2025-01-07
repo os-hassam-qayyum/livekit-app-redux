@@ -111,6 +111,11 @@ export class LiveKitRoomEffects {
   toggleVideo$ = createEffect(() =>
     this.actions$.pipe(
       ofType(LiveKitRoomActions.LiveKitActions.toggleVideo),
+      tap(() =>
+        this.store.dispatch(
+          LiveKitRoomActions.LiveKitActions.setVideoLoading({ isLoading: true })
+        )
+      ),
       switchMap(() =>
         this.livekitService.toggleVideo().pipe(
           map((isVideoOn: boolean) =>
@@ -131,7 +136,12 @@ export class LiveKitRoomEffects {
   toggleMicrophone$ = createEffect(() =>
     this.actions$.pipe(
       ofType(LiveKitRoomActions.LiveKitActions.toggleMic),
-      mergeMap(() =>
+      tap(() =>
+        this.store.dispatch(
+          LiveKitRoomActions.LiveKitActions.setMicLoading({ isLoading: true })
+        )
+      ),
+      switchMap(() =>
         from(this.livekitService.toggleMicrophone()).pipe(
           tap((isMicOn) => console.log('microphone in effects', isMicOn)),
           map((isMicOn: any) =>
@@ -264,7 +274,7 @@ export class LiveKitRoomEffects {
           // Dispatch success action
           return of(
             LiveKitRoomActions.BreakoutActions.breakoutRoomsInvitationSuccess({
-              roomName: 'Invitations sent successfully',
+              message: 'Invitations sent successfully',
             })
           );
         } catch (error) {

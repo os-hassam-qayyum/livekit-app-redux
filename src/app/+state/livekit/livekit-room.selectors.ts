@@ -47,6 +47,16 @@ export const selectIsMicOn = createSelector(
   }
 );
 
+export const selectIsVideoLoading = createSelector(
+  selectLiveKitRoomState,
+  (state: LiveKitRoomState) => state.isVideoLoading
+);
+
+export const selectIsMicLoading = createSelector(
+  selectLiveKitRoomState,
+  (state: LiveKitRoomState) => state.isMicLoading
+);
+
 export const selectAllMessages = createSelector(
   selectLiveKitRoomState,
   (state: LiveKitRoomState) => {
@@ -143,6 +153,8 @@ export const selectLiveKitRoomViewState = createSelector(
   selectHelpMessageModal,
   selectBreakoutRoomsLoading,
   selectGetRoomName,
+  selectIsVideoLoading,
+  selectIsMicLoading,
   (
     isMeetingStarted,
     isVideoOn,
@@ -162,7 +174,9 @@ export const selectLiveKitRoomViewState = createSelector(
     nextRoomIndex,
     helpMessageModal,
     breakoutRoomsLoading,
-    getRoomName
+    getRoomName,
+    isVideoLoading,
+    isMicLoading
   ) => ({
     isMeetingStarted,
     isVideoOn,
@@ -183,5 +197,7 @@ export const selectLiveKitRoomViewState = createSelector(
     helpMessageModal,
     breakoutRoomsLoading,
     getRoomName,
+    isVideoLoading,
+    isMicLoading,
   })
 );
