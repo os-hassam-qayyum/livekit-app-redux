@@ -789,6 +789,8 @@ export class LivekitService {
     this.room.on(RoomEvent.ParticipantConnected, (participant) => {
       this.updateParticipantNames();
       this.createAvatar(participant);
+      this.updateActiveSpeakerBorders();
+      this.updateMicVisualizer(participant);
     });
     /**
      * Event triggered when a participant disconnects from the room.
@@ -811,6 +813,7 @@ export class LivekitService {
      */
     this.room.on(RoomEvent.TrackPublished, (publication, participant) => {
       publication.setSubscribed(true);
+      this.updateMicVisualizer(participant);
     });
 
     /**
@@ -971,51 +974,51 @@ export class LivekitService {
             this.openSnackBar(`Video could not open. Try again later`);
           }
         }
-        if (publication.track && publication.track.kind === 'audio') {
-          const participantTile = document.getElementById(`${participant.sid}`);
-          if (participantTile) {
-            // Remove any existing microphone visualizations
-            let micVisualization =
-              participantTile.querySelector('.mic-visualization');
-            if (micVisualization) {
-              participantTile.removeChild(micVisualization);
-            }
+        // if (publication.track && publication.track.kind === 'audio') {
+        //   const participantTile = document.getElementById(`${participant.sid}`);
+        //   if (participantTile) {
+        //     // Remove any existing microphone visualizations
+        //     let micVisualization =
+        //       participantTile.querySelector('.mic-visualization');
+        //     if (micVisualization) {
+        //       participantTile.removeChild(micVisualization);
+        //     }
 
-            // Create and append the mic visualization container
-            micVisualization = document.createElement('div');
-            micVisualization.classList.add('mic-visualization');
-            micVisualization.setAttribute(
-              'style',
-              `
-              height: 10vh;
-              width: 10vh;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              background: rgb(20, 112, 233);
-              border-radius: 100%;
-            `
-            );
+        //     // Create and append the mic visualization container
+        //     micVisualization = document.createElement('div');
+        //     micVisualization.classList.add('mic-visualization');
+        //     micVisualization.setAttribute(
+        //       'style',
+        //       `
+        //       height: 10vh;
+        //       width: 10vh;
+        //       display: flex;
+        //       align-items: center;
+        //       justify-content: center;
+        //       background: rgb(20, 112, 233);
+        //       border-radius: 100%;
+        //     `
+        //     );
 
-            const canvas = document.createElement('canvas');
-            canvas.width = 150; // Set desired canvas size
-            canvas.height = 150;
-            canvas.style.borderRadius = '5px';
-            canvas.style.width = '3rem';
-            canvas.style.height = '70%';
+        //     const canvas = document.createElement('canvas');
+        //     canvas.width = 150; // Set desired canvas size
+        //     canvas.height = 150;
+        //     canvas.style.borderRadius = '5px';
+        //     canvas.style.width = '3rem';
+        //     canvas.style.height = '70%';
 
-            micVisualization.appendChild(canvas);
-            participantTile.appendChild(micVisualization);
+        //     micVisualization.appendChild(canvas);
+        //     participantTile.appendChild(micVisualization);
 
-            // Start microphone visualization
-            const audioTrack = publication.track as LocalAudioTrack; // Type assertion
-            this.startMicVisualization(canvas, audioTrack);
-          } else {
-            console.error(
-              `Participant tile for ${participant.identity} not found`
-            );
-          }
-        }
+        //     // Start microphone visualization
+        //     const audioTrack = publication.track as LocalAudioTrack; // Type assertion
+        //     this.startMicVisualization(canvas, audioTrack);
+        //   } else {
+        //     console.error(
+        //       `Participant tile for ${participant.identity} not found`
+        //     );
+        //   }
+        // }
 
         this.screenShareTrackSubscribed.next(publication.track);
         if (publication.source === Track.Source.ScreenShare) {
@@ -1235,6 +1238,31 @@ export class LivekitService {
   /**
    * Updates the border styles for active speaker tiles based on their audio level.
    */
+  // updateActiveSpeakerBorders() {
+  //   const participants = Array.from([
+  //     this.room.localParticipant,
+  //     ...this.room.remoteParticipants.values(),
+  //   ]);
+
+  //   participants.forEach((participant) => {
+  //     const participantTile = document.getElementById(`${participant.sid}`);
+  //     if (participantTile) {
+  //       const isActiveSpeaker = this.activeSpeakers.some(
+  //         (speaker) => speaker.sid === participant.sid
+  //       );
+  //       const audioLevel = participant.audioLevel;
+  //       if (isActiveSpeaker && audioLevel > 0) {
+  //         participantTile.style.transition = 'border 0.3s ease-in-out';
+  //         participantTile.style.border = '4px solid #28a745';
+  //       } else {
+  //         participantTile.style.transition = '';
+  //         participantTile.style.border = '';
+  //       }
+  //     }
+  //     this.createSpeakerAvatar(participant);
+  //   });
+  // }
+
   updateActiveSpeakerBorders() {
     const participants = Array.from([
       this.room.localParticipant,
@@ -1248,6 +1276,8 @@ export class LivekitService {
           (speaker) => speaker.sid === participant.sid
         );
         const audioLevel = participant.audioLevel;
+
+        // Update border for active speakers
         if (isActiveSpeaker && audioLevel > 0) {
           participantTile.style.transition = 'border 0.3s ease-in-out';
           participantTile.style.border = '4px solid #28a745';
@@ -1255,6 +1285,9 @@ export class LivekitService {
           participantTile.style.transition = '';
           participantTile.style.border = '';
         }
+
+        // Create or update microphone visualization
+        this.updateMicVisualizer(participant);
       }
       this.createSpeakerAvatar(participant);
     });
@@ -1360,6 +1393,7 @@ export class LivekitService {
       });
     }
     this.updateParticipantNames();
+    this.updateActiveSpeakerBorders();
   }
 
   /**
@@ -1550,55 +1584,56 @@ export class LivekitService {
       }
     }
     if (track.kind === 'audio') {
-      // const container = document.getElementById('remoteAudioContainer');
-      // if (container) {
-      const participantTile = document.getElementById(`${participant.sid}`);
-      if (participantTile) {
+      const container = document.getElementById('remoteAudioContainer');
+      if (container) {
         const element = track.attach();
-        participantTile.appendChild(element);
-        // Remove any existing microphone visualizations
-        let micVisualization =
-          participantTile.querySelector('.mic-visualization');
-        if (micVisualization) {
-          participantTile.removeChild(micVisualization);
-        }
+        container.appendChild(element);
+        // const participantTile = document.getElementById(`${participant.sid}`);
+        // if (participantTile) {
+        //   participantTile.appendChild(element);
+        //   // Remove any existing microphone visualizations
+        //   let micVisualization =
+        //     participantTile.querySelector('.mic-visualization');
+        //   if (micVisualization) {
+        //     participantTile.removeChild(micVisualization);
+        //   }
 
-        // Create and append the mic visualization container
-        micVisualization = document.createElement('div');
-        micVisualization.classList.add('mic-visualization');
-        micVisualization.setAttribute(
-          'style',
-          `
-            height: 10vh;
-            width: 10vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(20, 112, 233, 0.8);
-            border-radius: 50%;
-            position: absolute;
-            bottom: 1rem;
-            left: 1rem;
-          `
-        );
+        //   // Create and append the mic visualization container
+        //   micVisualization = document.createElement('div');
+        //   micVisualization.classList.add('mic-visualization');
+        //   micVisualization.setAttribute(
+        //     'style',
+        //     `
+        //       height: 10vh;
+        //       width: 10vh;
+        //       display: flex;
+        //       align-items: center;
+        //       justify-content: center;
+        //       background: rgba(20, 112, 233, 0.8);
+        //       border-radius: 50%;
+        //       position: absolute;
+        //       bottom: 1rem;
+        //       left: 1rem;
+        //     `
+        //   );
 
-        const canvas = document.createElement('canvas');
-        canvas.width = 150; // Set desired canvas size
-        canvas.height = 150;
-        canvas.style.borderRadius = '50%';
-        canvas.style.width = '80%';
-        canvas.style.height = '80%';
+        //   const canvas = document.createElement('canvas');
+        //   canvas.width = 150; // Set desired canvas size
+        //   canvas.height = 150;
+        //   canvas.style.borderRadius = '50%';
+        //   canvas.style.width = '80%';
+        //   canvas.style.height = '80%';
 
-        micVisualization.appendChild(canvas);
-        participantTile.appendChild(micVisualization);
+        //   micVisualization.appendChild(canvas);
+        //   participantTile.appendChild(micVisualization);
 
-        // Start microphone visualization
-        const audioTrack = publication.track as AudioTrack; // Type assertion for generic audio tracks
-        this.startMicVisualization(canvas, audioTrack);
+        //   // Start microphone visualization
+        //   const audioTrack = publication.track as AudioTrack; // Type assertion for generic audio tracks
+        //   this.startMicVisualization(canvas, audioTrack);
+        // }
+      } else {
+        console.error('Remote audio container not found');
       }
-      // } else {
-      //   console.error('Remote audio container not found');
-      // }
     }
     this.screenShareTrackSubscribed.next(track);
     if (track.source === Track.Source.ScreenShare && track.kind === 'video') {
@@ -2190,6 +2225,48 @@ export class LivekitService {
    *
    * @param {Participant} participant - The participant whose tile to manage.
    */
+  // createSpeakerAvatar(participant: Participant) {
+  //   const gridLayout = document.querySelector('.lk-grid-layout');
+  //   const speakerLayout = document.querySelector('.lk-speaker-layout');
+
+  //   if (!gridLayout || !speakerLayout) {
+  //     console.error('Grid or Speaker layout not found.');
+  //     return;
+  //   }
+
+  //   const participantTile = document.getElementById(`${participant.sid}`);
+  //   if (!participantTile) {
+  //     console.error(`Participant tile with SID ${participant.sid} not found.`);
+  //     return;
+  //   }
+
+  //   const isActiveSpeaker = this.activeSpeakers.some(
+  //     (speaker) => speaker.sid === participant.sid
+  //   );
+
+  //   if (isActiveSpeaker) {
+  //     const currentSpeakerTile = speakerLayout.firstElementChild;
+  //     if (currentSpeakerTile && currentSpeakerTile !== participantTile) {
+  //       gridLayout.appendChild(currentSpeakerTile);
+  //     }
+
+  //     if (!speakerLayout.contains(participantTile)) {
+  //       if (gridLayout.contains(participantTile)) {
+  //         gridLayout.removeChild(participantTile);
+  //       }
+  //       speakerLayout.appendChild(participantTile);
+  //     }
+
+  //     participantTile.style.height = '100%';
+  //   } else {
+  //     if (gridLayout.contains(participantTile)) {
+  //       participantTile.style.height = '40%';
+  //     }
+  //   }
+
+  //   participantTile.style.transition = 'border 0.3s ease-in-out';
+  //   participantTile.style.border = isActiveSpeaker ? '4px solid #28a745' : '';
+  // }
   createSpeakerAvatar(participant: Participant) {
     const gridLayout = document.querySelector('.lk-grid-layout');
     const speakerLayout = document.querySelector('.lk-speaker-layout');
@@ -2231,5 +2308,70 @@ export class LivekitService {
 
     participantTile.style.transition = 'border 0.3s ease-in-out';
     participantTile.style.border = isActiveSpeaker ? '4px solid #28a745' : '';
+  }
+  private updateMicVisualizer(participant: Participant) {
+    const participantTile = document.getElementById(`${participant.sid}`);
+    if (participantTile) {
+      // Remove any existing microphone visualizations
+      let micVisualization =
+        participantTile.querySelector('.mic-visualization');
+      if (micVisualization) {
+        participantTile.removeChild(micVisualization);
+      }
+
+      // Create and append the mic visualization container
+      micVisualization = document.createElement('div');
+      micVisualization.classList.add('mic-visualization');
+      micVisualization.setAttribute(
+        'style',
+        `
+          height: 10vh;
+          width: 10vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgb(20, 112, 233);
+          border-radius: 100%;
+        `
+      );
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 150; // Set desired canvas size
+      canvas.height = 150;
+      canvas.style.borderRadius = '5px';
+      canvas.style.width = '3rem';
+      canvas.style.height = '70%';
+
+      micVisualization.appendChild(canvas);
+      participantTile.appendChild(micVisualization);
+
+      // Retrieve the audio track for the active speaker
+      const isActiveSpeaker = this.activeSpeakers.some(
+        (speaker) => speaker.sid === participant.sid
+      );
+
+      if (isActiveSpeaker) {
+        const hasAudioTrack = Array.from(
+          participant.audioTrackPublications.values()
+        ).some(
+          (publication) =>
+            publication.track?.source === Track.Source.Microphone &&
+            publication.track.mediaStreamTrack
+        );
+
+        if (hasAudioTrack) {
+          const audioTrack = Array.from(
+            participant.audioTrackPublications.values()
+          ).find(
+            (publication) =>
+              publication.track?.source === Track.Source.Microphone
+          )?.track as AudioTrack;
+
+          if (audioTrack && audioTrack.mediaStreamTrack) {
+            this.startMicVisualization(canvas, audioTrack);
+          }
+        }
+      }
+    }
   }
 }
