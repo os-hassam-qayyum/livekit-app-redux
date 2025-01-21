@@ -15,4 +15,11 @@ export class BreakoutRoomService {
     const url = `${this.apiUrl}/${roomName}`;
     return this.http.get<BreakoutRoom[]>(`${url}/breakout-room`);
   }
+  createBreakoutRoom(
+    roomName: string,
+    breakoutRoom: BreakoutRoom
+  ): Observable<any> {
+    const url = `${this.apiUrl}/${roomName}/breakout-room`;
+    return this.http.post(url, breakoutRoom);
+  }
 }

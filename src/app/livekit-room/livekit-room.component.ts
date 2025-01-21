@@ -72,6 +72,14 @@ const PIPGRIDCOLUMN: { [key: number]: string } = {
   styleUrls: ['./livekit-room.component.scss'],
 })
 export class LivekitRoomComponent {
+  @ViewChild('videoElement', { static: false })
+  videoElement!: ElementRef<HTMLVideoElement>;
+
+  isVideoOn = false;
+  isMicOn = false;
+  videoStream: MediaStream | null = null;
+  isInitialMeetingStarted: boolean = false;
+  meetingUi: boolean = false;
   showCloseRoomModal = false;
   countdown = 60; // Countdown time in seconds
   timerInterval: any;
@@ -634,6 +642,15 @@ export class LivekitRoomComponent {
       });
     // this.livekitService.initCanvas(this.audioCanvasRef.nativeElement);
   }
+
+  initialStartMeeting() {
+    this.isInitialMeetingStarted = true; // Set to true when meeting starts
+    this.startMeeting();
+  }
+  startMeetingUI() {
+    this.isInitialMeetingStarted = false;
+    this.meetingUi = true;
+  }
   /**
    * Initiates the start of a meeting by dispatching a startMeeting action
    * with the WebSocket URL and a dynamic token obtained from the form value.
@@ -847,8 +864,14 @@ export class LivekitRoomComponent {
    * @function
    * @returns {Promise<void>}
    */
+  // async toggleVideo(): Promise<void> {
+  //   await this.store.dispatch(LiveKitRoomActions.LiveKitActions.toggleVideo());
+  // }
   async toggleVideo(): Promise<void> {
-    await this.store.dispatch(LiveKitRoomActions.LiveKitActions.toggleVideo());
+    // await this.livekitService.connectDefaultDevices();
+
+    this.store.dispatch(LiveKitRoomActions.LiveKitActions.toggleVideo());
+    this.toggleCamera();
   }
 
   /**
@@ -859,7 +882,9 @@ export class LivekitRoomComponent {
    * @returns {Promise<void>}
    */
   async toggleMic(): Promise<void> {
-    await this.store.dispatch(LiveKitRoomActions.LiveKitActions.toggleMic());
+    // await this.livekitService.connectDefaultDevices();
+    this.store.dispatch(LiveKitRoomActions.LiveKitActions.toggleMic());
+    this.togglePreviewMic();
   }
 
   /**
@@ -1948,5 +1973,100 @@ export class LivekitRoomComponent {
   closeAllBreakoutRooms() {
     this.livekitService.sendCloseAlertToBreakoutRooms();
     console.log('Close all breakout rooms button clicked');
+  }
+
+  async toggleCamera() {
+    try {
+      if (this.isVideoOn) {
+        // Turn off the camera
+        this.stopVideoStream();
+      } else {
+        // Turn on the camera
+        await this.startVideoStream();
+      }
+      this.livekitService.toggleVideo().subscribe(
+        (isVideoOn) => {
+          this.isVideoOn = isVideoOn;
+          console.log('Video turned on by default:', isVideoOn);
+        },
+        (error) => {
+          console.error('Error enabling video by default:', error);
+        }
+      );
+      this.isVideoOn = !this.isVideoOn;
+      this.store.dispatch(
+        LiveKitRoomActions.LiveKitActions.previewCameraEnable({
+          isPreviewVideo: this.isVideoOn,
+        })
+      );
+      this.liveKitViewState$.subscribe((video) => {
+        video.isVideoOn = this.isVideoOn;
+      });
+    } catch (error) {
+      console.error('Error toggling camera:', error);
+    }
+  }
+
+  async startVideoStream() {
+    try {
+      // Request video access
+      this.videoStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+      });
+      console.log('Video element:', this.videoElement);
+      console.log('Video stream:', this.videoStream);
+
+      if (this.videoElement && this.videoStream) {
+        const video = this.videoElement.nativeElement;
+
+        // Attach stream to video element
+        video.srcObject = this.videoStream;
+
+        // Ensure video starts playing
+        await video.play();
+        console.log('Video is playing');
+      } else {
+        console.warn('Video element or stream is not available');
+      }
+    } catch (error) {
+      console.error('Error accessing video stream:', error);
+    }
+  }
+
+  stopVideoStream() {
+    if (this.videoStream) {
+      this.videoStream.getTracks().forEach((track) => track.stop());
+      this.videoStream = null;
+    }
+
+    if (this.videoElement) {
+      const video = this.videoElement.nativeElement;
+      video.srcObject = null; // Detach stream
+    }
+  }
+
+  async togglePreviewMic() {
+    try {
+      this.livekitService.toggleMicrophone().subscribe(
+        (isMicOn) => {
+          this.isMicOn = isMicOn;
+          console.log('Video turned on by default:', isMicOn);
+        },
+        (error) => {
+          console.error('Error enabling video by default:', error);
+        }
+      );
+      this.isMicOn = !this.isMicOn;
+      this.store.dispatch(
+        LiveKitRoomActions.LiveKitActions.previewMicEnable({
+          isPreviewMic: this.isMicOn,
+        })
+      );
+      this.liveKitViewState$.subscribe((mic) => {
+        mic.isMicOn = this.isMicOn;
+      });
+    } catch (error) {
+      console.error('Error toggling Mic:', error);
+    }
   }
 }

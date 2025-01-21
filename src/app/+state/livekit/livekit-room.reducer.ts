@@ -33,6 +33,8 @@ export interface LiveKitRoomState {
   helpMessageModal: boolean;
   loading: boolean;
   roomName: string;
+  isPreviewMicOn: boolean;
+  isPreviewVideoOn: boolean;
 }
 
 export const initialState: LiveKitRoomState = {
@@ -61,6 +63,8 @@ export const initialState: LiveKitRoomState = {
   helpMessageModal: false,
   loading: false,
   roomName: '',
+  isPreviewMicOn: false,
+  isPreviewVideoOn: false,
 };
 
 export const liveKitRoomReducer = createReducer(
@@ -373,21 +377,23 @@ export const liveKitRoomReducer = createReducer(
     })
   ),
   //creating new rooms
-  on(LiveKitRoomActions.BreakoutActions.createNewRoom, (state) => ({
-    ...state,
-
-    breakoutRoomsData: [
-      ...state.breakoutRoomsData,
-      {
-        // roomName: `Room ${state.breakoutRoomsData.length + 1}`,
-        roomName: `${state.roomName} Room ${
-          state.breakoutRoomsData.length + 1
-        }`,
-        participantIds: [],
-        showAvailableParticipants: false,
-      },
-    ],
-  })),
+  on(
+    LiveKitRoomActions.BreakoutActions.createNewRoomSuccess,
+    (state, { newRoom }) => ({
+      ...state,
+      breakoutRoomsData: [
+        ...state.breakoutRoomsData,
+        {
+          ...newRoom, // Include properties from the newRoom payload
+          roomName: `${state.roomName} Room ${
+            state.breakoutRoomsData.length + 1
+          }`, // Dynamically set the roomName
+          participantIds: newRoom.participantIds || [], // Use participantIds from newRoom or default to an empty array
+          showAvailableParticipants: newRoom.showAvailableParticipants ?? false, // Use existing or default value
+        },
+      ],
+    })
+  ),
   on(
     LiveKitRoomActions.BreakoutActions.addParticipantToRoom,
     (state, { roomName, participantId }) => ({
@@ -453,6 +459,20 @@ export const liveKitRoomReducer = createReducer(
       ...state,
       error,
       loading: false,
+    })
+  ),
+  on(
+    LiveKitRoomActions.LiveKitActions.previewCameraEnable,
+    (state, { isPreviewVideo }) => ({
+      ...state,
+      isPreviewVideoOn: isPreviewVideo,
+    })
+  ),
+  on(
+    LiveKitRoomActions.LiveKitActions.previewMicEnable,
+    (state, { isPreviewMic }) => ({
+      ...state,
+      isPreviewMicOn: isPreviewMic,
     })
   )
 );

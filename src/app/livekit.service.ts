@@ -1,11 +1,16 @@
 import { EventEmitter, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import * as LiveKitRoomActions from './+state/livekit/livekit-room.actions';
 import {
+  AudioCaptureOptions,
   AudioTrack,
+  createLocalTracks,
   DataPacket_Kind,
   LocalAudioTrack,
   LocalParticipant,
+  LocalTrack,
   LocalTrackPublication,
+  LocalVideoTrack,
   Participant,
   ParticipantEvent,
   RemoteParticipant,
@@ -16,6 +21,7 @@ import {
   setLogLevel,
   Track,
   TrackPublication,
+  VideoCaptureOptions,
   VideoQuality,
 } from 'livekit-client';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -29,6 +35,7 @@ import {
 } from 'rxjs';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import { MeetingService } from './meeting.service';
+import { Store } from '@ngrx/store';
 
 @Injectable({
   providedIn: 'root',
@@ -279,7 +286,8 @@ export class LivekitService {
    */
   constructor(
     public snackBar: MatSnackBar,
-    public meetingService: MeetingService
+    public meetingService: MeetingService,
+    public store: Store
   ) {
     this.updateDeviceLists(); // Fetch initial devices
   }
@@ -317,6 +325,11 @@ export class LivekitService {
     // this.remoteVideoTrackSubscribed.asObservable;
     this.updateParticipantNames();
     this.remoteParticipantAfterLocal();
+    this.store.dispatch(
+      LiveKitRoomActions.MeetingActions.setRoomName({
+        roomName: this.room.name,
+      })
+    );
   }
 
   // connectWebSocket() {

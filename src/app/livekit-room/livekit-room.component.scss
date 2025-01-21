@@ -7,46 +7,266 @@
   height: 80vh;
   width: 100% !important;
 }
-
-.form {
+.initial-meeting-container {
+  height: 100vh;
+  background-color: #212121;
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 400px;
-  width: 24rem;
-  border-radius: 10px;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
 
-  .startMeeting-container {
-    display: flex;
-    justify-content: center;
-    margin-top: 10px;
+  .initial-container {
+    border: 1px solid #fff;
+    padding: 1rem;
+    border-radius: 10px;
+    width: 24rem;
 
-    .startBtn {
-      background-color: rgb(0, 28, 128);
-      color: white;
+    h2 {
+      color: #fff;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 500;
+      margin: 1.4rem 0;
+    }
+    .name-input {
+      width: 90%;
+      padding: 20px;
       border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      height: 100%;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      background-color: #272727;
+      color: white;
+
+      &:focus {
+        outline: none;
+        background-color: #3b3b3b;
+      }
+    }
+
+    .initial-btn {
       width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      padding: 15px 20px;
+      border: none;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      background-color: #3b3b3b;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
 
       &:hover {
-        background-color: darkblue;
-      }
-      &:disabled {
-        background-color: rgb(73, 80, 105); /* Gray background when disabled */
-        color: white; /* Lighter text color when disabled */
-        cursor: not-allowed; /* Change cursor to indicate disabled state */
-        box-shadow: none; /* Remove any shadow */
+        outline: none;
+        background-color: #2d2d2d;
       }
     }
   }
 }
+
+.join-meeting-container {
+  text-align: center;
+  background: #1e1e1e;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+
+  .video-preview {
+    width: 300px;
+    height: 200px;
+    background-color: #333;
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
+
+    .user-icon {
+      .icon-placeholder {
+        width: 60px;
+        height: 60px;
+        background-color: #888;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 50px;
+        color: white;
+        position: relative;
+
+        img {
+          width: 60px;
+          height: 60px;
+          border-radius: 50%;
+          object-fit: cover;
+        }
+      }
+
+      .video-feed {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 10px;
+      }
+    }
+  }
+
+  .controls {
+    .mic-camera {
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      margin-bottom: 10px;
+
+      button {
+        padding: 8px 20px;
+        border: none;
+        outline: none;
+        border-radius: 4px 0 0 4px;
+        background-color: #333;
+        color: white;
+        cursor: pointer;
+        transition: background-color 0.2s ease-in-out;
+      }
+
+      .video-dropdown-initial,
+      .mic-dropdown-initial {
+        display: flex;
+        align-items: center;
+        border-radius: 0 4px 4px 0;
+
+        .dropdown-toggle {
+          border: none;
+          padding: 7px 5px;
+          cursor: pointer;
+          border-radius: 0 4px 4px 0;
+          background-color: #111111;
+
+          &:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+          }
+
+          i {
+            font-size: 18px;
+            color: #4e4e4e;
+            text-decoration: none;
+            border: none;
+          }
+        }
+
+        ul.mic-toggle-dropdown {
+          position: absolute;
+          background: white;
+          top: 5%;
+          z-index: 999 !important;
+          width: 220px;
+          list-style-type: none;
+          padding: 0;
+          margin: 0;
+
+          .dropdown-heading {
+            font-weight: bold;
+            margin-top: 10px;
+            padding: 5px 0;
+            border-top: 1px solid #ddd;
+          }
+
+          li {
+            padding: 10px 30px;
+            cursor: pointer;
+
+            &:hover {
+              background-color: #f6f6f6;
+              color: #000;
+            }
+
+            &.selected {
+              background-color: #007bff;
+              color: white;
+            }
+          }
+        }
+      }
+    }
+
+    .name-input {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      background-color: #272727;
+      color: white;
+
+      &:focus {
+        outline: none;
+        background-color: #3b3b3b;
+      }
+    }
+
+    .startBtn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      background-color: #007bff;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+
+      &:hover {
+        background-color: darken(#007bff, 10%);
+      }
+      &:disabled {
+        background-color: #999;
+        cursor: not-allowed;
+      }
+    }
+  }
+}
+
+// .form {
+//   display: flex;
+//   justify-content: center;
+//   align-items: center;
+//   height: 400px;
+//   width: 24rem;
+//   border-radius: 10px;
+//   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
+
+//   .startMeeting-container {
+//     display: flex;
+//     justify-content: center;
+//     margin-top: 10px;
+
+//     .startBtn {
+//       background-color: rgb(0, 28, 128);
+//       color: white;
+//       border: none;
+//       padding: 10px 20px;
+//       border-radius: 5px;
+//       cursor: pointer;
+//       height: 100%;
+//       width: 100%;
+//       display: flex;
+//       align-items: center;
+//       justify-content: center;
+
+//       &:hover {
+//         background-color: darkblue;
+//       }
+//       &:disabled {
+//         background-color: rgb(73, 80, 105); /* Gray background when disabled */
+//         color: white; /* Lighter text color when disabled */
+//         cursor: not-allowed; /* Change cursor to indicate disabled state */
+//         box-shadow: none; /* Remove any shadow */
+//       }
+//     }
+//   }
+// }
 
 // styling for dropdown
 .select-dropdown,
@@ -2600,5 +2820,40 @@ input {
     display: block;
     width: 48px;
     height: 48px;
+  }
+}
+
+/* Tablet responsive styles */
+@media (min-width: 600px) and (max-width: 1024px) {
+  .os-main-content[_ngcontent-ng-c329672095] {
+    grid-template-rows: [nav] 65px 675px;
+    .header {
+      padding: 10px; /* Slightly smaller padding */
+      display: flex;
+      .left-header,
+      .right-header {
+        gap: 10px;
+      }
+      i {
+        font-size: 14px;
+      }
+      .material-symbols-outlined {
+        font-size: 18px;
+      }
+      .leave-container {
+        .leave-btn {
+          width: 100px;
+          height: 30px;
+        }
+      }
+    }
+    .lk-grid-layout-wrapper {
+      --lk-control-bar-height: 40%;
+      padding: 20px;
+      height: calc(100% - var(--lk-control-bar-height));
+    }
+  }
+  .modal-content {
+    width: 30rem;
   }
 }

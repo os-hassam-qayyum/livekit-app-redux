@@ -4,6 +4,7 @@ import * as LiveKitRoomActions from './livekit-room.actions';
 import { v4 as uuidv4 } from 'uuid';
 import {
   catchError,
+  filter,
   map,
   mergeAll,
   mergeMap,
@@ -18,9 +19,13 @@ import { LivekitService } from 'src/app/livekit.service';
 import {
   selectBreakoutRoomsData,
   selectLiveKitRoomViewState,
+  selectParticipantIdsByRoomName,
+  selectPreviewMic,
+  selectPreviewVideo,
 } from './livekit-room.selectors';
 import { Store } from '@ngrx/store';
 import { BreakoutRoomService } from 'src/app/breakout-room.service';
+import { BreakoutRoom } from './livekit-room.reducer';
 
 @Injectable()
 export class LiveKitRoomEffects {
@@ -108,14 +113,27 @@ export class LiveKitRoomEffects {
     )
   );
 
+  previewVideo$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(LiveKitRoomActions.MeetingActions.setRoomName),
+      concatLatestFrom(() => [this.store.select(selectPreviewVideo)]),
+      tap((previewVideo) => console.log('video prev', previewVideo)),
+      filter(([action, previewVideo]) => previewVideo),
+      map(() => LiveKitRoomActions.LiveKitActions.toggleVideo())
+    )
+  );
+  previewMic$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(LiveKitRoomActions.MeetingActions.setRoomName),
+      concatLatestFrom(() => [this.store.select(selectPreviewMic)]),
+      tap((previewMic) => console.log('mic prev', previewMic)),
+      filter(([action, isPreviewMic]) => isPreviewMic),
+      map(() => LiveKitRoomActions.LiveKitActions.toggleMic())
+    )
+  );
   toggleVideo$ = createEffect(() =>
     this.actions$.pipe(
       ofType(LiveKitRoomActions.LiveKitActions.toggleVideo),
-      tap(() =>
-        this.store.dispatch(
-          LiveKitRoomActions.LiveKitActions.setVideoLoading({ isLoading: true })
-        )
-      ),
       switchMap(() =>
         this.livekitService.toggleVideo().pipe(
           map((isVideoOn: boolean) =>
@@ -132,15 +150,9 @@ export class LiveKitRoomEffects {
       )
     )
   );
-
   toggleMicrophone$ = createEffect(() =>
     this.actions$.pipe(
       ofType(LiveKitRoomActions.LiveKitActions.toggleMic),
-      tap(() =>
-        this.store.dispatch(
-          LiveKitRoomActions.LiveKitActions.setMicLoading({ isLoading: true })
-        )
-      ),
       switchMap(() =>
         from(this.livekitService.toggleMicrophone()).pipe(
           tap((isMicOn) => console.log('microphone in effects', isMicOn)),
@@ -366,6 +378,56 @@ export class LiveKitRoomEffects {
             )
           )
         );
+      })
+    )
+  );
+  createNewRoom$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(LiveKitRoomActions.BreakoutActions.createNewRoom),
+      concatLatestFrom(() => [
+        this.store.select(selectParticipantIdsByRoomName),
+        this.store.select(selectBreakoutRoomsData),
+      ]),
+      switchMap(([action, participantIds, breakoutRoomsData]) => {
+        // Retrieve the room name from the service
+        const roomName = this.livekitService.getRoomName();
+
+        console.log('roomName participantId', participantIds);
+        if (!roomName) {
+          console.error('Room name is undefined!');
+          return of(
+            LiveKitRoomActions.BreakoutActions.createNewRoomFailure({
+              error: new Error('Room name is undefined'),
+            })
+          );
+        }
+
+        const roomCount = breakoutRoomsData.length + 1;
+        const newRoomName = `${roomName} Room ${roomCount}`;
+
+        const breakoutRoom: BreakoutRoom = {
+          roomName: newRoomName,
+          participantIds,
+          showAvailableParticipants: true,
+        };
+        console.log('breakout rooms in effect of create room', breakoutRoom);
+
+        return this.breakoutRoomService
+          .createBreakoutRoom(newRoomName, breakoutRoom) // Pass both arguments here
+          .pipe(
+            map((newRoom) =>
+              LiveKitRoomActions.BreakoutActions.createNewRoomSuccess({
+                newRoom, // Pass the newly created room data to success action
+              })
+            ),
+            catchError((error) =>
+              of(
+                LiveKitRoomActions.BreakoutActions.createNewRoomFailure({
+                  error, // Pass the error to failure action
+                })
+              )
+            )
+          );
       })
     )
   );

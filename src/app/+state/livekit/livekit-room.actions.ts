@@ -1,4 +1,5 @@
 import { createActionGroup, emptyProps, props } from '@ngrx/store';
+import { BreakoutRoom } from './livekit-room.reducer';
 
 // Grouping Meeting-related actions
 export const MeetingActions = createActionGroup({
@@ -23,6 +24,8 @@ export const LiveKitActions = createActionGroup({
     startMeetingFailure: props<{ error: string }>(),
     enableCameraAndMicrophone: emptyProps(),
     enableCameraAndMicrophoneSuccess: emptyProps(),
+    previewCameraEnable: props<{ isPreviewVideo: boolean }>(),
+    previewMicEnable: props<{ isPreviewMic: boolean }>(),
     enableCameraAndMicrophoneFailure: props<{ error: string }>(),
     toggleRaiseHand: emptyProps(),
     toggleScreenShare: emptyProps(),
@@ -91,6 +94,9 @@ export const BreakoutActions = createActionGroup({
     closeHelpMessageModal: emptyProps(),
     //creating new rooms
     CreateNewRoom: emptyProps(),
+    createNewRoomSuccess: props<{ newRoom: BreakoutRoom }>(),
+
+    CreateNewRoomFailure: props<{ error: any }>(),
     sendBreakoutRoomsInvitation: emptyProps(),
     breakoutRoomsInvitationSuccess: props<{
       message: string;
