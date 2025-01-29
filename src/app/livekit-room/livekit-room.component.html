@@ -112,7 +112,10 @@
                     'fa-microphone': liveKitViewState.isMicOn,
                     'fa-microphone-slash': !liveKitViewState.isMicOn
                   }"
-                ></i>
+                >
+                  <!-- <span *ngIf="liveKitViewState.isMicOn"></span> -->
+                  <span *ngIf="isSpeaking"></span>
+                </i>
               </ng-template>
               Microphone
             </button>
@@ -279,6 +282,13 @@
           <!-- <button matTooltip="Picture in picture mode" (click)="enterPiP()">
             <span class="material-symbols-outlined"> pip </span>
           </button> -->
+          <button
+            *ngIf="livekitService.isScreenSharingEnabled"
+            (click)="toggleAnnotation()"
+            matTooltip="Annotation"
+          >
+            <i class="fas fa-pencil-alt"></i>
+          </button>
           <button
             matTooltip="Ask for Help To Main Room"
             (click)="sendHelpRequest()"
@@ -1256,6 +1266,140 @@
 
     <div class="modal-footer">
       <button (click)="hostJoinNow()">Host Join Now</button>
+    </div>
+  </div>
+
+  <!-- Full-screen transparent canvas -->
+  <!-- <canvas #annotationCanvas id="annotationCanvas"></canvas> -->
+  <!-- <div
+    #annotationModal
+    *ngIf="isAnnotationActive"
+    class="annotation-modal"
+    cdkDrag
+  >
+    <div class="annotation-panel">
+      <button (click)="activateTool('mouse')">Mouse</button>
+      <button (click)="activateTool('select')">Select</button>
+      <button (click)="activateTool('text')">Text</button>
+      <button (click)="activateTool('draw')">Draw</button>
+      <button (click)="activateTool('eraser')">Eraser</button>
+      <button (click)="handleAction('undo')">Undo</button>
+      <button (click)="handleAction('redo')">Redo</button>
+      <button (click)="handleAction('clear')">Clear</button>
+      <button (click)="save()">Save</button>
+    </div>
+  </div> -->
+  <!-- <div class="annotation-container" *ngIf="isAnnotationEnabled">
+    <canvas #annotationCanvas id="annotationCanvas"></canvas>
+
+    <div
+      #annotationModal
+      *ngIf="isAnnotationEnabled"
+      class="annotation-modal"
+      cdkDrag
+    >
+      <div class="annotation-buttons">
+        <button (click)="activateMouseMode()" matTooltip="Mouse Mode">
+          <i class="fa fa-mouse-pointer"></i>
+          <div>Mouse</div>
+        </button>
+        <button (click)="activateSelectMode()" matTooltip="Select Mode">
+          <i class="fa fa-crop"></i>
+          <div>Select</div>
+        </button>
+
+        <button (click)="activateTextMode()" matTooltip="Text Mode">
+          <i class="fa fa-font"></i>
+          <div>Text</div>
+        </button>
+
+        <button matTooltip="Change Color">
+          <input
+            type="color"
+            id="askColor"
+            name="askColor"
+            value="#e66465"
+            (change)="openColorPalette($event)"
+          />
+          <div>Format</div>
+        </button>
+
+        <button (click)="undoLastPath()" matTooltip="Undo Last Path">
+          <i class="fa fa-undo"></i>
+          <div>Undo</div>
+        </button>
+        <button (click)="redoLastPath()" matTooltip="Redo Last Action">
+          <i class="fa fa-repeat"></i>
+          <div>Redo</div>
+        </button>
+
+        <button (click)="clearCanvas()" matTooltip="Clear All Drawings">
+          <i class="fa fa-trash"></i>
+          <div>Clear</div>
+        </button>
+        <button (click)="initializeCanvas()" matTooltip="Draw">
+          <i class="fa fa-trash"></i>
+          <div>Draw</div>
+        </button>
+        <button (click)="closeAnnotation()" matTooltip="Close Annotation">
+          <i class="fa fa-times"></i>
+          <div>Close</div>
+        </button>
+      </div>
+    </div>
+  </div> -->
+
+  <div class="annotation-container" *ngIf="isAnnotationEnabled">
+    <!-- Full-screen transparent canvas -->
+    <canvas #annotationCanvas id="annotationCanvas"></canvas>
+
+    <div
+      #annotationModal
+      *ngIf="isAnnotationEnabled"
+      class="annotation-modal"
+      cdkDrag
+    >
+      <!-- Buttons for controlling annotation -->
+      <div class="annotation-buttons">
+        <button (click)="toggleEraseMode()" matTooltip="Erase Path">
+          <i class="fa fa-eraser"></i>
+          <p>Erase</p>
+        </button>
+        <button (click)="selectTextMode()" matTooltip="Text">
+          <i class="fa fa-font"></i>
+          <p>Text</p>
+        </button>
+        <button (click)="selectDrawMode()" matTooltip="Draw">
+          <i class="fas fa-paint-brush"></i>
+          <p>Draw</p>
+        </button>
+        <button matTooltip="Select color">
+          <input
+            type="color"
+            id="askColor"
+            name="askColor"
+            value="#e66465"
+            (change)="openColorPalette($event)"
+          />
+          <p>Format</p>
+        </button>
+        <button (click)="undoLastPath()" matTooltip="Undo Last Path">
+          <i class="fa fa-undo"></i>
+          <p>Undo</p>
+        </button>
+        <button (click)="redoLastPath()" matTooltip="Redo Last Path">
+          <i class="fa fa-redo"></i>
+          <p>Redo</p>
+        </button>
+        <button (click)="clearCanvas()" matTooltip="Clear All Drawings">
+          <i class="fa fa-trash"></i>
+          <p>Clear</p>
+        </button>
+        <button (click)="closeAnnotation()" matTooltip="Close Annotation">
+          <i class="fa fa-times"></i>
+          <p>close</p>
+        </button>
+      </div>
     </div>
   </div>
 </ng-container>

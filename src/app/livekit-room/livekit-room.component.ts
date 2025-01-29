@@ -2,6 +2,7 @@ import {
   ChangeDetectorRef,
   Component,
   ElementRef,
+  HostListener,
   Renderer2,
   TemplateRef,
   ViewChild,
@@ -65,6 +66,10 @@ const PIPGRIDCOLUMN: { [key: number]: string } = {
   20: '1fr 1fr 1fr',
   21: '1fr 1fr 1fr 1fr',
 };
+export interface CanvasPath {
+  path: Path2D;
+  color: string;
+}
 
 @Component({
   selector: 'app-livekit-room',
@@ -72,6 +77,38 @@ const PIPGRIDCOLUMN: { [key: number]: string } = {
   styleUrls: ['./livekit-room.component.scss'],
 })
 export class LivekitRoomComponent {
+  isSpeaking: boolean = false;
+  recognition: any;
+
+  // To periodically check if the user is speaking
+  audioContext: AudioContext | null = null;
+  analyserNode: AnalyserNode | null = null;
+  // @ViewChild('annotationCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
+  // isAnnotationEnabled: boolean = false; // Tracks if annotation mode is enabled
+  // private ctx: CanvasRenderingContext2D | null = null;
+  // private isDrawing: boolean = false; // Tracks if the user is drawing
+  // private paths: Path2D[] = []; // Stores drawn paths for undo
+  // private currentPath!: Path2D; // Current path being drawn
+  // private currentMode: 'mouse' | 'draw' | 'select' | 'text' = 'draw';
+  // private textBoxes: { x: number; y: number; text: string }[] = []; // Stores text boxes
+  // private selectedTextBoxIndex: number | null = null; // Tracks selected text box for moving
+  private selectedColor: string = 'red'; // Default drawing color
+  // @ViewChild('annotationModal') annotationModal!: ElementRef<HTMLDivElement>;
+
+  @ViewChild('annotationCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
+
+  isAnnotationEnabled: boolean = false;
+  selectedMode: 'text' | 'erase' | 'draw' = 'draw'; // Default mode is 'text'
+  private ctx: CanvasRenderingContext2D | null = null;
+  private isDrawing: boolean = false;
+  // private paths: Path2D[] = [];
+  private redoStack: CanvasPath[] = [];
+  // private currentPath!: Path2D;
+  private paths: CanvasPath[] = []; // Stores paths with their respective colors
+  private currentPath: CanvasPath | null = null; // Tracks the current path being drawn
+
+  private isErasing: boolean = false; // To toggle erase mode
+  private textInput = ''; // For text input
   @ViewChild('videoElement', { static: false })
   videoElement!: ElementRef<HTMLVideoElement>;
 
@@ -264,6 +301,42 @@ export class LivekitRoomComponent {
     this.store.dispatch(
       LiveKitRoomActions.MeetingActions.setRoomName({ roomName: this.roomName })
     );
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      this.recognition = new SpeechRecognition();
+      this.recognition.continuous = true;
+      this.recognition.interimResults = true;
+
+      // Detect when speech starts and results are coming in
+      this.recognition.onresult = (event: any) => {
+        console.log('Speech detected.');
+        this.isSpeaking = true; // Show the span while speaking
+
+        // Reset isSpeaking to false after a delay if speech stops
+        clearTimeout((this as any).speechTimeout); // Clear previous timeout
+        (this as any).speechTimeout = setTimeout(() => {
+          this.isSpeaking = false; // Hide span after no speech detected
+        }, 1000); // Adjust the timeout as needed
+      };
+
+      // Handle speech recognition errors
+      this.recognition.onerror = (event: any) => {
+        console.error('Speech Recognition Error:', event.error);
+        this.isSpeaking = false; // Ensure span is hidden on errors
+      };
+
+      // Handle the end of recognition session
+      this.recognition.onend = () => {
+        console.log('Speech recognition stopped.');
+        this.isSpeaking = false; // Hide span when recognition stops
+      };
+    } else {
+      console.error('Speech Recognition API is not supported in this browser.');
+    }
   }
 
   ngOnDestroy() {
@@ -643,6 +716,362 @@ export class LivekitRoomComponent {
     // this.livekitService.initCanvas(this.audioCanvasRef.nativeElement);
   }
 
+  // toggleAnnotation() {
+  //   this.isAnnotationEnabled = !this.isAnnotationEnabled;
+
+  //   if (this.isAnnotationEnabled) {
+  //     setTimeout(() => this.initializeCanvas(), 0); // Ensure the DOM updates before initializing
+  //   }
+  // }
+  // initializeCanvas() {
+  //   const canvas = this.canvasRef.nativeElement;
+
+  //   // Set canvas size to match viewport
+  //   canvas.width = window.innerWidth;
+  //   canvas.height = window.innerHeight;
+
+  //   this.ctx = canvas.getContext('2d');
+  //   if (!this.ctx) return;
+
+  //   // Set drawing defaults
+  //   this.ctx.strokeStyle = 'red'; // Default pen color
+  //   this.ctx.lineWidth = 2; // Default pen width
+  //   this.ctx.lineCap = 'round';
+
+  //   // Add event listeners for drawing
+  //   canvas.addEventListener('mousedown', this.startDrawing.bind(this));
+  //   canvas.addEventListener('mousemove', this.draw.bind(this));
+  //   canvas.addEventListener('mouseup', this.stopDrawing.bind(this));
+  //   canvas.addEventListener('mouseleave', this.stopDrawing.bind(this));
+  // }
+
+  // // startDrawing(event: MouseEvent) {
+  // //   if (!this.ctx) return;
+
+  // //   this.isDrawing = true;
+
+  // //   // Create a new path and move to the starting point
+  // //   this.currentPath = new Path2D();
+  // //   this.currentPath.moveTo(event.clientX, event.clientY);
+  // // }
+  // startDrawing(event: MouseEvent) {
+  //   if (this.currentMode === 'select') {
+  //     // Check if a text box is clicked for selection
+  //     const x = event.clientX;
+  //     const y = event.clientY;
+
+  //     this.selectedTextBoxIndex = this.textBoxes.findIndex(
+  //       (box) => x > box.x && x < box.x + 100 && y > box.y && y < box.y + 30
+  //     );
+  //   } else if (this.currentMode === 'draw' && this.ctx) {
+  //     this.isDrawing = true;
+  //     this.currentPath = new Path2D();
+  //     this.currentPath.moveTo(event.clientX, event.clientY);
+  //   }
+  // }
+
+  // // draw(event: MouseEvent) {
+  // //   if (!this.isDrawing || !this.ctx) return;
+
+  // //   // Add line to the current path
+  // //   this.currentPath.lineTo(event.clientX, event.clientY);
+
+  // //   // Clear the canvas and redraw all paths
+  // //   this.redrawCanvas();
+  // //   this.ctx.stroke(this.currentPath);
+  // // }
+  // draw(event: MouseEvent) {
+  //   if (this.currentMode === 'select' && this.selectedTextBoxIndex !== null) {
+  //     // Move selected text box
+  //     const textBox = this.textBoxes[this.selectedTextBoxIndex];
+  //     textBox.x = event.clientX;
+  //     textBox.y = event.clientY;
+  //     this.redrawCanvas();
+  //   } else if (this.currentMode === 'draw' && this.isDrawing && this.ctx) {
+  //     this.currentPath.lineTo(event.clientX, event.clientY);
+  //     this.redrawCanvas();
+  //     this.ctx.stroke(this.currentPath);
+  //   }
+  // }
+
+  // stopDrawing() {
+  //   if (!this.isDrawing || !this.ctx) return;
+
+  //   this.isDrawing = false;
+
+  //   // Finalize the current path and add it to the stack
+  //   this.paths.push(this.currentPath);
+  // }
+
+  // redrawCanvas() {
+  //   if (!this.ctx) return;
+
+  //   // Clear the entire canvas
+  //   this.ctx.clearRect(
+  //     0,
+  //     0,
+  //     this.canvasRef.nativeElement.width,
+  //     this.canvasRef.nativeElement.height
+  //   );
+
+  //   // Redraw all saved paths
+  //   this.paths.forEach((path) => this.ctx.stroke(path));
+  //   this.textBoxes.forEach((box) => {
+  //     this.ctx!.fillText(box.text, box.x, box.y);
+  //   });
+  // }
+  // openColorPalette(event: Event) {
+  //   const input = event.target as HTMLInputElement;
+  //   const newColor = input.value; // Get the selected color
+  //   if (newColor) {
+  //     this.selectedColor = newColor;
+  //     if (this.ctx) {
+  //       this.ctx.strokeStyle = this.selectedColor; // Set the new color
+  //       this.ctx.fillStyle = this.selectedColor; // Optionally set the fill color
+  //     }
+  //   }
+  // }
+  // redoLastPath() {
+  //   if (this.paths.length) {
+  //     this.paths.pop()!;
+  //     this.redrawCanvas();
+  //   }
+  // }
+  // activateMouseMode() {
+  //   this.currentMode = 'mouse';
+  //   this.canvasRef.nativeElement.style.cursor = 'default';
+  // }
+  // activateSelectMode() {
+  //   this.currentMode = 'select';
+  //   this.canvasRef.nativeElement.style.cursor = 'move';
+  // }
+  // activateTextMode() {
+  //   this.currentMode = 'text';
+  //   this.canvasRef.nativeElement.style.cursor = 'text';
+  // }
+  // canvasClick(event: MouseEvent) {
+  //   if (this.currentMode === 'text') {
+  //     const x = event.clientX;
+  //     const y = event.clientY;
+
+  //     const text = prompt('Enter text:');
+  //     if (text) {
+  //       this.textBoxes.push({ x, y, text });
+  //       this.redrawCanvas();
+  //     }
+  //   }
+  // }
+  // undoLastPath() {
+  //   if (!this.paths.length || !this.ctx) return;
+
+  //   // Remove the last path from the stack
+  //   this.paths.pop();
+  //   // this.paths.push(path);
+  //   // Redraw the canvas without the last path
+  //   this.redrawCanvas();
+  // }
+
+  // clearCanvas() {
+  //   if (!this.ctx) return;
+
+  //   // Clear paths and canvas
+  //   this.paths = [];
+  //   this.ctx.clearRect(
+  //     0,
+  //     0,
+  //     this.canvasRef.nativeElement.width,
+  //     this.canvasRef.nativeElement.height
+  //   );
+  // }
+
+  // closeAnnotation() {
+  //   this.isAnnotationEnabled = false;
+
+  //   // Optionally clear everything when closing
+  //   this.paths = [];
+  //   if (this.ctx) {
+  //     this.ctx.clearRect(
+  //       0,
+  //       0,
+  //       this.canvasRef.nativeElement.width,
+  //       this.canvasRef.nativeElement.height
+  //     );
+  //   }
+  // }
+
+  toggleAnnotation() {
+    this.isAnnotationEnabled = !this.isAnnotationEnabled;
+
+    if (this.isAnnotationEnabled) {
+      setTimeout(() => this.initializeCanvas(), 0);
+    }
+  }
+
+  initializeCanvas() {
+    const canvas = this.canvasRef.nativeElement;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    this.ctx = canvas.getContext('2d');
+    if (!this.ctx) return;
+
+    this.ctx.strokeStyle = this.selectedColor;
+    this.ctx.lineWidth = 2;
+    this.ctx.lineCap = 'round';
+
+    canvas.addEventListener('mousedown', this.handleMouseDown.bind(this));
+    canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
+    canvas.addEventListener('mouseup', this.handleMouseUp.bind(this));
+  }
+
+  handleMouseDown(event: MouseEvent) {
+    if (!this.ctx) return;
+
+    if (this.selectedMode === 'draw') {
+      // Start drawing
+      this.isDrawing = true;
+      // this.currentPath = new Path2D();
+      // Create a new path with the current color
+      this.currentPath = {
+        path: new Path2D(),
+        color: this.selectedColor,
+      };
+      this.currentPath.path.moveTo(event.clientX, event.clientY);
+    } else if (this.selectedMode === 'erase') {
+      // Start erasing
+      this.isDrawing = true;
+      this.ctx.globalCompositeOperation = 'destination-out';
+      this.ctx.lineWidth = 10;
+      this.ctx.beginPath();
+      this.ctx.moveTo(event.clientX, event.clientY);
+    } else if (this.selectedMode === 'text') {
+      // Add text at the clicked position
+      const text = prompt('Enter text:') || '';
+      this.ctx.font = '16px Arial';
+      this.ctx.fillStyle = 'black';
+      this.ctx.fillText(text, event.clientX, event.clientY);
+    }
+  }
+
+  handleMouseMove(event: MouseEvent) {
+    if (!this.ctx || !this.isDrawing || this.selectedMode === 'text') return;
+
+    if (this.selectedMode === 'draw') {
+      this.currentPath.path.lineTo(event.clientX, event.clientY);
+      this.redrawCanvas();
+      // this.ctx.stroke(this.currentPath.path);
+      // Draw the current path
+      this.ctx.strokeStyle = this.currentPath.color;
+      this.ctx.stroke(this.currentPath.path);
+    } else if (this.selectedMode === 'erase') {
+      this.ctx.lineTo(event.clientX, event.clientY);
+      this.ctx.stroke();
+    }
+  }
+
+  handleMouseUp() {
+    if (!this.isDrawing || !this.ctx) return;
+
+    this.isDrawing = false;
+    if (this.selectedMode === 'draw') {
+      this.paths.push(this.currentPath);
+      this.currentPath = null;
+      this.redoStack = [];
+    }
+
+    this.ctx.globalCompositeOperation = 'source-over'; // Reset to default
+  }
+
+  redrawCanvas() {
+    if (!this.ctx) return;
+
+    this.ctx.clearRect(
+      0,
+      0,
+      this.canvasRef.nativeElement.width,
+      this.canvasRef.nativeElement.height
+    );
+    // this.paths.forEach((path) => this.ctx!.stroke(path));
+    // Redraw each path with its color
+    this.paths.forEach((canvasPath) => {
+      this.ctx.strokeStyle = canvasPath.color;
+      this.ctx.stroke(canvasPath.path);
+    });
+  }
+
+  undoLastPath() {
+    if (!this.paths.length || !this.ctx) return;
+
+    const lastPath = this.paths.pop();
+    if (lastPath) {
+      this.redoStack.push(lastPath);
+    }
+
+    this.redrawCanvas();
+  }
+
+  redoLastPath() {
+    if (!this.redoStack.length || !this.ctx) return;
+
+    const pathToRedo = this.redoStack.pop();
+    if (pathToRedo) {
+      this.paths.push(pathToRedo);
+    }
+
+    this.redrawCanvas();
+  }
+
+  clearCanvas() {
+    if (!this.ctx) return;
+
+    this.paths = [];
+    this.redoStack = [];
+    this.ctx.clearRect(
+      0,
+      0,
+      this.canvasRef.nativeElement.width,
+      this.canvasRef.nativeElement.height
+    );
+  }
+
+  closeAnnotation() {
+    this.isAnnotationEnabled = false;
+    // this.paths = [];
+    // this.redoStack = [];
+    // if (this.ctx) {
+    //   this.ctx.clearRect(
+    //     0,
+    //     0,
+    //     this.canvasRef.nativeElement.width,
+    //     this.canvasRef.nativeElement.height
+    //   );
+    // }
+  }
+
+  toggleEraseMode() {
+    this.selectedMode = 'erase';
+  }
+
+  selectDrawMode() {
+    this.selectedMode = 'draw';
+  }
+
+  selectTextMode() {
+    this.selectedMode = 'text';
+  }
+
+  openColorPalette(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const newColor = input.value; // Get the selected color
+    if (newColor) {
+      this.selectedColor = newColor;
+      if (this.ctx) {
+        this.ctx.strokeStyle = this.selectedColor; // Set the new color
+        this.ctx.fillStyle = this.selectedColor; // Optionally set the fill color
+      }
+    }
+  }
+
   initialStartMeeting() {
     this.isInitialMeetingStarted = true; // Set to true when meeting starts
     this.startMeeting();
@@ -679,6 +1108,7 @@ export class LivekitRoomComponent {
       this.store.dispatch(
         LiveKitRoomActions.BreakoutActions.loadBreakoutRooms()
       );
+      await this.livekitService.applySelectedDevices();
     } else {
       console.error('Cannot start meeting: Room name is undefined!');
     }
@@ -2045,7 +2475,7 @@ export class LivekitRoomComponent {
     }
   }
 
-  async togglePreviewMic() {
+  togglePreviewMic(): void {
     try {
       this.livekitService.toggleMicrophone().subscribe(
         (isMicOn) => {
@@ -2056,6 +2486,17 @@ export class LivekitRoomComponent {
           console.error('Error enabling video by default:', error);
         }
       );
+      if (!this.isMicOn) {
+        // Start speech recognition
+        this.recognition.start();
+        console.log('Microphone turned on.');
+      } else {
+        // Stop speech recognition
+        this.recognition.stop();
+        console.log('Microphone turned off.');
+        this.isSpeaking = false; // Ensure span is hidden when mic is turned off
+      }
+
       this.isMicOn = !this.isMicOn;
       this.store.dispatch(
         LiveKitRoomActions.LiveKitActions.previewMicEnable({

@@ -21,6 +21,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { HttpClientModule } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { LivekitRoomComponent } from './livekit-room/livekit-room.component';
+import { DragDropModule } from '@angular/cdk/drag-drop';
 
 @NgModule({
   declarations: [AppComponent, ErrorDialogComponent, LivekitRoomComponent],
@@ -44,6 +45,7 @@ import { LivekitRoomComponent } from './livekit-room/livekit-room.component';
     BrowserAnimationsModule,
     HttpClientModule,
     MatProgressSpinnerModule,
+    DragDropModule,
   ],
   providers: [],
   bootstrap: [AppComponent],

@@ -36,6 +36,10 @@ import {
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import { MeetingService } from './meeting.service';
 import { Store } from '@ngrx/store';
+import {
+  isKrispNoiseFilterSupported,
+  KrispNoiseFilter,
+} from '@livekit/krisp-noise-filter';
 
 @Injectable({
   providedIn: 'root',
@@ -986,6 +990,35 @@ export class LivekitService {
             console.error('Participant tile not found');
             this.openSnackBar(`Video could not open. Try again later`);
           }
+        }
+
+        if (
+          publication.source === Track.Source.Microphone &&
+          publication.track instanceof LocalAudioTrack
+        ) {
+          if (!isKrispNoiseFilterSupported()) {
+            console.warn(
+              'Krisp noise filter is currently not supported on this browser'
+            );
+            return;
+          }
+          // Once instantiated, the filter will begin initializing and will download additional resources
+          const krispProcessor = KrispNoiseFilter();
+          console.log('Enabling LiveKit Krisp noise filter');
+          await publication.track.setProcessor(krispProcessor);
+
+          // To enable/disable the noise filter, use setEnabled()
+          await krispProcessor.setEnabled(true);
+          console.log(
+            `Krisp noise filter status: ${
+              krispProcessor.isEnabled() ? 'Enabled' : 'Disabled'
+            }`
+          );
+          // To check the current status use:
+          // krispProcessor.isEnabled()
+
+          // To stop and dispose of the Krisp processor, simply call:
+          // await trackPublication.track.stopProcessor()
         }
         // if (publication.track && publication.track.kind === 'audio') {
         //   const participantTile = document.getElementById(`${participant.sid}`);
@@ -2214,11 +2247,41 @@ export class LivekitService {
       const success = await this.room.switchActiveDevice(kind, deviceId);
       if (success) {
         console.log(`Switched ${kind} to device: ${deviceId}`);
+        console.log(`Switched ${kind} to device: ${deviceId}`);
+        if (kind === 'videoinput') {
+          this.selectedVideoId = deviceId;
+        } else if (kind === 'audioinput') {
+          this.selectedMicId = deviceId;
+        } else if (kind === 'audiooutput') {
+          this.selectedSpeakerId = deviceId;
+        }
       } else {
         console.warn(`Failed to switch ${kind} to device: ${deviceId}`);
       }
     } catch (error) {
       console.error(`Error switching ${kind} to device: ${deviceId}`, error);
+    }
+  }
+
+  async applySelectedDevices(): Promise<void> {
+    try {
+      if (this.selectedVideoId) {
+        await this.room.switchActiveDevice('videoinput', this.selectedVideoId);
+        console.log(`Applied video device: ${this.selectedVideoId}`);
+      }
+      if (this.selectedMicId) {
+        await this.room.switchActiveDevice('audioinput', this.selectedMicId);
+        console.log(`Applied microphone device: ${this.selectedMicId}`);
+      }
+      if (this.selectedSpeakerId) {
+        await this.room.switchActiveDevice(
+          'audiooutput',
+          this.selectedSpeakerId
+        );
+        console.log(`Applied speaker device: ${this.selectedSpeakerId}`);
+      }
+    } catch (error) {
+      console.error('Error applying selected devices:', error);
     }
   }
 
