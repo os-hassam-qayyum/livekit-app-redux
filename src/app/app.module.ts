@@ -22,12 +22,22 @@ import { HttpClientModule } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { LivekitRoomComponent } from './livekit-room/livekit-room.component';
 import { DragDropModule } from '@angular/cdk/drag-drop';
+import { VideoPlayerComponent } from './video-player/video-player.component';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatIconModule } from '@angular/material/icon';
 
 @NgModule({
-  declarations: [AppComponent, ErrorDialogComponent, LivekitRoomComponent],
+  declarations: [
+    AppComponent,
+    ErrorDialogComponent,
+    LivekitRoomComponent,
+    VideoPlayerComponent,
+  ],
   imports: [
     BrowserModule,
     AppRoutingModule,
+    MatMenuModule,
+    MatIconModule,
     ReactiveFormsModule,
     MatDialogModule,
     MatButtonModule,

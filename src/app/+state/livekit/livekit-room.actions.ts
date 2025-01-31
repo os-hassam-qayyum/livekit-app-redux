@@ -41,6 +41,8 @@ export const LiveKitActions = createActionGroup({
     setMicLoading: props<{ isLoading: boolean }>(),
     toggleParticipantSideWindow: emptyProps(),
     toggleChatSideWindow: emptyProps(),
+    toggleNotesSideWindow: emptyProps(),
+    closeNotesSideWindow: emptyProps(),
     closeChatSideWindow: emptyProps(),
     closeParticipantSideWindow: emptyProps(),
     updateUnreadMessagesCount: props<{ count: number }>(),

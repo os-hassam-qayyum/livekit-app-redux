@@ -34,6 +34,7 @@ import { FormGroup, FormBuilder, Validators } from '@angular/forms';
 import { BreakoutRoomService } from '../breakout-room.service';
 import { BreakoutRoom } from '../+state/livekit/livekit-room.reducer';
 import { ActivatedRoute, Router } from '@angular/router';
+import { VideoBookMark } from '../models/video-player.model';
 
 const GRIDCOLUMN: { [key: number]: string } = {
   1: '1fr',
@@ -77,23 +78,20 @@ export interface CanvasPath {
   styleUrls: ['./livekit-room.component.scss'],
 })
 export class LivekitRoomComponent {
+  currentTime = 0;
+  isModalOpen = false; // Tracks if the modal is open or closed
+  activeBookmark: VideoBookMark | undefined;
+
+  // Reactive Form Group
+  bookmarkForm: FormGroup;
+  @ViewChild('notesContainer', { static: false }) notesContainer!: ElementRef;
   isSpeaking: boolean = false;
   recognition: any;
 
   // To periodically check if the user is speaking
   audioContext: AudioContext | null = null;
   analyserNode: AnalyserNode | null = null;
-  // @ViewChild('annotationCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
-  // isAnnotationEnabled: boolean = false; // Tracks if annotation mode is enabled
-  // private ctx: CanvasRenderingContext2D | null = null;
-  // private isDrawing: boolean = false; // Tracks if the user is drawing
-  // private paths: Path2D[] = []; // Stores drawn paths for undo
-  // private currentPath!: Path2D; // Current path being drawn
-  // private currentMode: 'mouse' | 'draw' | 'select' | 'text' = 'draw';
-  // private textBoxes: { x: number; y: number; text: string }[] = []; // Stores text boxes
-  // private selectedTextBoxIndex: number | null = null; // Tracks selected text box for moving
   private selectedColor: string = 'red'; // Default drawing color
-  // @ViewChild('annotationModal') annotationModal!: ElementRef<HTMLDivElement>;
 
   @ViewChild('annotationCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
 
@@ -198,6 +196,76 @@ export class LivekitRoomComponent {
   private subscription!: Subscription;
   private remoteVideoSubscription!: Subscription;
   private screenShareSubscription!: Subscription;
+
+  notesList = [
+    {
+      id: 101,
+      type: 'text',
+      content: 'Welcome to the LMS! This guide will help you get started.',
+      file: null,
+    },
+    {
+      id: 102,
+      type: 'img',
+      content: '',
+      file: {
+        id: 201,
+        url: 'https://th.bing.com/th/id/OIP.XAuYSVkhX9E8uZNJ2ukLvwAAAA?rs=1&pid=ImgDetMain',
+        title: 'Welcome Screen',
+      },
+    },
+    {
+      id: 104,
+      type: 'video',
+      content: '',
+      file: {
+        id: 202,
+        url: 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+        title: 'Getting Started Video',
+      },
+      enforceBookmarks: [true, false, true, false, true],
+      bookmarks: [
+        {
+          from: 0,
+          to: 120,
+          description: 'Intro',
+        },
+        {
+          from: 120,
+          to: 190,
+          description: 'SI Units',
+        },
+        {
+          from: 190,
+          to: 320,
+          description: 'Kinematics',
+        },
+        {
+          from: 320,
+          to: 450,
+          description: 'Magnetism',
+        },
+        {
+          from: 450,
+          to: 600,
+          description: 'Electricity',
+        },
+      ],
+    },
+    {
+      id: 104,
+      type: 'audio',
+      content: '',
+      file: {
+        id: 202,
+        url: 'https://github.com/rafaelreis-hotmart/Audio-Sample-files/raw/master/sample.mp3',
+        title: 'Getting Started Audio',
+      },
+    },
+  ];
+  enforceBookmarks =
+    this.notesList.find((item) => item.type === 'video')?.enforceBookmarks ||
+    [];
   constructor(
     private formBuilder: FormBuilder,
     public livekitService: LivekitService,
@@ -207,8 +275,16 @@ export class LivekitRoomComponent {
     private breakoutRoomService: BreakoutRoomService,
     private dialog: MatDialog,
     private route: ActivatedRoute,
-    private router: Router
-  ) {}
+    private router: Router,
+    private fb: FormBuilder
+  ) {
+    // Initialize the form
+    this.bookmarkForm = this.fb.group({
+      description: ['', [Validators.required]],
+      from: [0, [Validators.required, Validators.min(0)]],
+      to: [0, [Validators.required, Validators.min(0)]],
+    });
+  }
 
   async ngOnInit() {
     this.route.paramMap.subscribe((params) => {
@@ -338,6 +414,9 @@ export class LivekitRoomComponent {
       console.error('Speech Recognition API is not supported in this browser.');
     }
   }
+  ngOnChanges() {
+    this.scrollToBottom();
+  }
 
   ngOnDestroy() {
     if (this.subscription) {
@@ -358,6 +437,7 @@ export class LivekitRoomComponent {
     //   }
     // });
   }
+
   async onDeviceSelected(kind: MediaDeviceKind, deviceId: string) {
     try {
       console.log(`Selected ${kind}: ${deviceId}`);
@@ -713,191 +793,9 @@ export class LivekitRoomComponent {
           participant
         );
       });
+    this.scrollToBottom();
     // this.livekitService.initCanvas(this.audioCanvasRef.nativeElement);
   }
-
-  // toggleAnnotation() {
-  //   this.isAnnotationEnabled = !this.isAnnotationEnabled;
-
-  //   if (this.isAnnotationEnabled) {
-  //     setTimeout(() => this.initializeCanvas(), 0); // Ensure the DOM updates before initializing
-  //   }
-  // }
-  // initializeCanvas() {
-  //   const canvas = this.canvasRef.nativeElement;
-
-  //   // Set canvas size to match viewport
-  //   canvas.width = window.innerWidth;
-  //   canvas.height = window.innerHeight;
-
-  //   this.ctx = canvas.getContext('2d');
-  //   if (!this.ctx) return;
-
-  //   // Set drawing defaults
-  //   this.ctx.strokeStyle = 'red'; // Default pen color
-  //   this.ctx.lineWidth = 2; // Default pen width
-  //   this.ctx.lineCap = 'round';
-
-  //   // Add event listeners for drawing
-  //   canvas.addEventListener('mousedown', this.startDrawing.bind(this));
-  //   canvas.addEventListener('mousemove', this.draw.bind(this));
-  //   canvas.addEventListener('mouseup', this.stopDrawing.bind(this));
-  //   canvas.addEventListener('mouseleave', this.stopDrawing.bind(this));
-  // }
-
-  // // startDrawing(event: MouseEvent) {
-  // //   if (!this.ctx) return;
-
-  // //   this.isDrawing = true;
-
-  // //   // Create a new path and move to the starting point
-  // //   this.currentPath = new Path2D();
-  // //   this.currentPath.moveTo(event.clientX, event.clientY);
-  // // }
-  // startDrawing(event: MouseEvent) {
-  //   if (this.currentMode === 'select') {
-  //     // Check if a text box is clicked for selection
-  //     const x = event.clientX;
-  //     const y = event.clientY;
-
-  //     this.selectedTextBoxIndex = this.textBoxes.findIndex(
-  //       (box) => x > box.x && x < box.x + 100 && y > box.y && y < box.y + 30
-  //     );
-  //   } else if (this.currentMode === 'draw' && this.ctx) {
-  //     this.isDrawing = true;
-  //     this.currentPath = new Path2D();
-  //     this.currentPath.moveTo(event.clientX, event.clientY);
-  //   }
-  // }
-
-  // // draw(event: MouseEvent) {
-  // //   if (!this.isDrawing || !this.ctx) return;
-
-  // //   // Add line to the current path
-  // //   this.currentPath.lineTo(event.clientX, event.clientY);
-
-  // //   // Clear the canvas and redraw all paths
-  // //   this.redrawCanvas();
-  // //   this.ctx.stroke(this.currentPath);
-  // // }
-  // draw(event: MouseEvent) {
-  //   if (this.currentMode === 'select' && this.selectedTextBoxIndex !== null) {
-  //     // Move selected text box
-  //     const textBox = this.textBoxes[this.selectedTextBoxIndex];
-  //     textBox.x = event.clientX;
-  //     textBox.y = event.clientY;
-  //     this.redrawCanvas();
-  //   } else if (this.currentMode === 'draw' && this.isDrawing && this.ctx) {
-  //     this.currentPath.lineTo(event.clientX, event.clientY);
-  //     this.redrawCanvas();
-  //     this.ctx.stroke(this.currentPath);
-  //   }
-  // }
-
-  // stopDrawing() {
-  //   if (!this.isDrawing || !this.ctx) return;
-
-  //   this.isDrawing = false;
-
-  //   // Finalize the current path and add it to the stack
-  //   this.paths.push(this.currentPath);
-  // }
-
-  // redrawCanvas() {
-  //   if (!this.ctx) return;
-
-  //   // Clear the entire canvas
-  //   this.ctx.clearRect(
-  //     0,
-  //     0,
-  //     this.canvasRef.nativeElement.width,
-  //     this.canvasRef.nativeElement.height
-  //   );
-
-  //   // Redraw all saved paths
-  //   this.paths.forEach((path) => this.ctx.stroke(path));
-  //   this.textBoxes.forEach((box) => {
-  //     this.ctx!.fillText(box.text, box.x, box.y);
-  //   });
-  // }
-  // openColorPalette(event: Event) {
-  //   const input = event.target as HTMLInputElement;
-  //   const newColor = input.value; // Get the selected color
-  //   if (newColor) {
-  //     this.selectedColor = newColor;
-  //     if (this.ctx) {
-  //       this.ctx.strokeStyle = this.selectedColor; // Set the new color
-  //       this.ctx.fillStyle = this.selectedColor; // Optionally set the fill color
-  //     }
-  //   }
-  // }
-  // redoLastPath() {
-  //   if (this.paths.length) {
-  //     this.paths.pop()!;
-  //     this.redrawCanvas();
-  //   }
-  // }
-  // activateMouseMode() {
-  //   this.currentMode = 'mouse';
-  //   this.canvasRef.nativeElement.style.cursor = 'default';
-  // }
-  // activateSelectMode() {
-  //   this.currentMode = 'select';
-  //   this.canvasRef.nativeElement.style.cursor = 'move';
-  // }
-  // activateTextMode() {
-  //   this.currentMode = 'text';
-  //   this.canvasRef.nativeElement.style.cursor = 'text';
-  // }
-  // canvasClick(event: MouseEvent) {
-  //   if (this.currentMode === 'text') {
-  //     const x = event.clientX;
-  //     const y = event.clientY;
-
-  //     const text = prompt('Enter text:');
-  //     if (text) {
-  //       this.textBoxes.push({ x, y, text });
-  //       this.redrawCanvas();
-  //     }
-  //   }
-  // }
-  // undoLastPath() {
-  //   if (!this.paths.length || !this.ctx) return;
-
-  //   // Remove the last path from the stack
-  //   this.paths.pop();
-  //   // this.paths.push(path);
-  //   // Redraw the canvas without the last path
-  //   this.redrawCanvas();
-  // }
-
-  // clearCanvas() {
-  //   if (!this.ctx) return;
-
-  //   // Clear paths and canvas
-  //   this.paths = [];
-  //   this.ctx.clearRect(
-  //     0,
-  //     0,
-  //     this.canvasRef.nativeElement.width,
-  //     this.canvasRef.nativeElement.height
-  //   );
-  // }
-
-  // closeAnnotation() {
-  //   this.isAnnotationEnabled = false;
-
-  //   // Optionally clear everything when closing
-  //   this.paths = [];
-  //   if (this.ctx) {
-  //     this.ctx.clearRect(
-  //       0,
-  //       0,
-  //       this.canvasRef.nativeElement.width,
-  //       this.canvasRef.nativeElement.height
-  //     );
-  //   }
-  // }
 
   toggleAnnotation() {
     this.isAnnotationEnabled = !this.isAnnotationEnabled;
@@ -1358,6 +1256,75 @@ export class LivekitRoomComponent {
     // }
   }
 
+  // Open the Add Bookmark modal
+  openAddBookmarkModal() {
+    this.isModalOpen = true;
+  }
+
+  // Close the modal
+  closeModal() {
+    this.isModalOpen = false;
+    this.bookmarkForm.reset();
+  }
+
+  addBookmark(item: any) {
+    if (this.bookmarkForm.valid && item.type === 'video') {
+      const newBookmark: VideoBookMark = this.bookmarkForm.value;
+
+      // Ensure bookmarks array exists
+      if (!item.bookmarks) {
+        item.bookmarks = [];
+      }
+
+      // Ensure enforceBookmarks array exists
+      if (!item.enforceBookmarks) {
+        item.enforceBookmarks = [];
+      }
+
+      // Add new bookmark
+      item.bookmarks.push(newBookmark);
+      item.enforceBookmarks.push(false); // or true if you want it enabled by default
+
+      // Close the modal and reset the form
+      this.closeModal();
+    }
+  }
+
+  selectBookmark(bookmark: VideoBookMark): void {
+    if (this.activeBookmark === bookmark) {
+      this.activeBookmark = undefined;
+    } else {
+      this.activeBookmark = bookmark;
+    }
+  }
+  formatBookmarkDescription(bookmark: {
+    from: number;
+    to: number;
+    description: string;
+  }): string {
+    const fromTime = this.formatTime(bookmark.from);
+    const toTime = this.formatTime(bookmark.to);
+    return `${bookmark.description} (${fromTime} - ${toTime})`;
+  }
+
+  formatTime(seconds: number): string {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  }
+
+  updateCurrentTime(time: number): void {
+    this.currentTime = time;
+    console.log('time', time);
+  }
+
+  openNotesSideWindow(): void {
+    this.store.dispatch(
+      LiveKitRoomActions.LiveKitActions.toggleNotesSideWindow()
+    );
+    this.scrollToBottom();
+  }
+
   /**
    * Dispatches an action to close the chat side window.
    *
@@ -1367,6 +1334,11 @@ export class LivekitRoomComponent {
   closeChatSideWindow(): void {
     this.store.dispatch(
       LiveKitRoomActions.LiveKitActions.closeChatSideWindow()
+    );
+  }
+  closeNotesSideWindow(): void {
+    this.store.dispatch(
+      LiveKitRoomActions.LiveKitActions.closeNotesSideWindow()
     );
   }
 
@@ -1423,6 +1395,10 @@ export class LivekitRoomComponent {
       setTimeout(() => {
         this.messageContainer.nativeElement.scrollTop =
           this.messageContainer.nativeElement.scrollHeight;
+        if (this.notesContainer) {
+          const element = this.notesContainer.nativeElement;
+          element.scrollTop = element.scrollHeight;
+        }
       }, 100);
     } catch (err) {}
   }

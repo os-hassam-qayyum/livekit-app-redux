@@ -35,6 +35,7 @@ export interface LiveKitRoomState {
   roomName: string;
   isPreviewMicOn: boolean;
   isPreviewVideoOn: boolean;
+  notesSideWindowVisible: boolean;
 }
 
 export const initialState: LiveKitRoomState = {
@@ -65,6 +66,7 @@ export const initialState: LiveKitRoomState = {
   roomName: '',
   isPreviewMicOn: false,
   isPreviewVideoOn: false,
+  notesSideWindowVisible: false,
 };
 
 export const liveKitRoomReducer = createReducer(
@@ -188,6 +190,10 @@ export const liveKitRoomReducer = createReducer(
     chatSideWindowVisible: false,
     unreadMessagesCount: 0,
   })),
+  on(LiveKitRoomActions.LiveKitActions.closeNotesSideWindow, (state) => ({
+    ...state,
+    notesSideWindowVisible: false,
+  })),
   on(LiveKitRoomActions.LiveKitActions.closeParticipantSideWindow, (state) => ({
     ...state,
     participantSideWindowVisible: false,
@@ -206,6 +212,10 @@ export const liveKitRoomReducer = createReducer(
         state.breakoutSideWindowVisible && !state.participantSideWindowVisible
           ? false
           : state.breakoutSideWindowVisible,
+      notesSideWindowVisible:
+        state.notesSideWindowVisible && !state.participantSideWindowVisible
+          ? false
+          : state.notesSideWindowVisible,
     })
   ),
 
@@ -220,6 +230,26 @@ export const liveKitRoomReducer = createReducer(
         : state.participantSideWindowVisible,
     breakoutSideWindowVisible:
       state.breakoutSideWindowVisible && !state.chatSideWindowVisible
+        ? false
+        : state.breakoutSideWindowVisible,
+    notesSideWindowVisible:
+      state.notesSideWindowVisible && !state.chatSideWindowVisible
+        ? false
+        : state.notesSideWindowVisible,
+  })),
+  on(LiveKitRoomActions.LiveKitActions.toggleNotesSideWindow, (state) => ({
+    ...state,
+    notesSideWindowVisible: !state.notesSideWindowVisible,
+    chatSideWindowVisible:
+      state.chatSideWindowVisible && !state.notesSideWindowVisible
+        ? false
+        : state.chatSideWindowVisible,
+    participantSideWindowVisible:
+      state.participantSideWindowVisible && !state.notesSideWindowVisible
+        ? false
+        : state.participantSideWindowVisible,
+    breakoutSideWindowVisible:
+      state.breakoutSideWindowVisible && !state.notesSideWindowVisible
         ? false
         : state.breakoutSideWindowVisible,
   })),
@@ -301,6 +331,10 @@ export const liveKitRoomReducer = createReducer(
       state.participantSideWindowVisible && !state.breakoutSideWindowVisible
         ? false
         : state.participantSideWindowVisible,
+    notesSideWindowVisible:
+      state.notesSideWindowVisible && !state.breakoutSideWindowVisible
+        ? false
+        : state.notesSideWindowVisible,
   })),
   on(LiveKitRoomActions.BreakoutActions.closeBreakoutSideWindow, (state) => ({
     ...state,

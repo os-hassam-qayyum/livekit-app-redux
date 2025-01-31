@@ -118,18 +118,7 @@ export const selectPreviewMic = createSelector(
   selectLiveKitRoomState,
   (state: LiveKitRoomState) => state.isPreviewMicOn
 );
-// export const selectParticipantIdsFromBreakoutRooms = createSelector(
-//   selectLiveKitRoomState,
-//   (state) => {
-//     console.log('breakoutRoomsData from selector:', state.breakoutRoomsData);
-//     // Flatten all participantIds into a single array
-//     const participantData = state.breakoutRoomsData
-//       .map((room) => room.participantIds || [])
-//       .flat();
-//     console.log('participant data from breakoutRoomsData', participantData);
-//     return participantData;
-//   }
-// );
+
 
 export const selectParticipantIdsByRoomName = createSelector(
   selectLiveKitRoomState,
@@ -173,6 +162,11 @@ export const selectGetRoomName = createSelector(
   (state: LiveKitRoomState) => state.roomName
 );
 
+export const selectNotesSideWindowVisible = createSelector(
+  selectLiveKitRoomState,
+  (state: LiveKitRoomState) => state.notesSideWindowVisible
+);
+
 export const selectLiveKitRoomViewState = createSelector(
   selectIsMeetingStarted,
   selectIsVideoOn,
@@ -198,6 +192,7 @@ export const selectLiveKitRoomViewState = createSelector(
   selectParticipantIdsByRoomName,
   selectPreviewVideo,
   selectPreviewMic,
+  selectNotesSideWindowVisible,
   (
     isMeetingStarted,
     isVideoOn,
@@ -222,7 +217,8 @@ export const selectLiveKitRoomViewState = createSelector(
     isMicLoading,
     ParticipantIdsByRoomName,
     previewVideo,
-    previewMic
+    previewMic,
+    notesSideWindowVisible
   ) => ({
     isMeetingStarted,
     isVideoOn,
@@ -248,5 +244,6 @@ export const selectLiveKitRoomViewState = createSelector(
     ParticipantIdsByRoomName,
     previewVideo,
     previewMic,
+    notesSideWindowVisible
   })
 );

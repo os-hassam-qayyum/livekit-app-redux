@@ -1,0 +1,229 @@
+<div
+  class="video-container"
+  #videoContainer
+  (fullscreenchange)="exitFullScreen()"
+  (mozfullscreenchange)="exitFullScreen()"
+  (webkitfullscreenchange)="exitFullScreen()"
+>
+  <div
+    [@playBack]="videoPlayerState.isPlaying"
+    class="playback-animation"
+    id="playback-animation"
+  >
+    <span
+      class="fas"
+      [ngClass]="{
+        'fa-play': videoPlayerState.isPlaying,
+        'fa-pause': !videoPlayerState.isPlaying
+      }"
+    ></span>
+  </div>
+
+  <div
+    *ngIf="videoPlayerState.isBuffering"
+    [ngClass]="{
+      buffer: videoPlayerState.isBuffering
+    }"
+  ></div>
+
+  <div
+    *ngIf="videoPlayerState.error"
+    [ngClass]="{
+      error: videoPlayerState.error
+    }"
+  >
+    <span class="fa-stack fa-2x">
+      <i class="fas fa-file-video fa-stack-2x"></i>
+      <i class="fas fa-slash fa-stack-2x"></i>
+    </span>
+  </div>
+
+  <video
+    #videoPlayerEl
+    preload
+    class="os-video"
+    controlsList="nodownload"
+    (click)="togglePlay()"
+    (waiting)="setBuffer()"
+    (progress)="setBufferProgress()"
+    (contextmenu)="$event.preventDefault()"
+    (timeupdate)="getVideoPlayerCurrentTime()"
+    (loadedmetadata)="getVideoPlayerDuration()"
+    (error)="setVideoError()"
+    [src]="videoSrc"
+  ></video>
+
+  <ng-container *ngIf="videoPlayerState.isFullScreen || showVideoControls">
+    <ng-container *ngTemplateOutlet="videoControls"></ng-container>
+  </ng-container>
+</div>
+
+<ng-template #videoControls>
+  <div class="video-controls">
+    <div class="video-progress">
+      <progress
+        class="buffer-bar"
+        [value]="videoPlayerState.bufferProgress"
+        min="0"
+        step="0.01"
+        max="100"
+      ></progress>
+      <progress
+        class="scrub-bar"
+        [value]="videoPlayerState.watchedProgress"
+        min="0"
+        step="0.01"
+        max="100"
+      ></progress>
+      <input
+        (input)="skipAhead($event)"
+        class="seek"
+        id="seek"
+        type="range"
+        min="0"
+        step="0.01"
+        max="100"
+        [value]="videoPlayerState.watchedProgress"
+        [disabled]="videoPlayerState.error"
+      />
+
+      <div
+        class="bookmarks"
+        *ngIf="bookMarks && bookMarks.length > 0"
+        (click)="seekTo($event)"
+      >
+        <div
+          class="bookmark"
+          *ngFor="let marker of bookMarkUI; let i = index"
+          [ngStyle]="{
+            'width.%': marker?.width,
+            'left.%': marker?.left
+          }"
+          [matTooltip]="marker.description"
+          [class.disabled]="!enforceBookmarks[i]"
+          matTooltipPosition="above"
+        ></div>
+      </div>
+    </div>
+    <div class="bottom-controls">
+      <div class="left-controls">
+        <button
+          (click)="togglePlay()"
+          [matTooltip]="videoPlayerState.isPlaying ? 'Pause (k)' : 'Play (k)'"
+          [matTooltipDisabled]="videoPlayerState.error"
+          [disabled]="videoPlayerState.error"
+        >
+          <span
+            class="fas"
+            [ngClass]="{
+              'fa-play': !videoPlayerState.isPlaying,
+              'fa-pause': videoPlayerState.isPlaying
+            }"
+          ></span>
+        </button>
+        <div class="volume-controls">
+          <button
+            class="volume-button"
+            (click)="toggleMute()"
+            [matTooltip]="videoPlayerState.isMute ? 'Unmute (m)' : 'Mute (m)'"
+            [matTooltipDisabled]="videoPlayerState.error"
+            [disabled]="videoPlayerState.error"
+          >
+            <span
+              class="fas"
+              [ngClass]="{
+                'fa-volume-mute':
+                  videoPlayerState.isMute || videoPlayerState.volume === 0,
+                'fa-volume-up':
+                  !videoPlayerState.isMute && videoPlayerState.volume >= 0.5,
+                'fa-volume-down':
+                  !videoPlayerState.isMute && videoPlayerState.volume < 0.5
+              }"
+            ></span>
+          </button>
+
+          <div class="volume-slider">
+            <progress
+              id="progress-bar"
+              [value]="videoPlayerState.isMute ? 0 : videoPlayerState.volume"
+              min="0"
+              step="0.01"
+              max="1"
+            ></progress>
+
+            <input
+              (input)="updateVolume($event)"
+              class="volume"
+              id="volume"
+              [value]="videoPlayerState.isMute ? 0 : videoPlayerState.volume"
+              [disabled]="videoPlayerState.error"
+              data-mute="0.5"
+              type="range"
+              max="1"
+              min="0"
+              step="0.01"
+            />
+          </div>
+        </div>
+        <div class="time">
+          <time id="time-elapsed">{{ videoPlayerState.currentTime }}</time>
+          <span> / </span>
+          <time id="duration">{{ videoPlayerState.duration }}</time>
+        </div>
+      </div>
+      <div class="right-controls">
+        <div class="playback-content">
+          <button
+            class="playback-rate-button"
+            mat-button
+            [matMenuTriggerFor]="playBackRateMenu"
+            [disabled]="videoPlayerState.error"
+          >
+            {{
+              videoPlayerState.playBackRates[
+                videoPlayerState.currentPlaybackRateIdx
+              ]
+            }}x
+          </button>
+          <mat-menu #playBackRateMenu="matMenu">
+            <button
+              *ngFor="let rate of videoPlayerState.playBackRates; let i = index"
+              (click)="setPlaybackRate(i)"
+              mat-menu-item
+            >
+              {{ rate }}x
+            </button>
+          </mat-menu>
+        </div>
+        <button
+          class="pip-button"
+          (click)="togglePictureInPicture()"
+          matTooltip="Toggle picture in picture (p)"
+          [matTooltipDisabled]="videoPlayerState.error"
+          [disabled]="videoPlayerState.error"
+        >
+          <mat-icon>picture_in_picture_alt</mat-icon>
+        </button>
+        <button
+          class="fullscreen-button"
+          (click)="toggleFullScreen()"
+          [disabled]="videoPlayerState.error"
+          [matTooltip]="
+            videoPlayerState.isFullScreen
+              ? 'Exit fullscreen (f)'
+              : 'Enter fullscreen (f)'
+          "
+          [matTooltipDisabled]="videoPlayerState.error"
+        >
+          <span
+            class="fas"
+            [ngClass]="{
+              'fa-expand': !videoPlayerState.isFullScreen,
+              'fa-compress': videoPlayerState.isFullScreen
+            }"
+          ></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</ng-template>

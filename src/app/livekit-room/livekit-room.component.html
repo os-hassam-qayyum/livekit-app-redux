@@ -299,6 +299,13 @@
 
           <button
             class="people"
+            matTooltip="Notes"
+            (click)="openNotesSideWindow()"
+          >
+            <i class="far fa-clipboard-list"></i>
+          </button>
+          <button
+            class="people"
             matTooltip="Breakout Rooms"
             (click)="openPBreakoutSideWindow()"
             *ngIf="
@@ -1133,6 +1140,240 @@
             <!-- Host's button to close all breakout rooms -->
             <div class="host-controls">
               <button (click)="closeAllBreakoutRooms()">Close All Rooms</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- notes side window  -->
+    <div class="closeNotesSideWindow" (click)="closeNotesSideWindow()">
+      <div
+        *ngIf="liveKitViewState.notesSideWindowVisible"
+        class="notes-side-window-container"
+      >
+        <div class="notes-side-window" (click)="$event.stopPropagation()">
+          <div class="notes-detail">
+            <div class="os-content-card-nav">
+              <div class="notes-head">
+                <h2>Notes</h2>
+              </div>
+            </div>
+            <div class="os-content-card-body">
+              <div #notesContainer class="os-content-body">
+                <ng-container *ngFor="let note of notesList">
+                  <div class="note-container">
+                    <h3
+                      *ngIf="note.file?.title || note.content"
+                      class="note-title"
+                    >
+                      {{ note.file?.title || note.content }}
+                    </h3>
+
+                    <!-- Render text notes -->
+                    <p *ngIf="note.type === 'text'" class="note-text">
+                      {{ note.content }}
+                    </p>
+
+                    <!-- Render images -->
+                    <div *ngIf="note.type === 'img'">
+                      <img
+                        [src]="note.file?.url"
+                        [alt]="note.file?.title"
+                        class="note-image"
+                      />
+                    </div>
+
+                    <!-- Render videos -->
+                    <div *ngIf="note.type === 'video'">
+                      <div class="video-container">
+                        <div class="video-wrapper">
+                          <div class="bookmark-wrapper">
+                            <div class="vid-width">
+                              <app-video-player
+                                [videoSrc]="note.file.url"
+                                [showVideoControls]="true"
+                                [bookMarks]="note.bookmarks"
+                                [activeBookmark]="activeBookmark"
+                                (currentTimeChange)="updateCurrentTime($event)"
+                                [enforceBookmarks]="enforceBookmarks"
+                              ></app-video-player>
+                            </div>
+                            <div class="bookmark-btns">
+                              <div
+                                *ngFor="
+                                  let bookmark of note.bookmarks;
+                                  let i = index
+                                "
+                                class="bookmark-btn-wrapper"
+                              >
+                                <button
+                                  (click)="selectBookmark(bookmark)"
+                                  [ngClass]="{
+                                    'active-btn': bookmark === activeBookmark,
+                                    'inactive-btn': bookmark !== activeBookmark
+                                  }"
+                                  [disabled]="!note.enforceBookmarks[i]"
+                                >
+                                  <span class="description">{{
+                                    formatBookmarkDescription(bookmark)
+                                  }}</span>
+
+                                  <span
+                                    *ngIf="bookmark === activeBookmark"
+                                    class="tick-icon"
+                                  >
+                                    <mat-icon>check</mat-icon>
+                                    <!-- <i class="fa fa-check "></i> -->
+                                  </span>
+                                  <!-- <button class="remove-btn" (click)="removeBookmark(i)">
+                                    <mat-icon>close</mat-icon>
+                                  </button> -->
+                                </button>
+                                <!-- Cross icon to remove bookmark -->
+                              </div>
+                              <!-- Button to trigger the Add Bookmark Modal -->
+                              <button
+                                style="
+                                  border-radius: 50%;
+                                  width: 30px;
+                                  height: 30px;
+                                  padding: 10px;
+                                  display: flex;
+                                  align-items: center;
+                                  justify-content: center;
+                                  margin-top: 12px;
+                                "
+                                matTooltip="Add Bookmark"
+                                class="add-bookmark-btn"
+                                (click)="openAddBookmarkModal()"
+                              >
+                                <i class="fas fa-plus"></i>
+                              </button>
+                            </div>
+
+                            <div
+                              class="modal-overlay"
+                              *ngIf="isModalOpen"
+                              (click)="closeModal()"
+                            ></div>
+                            <!-- Modal for Adding a Bookmark -->
+                            <div *ngIf="isModalOpen" class="bookmark-modal">
+                              <div class="modal-content">
+                                <div class="modal-header">
+                                  <h2>Add Bookmark</h2>
+                                  <button
+                                    class="close-button"
+                                    (click)="closeModal()"
+                                  >
+                                    &times;
+                                  </button>
+                                </div>
+                                <form
+                                  [formGroup]="bookmarkForm"
+                                  (ngSubmit)="addBookmark(note)"
+                                >
+                                  <div class="modal-body">
+                                    <label for="description"
+                                      >Description:</label
+                                    >
+                                    <input
+                                      type="text"
+                                      id="description"
+                                      formControlName="description"
+                                      [class.invalid]="
+                                        bookmarkForm.get('description')
+                                          ?.invalid &&
+                                        bookmarkForm.get('description')?.touched
+                                      "
+                                    />
+                                    <div
+                                      *ngIf="
+                                        bookmarkForm.get('description')
+                                          ?.invalid &&
+                                        bookmarkForm.get('description')?.touched
+                                      "
+                                    >
+                                      Description is required.
+                                    </div>
+
+                                    <label for="from"
+                                      >Start Time (seconds):</label
+                                    >
+                                    <input
+                                      type="number"
+                                      id="from"
+                                      formControlName="from"
+                                      [class.invalid]="
+                                        bookmarkForm.get('from')?.invalid &&
+                                        bookmarkForm.get('from')?.touched
+                                      "
+                                    />
+                                    <div
+                                      *ngIf="
+                                        bookmarkForm.get('from')?.invalid &&
+                                        bookmarkForm.get('from')?.touched
+                                      "
+                                    >
+                                      Start time is required and must be a
+                                      non-negative number.
+                                    </div>
+
+                                    <label for="to">End Time (seconds):</label>
+                                    <input
+                                      type="number"
+                                      id="to"
+                                      formControlName="to"
+                                      [class.invalid]="
+                                        bookmarkForm.get('to')?.invalid &&
+                                        bookmarkForm.get('to')?.touched
+                                      "
+                                    />
+                                    <div
+                                      *ngIf="
+                                        bookmarkForm.get('to')?.invalid &&
+                                        bookmarkForm.get('to')?.touched
+                                      "
+                                    >
+                                      End time is required and must be a
+                                      non-negative number.
+                                    </div>
+
+                                    <div class="btns">
+                                      <button
+                                        class="button-3"
+                                        type="submit"
+                                        [disabled]="bookmarkForm.invalid"
+                                      >
+                                        Submit
+                                      </button>
+                                      <button
+                                        class="button-2"
+                                        type="button"
+                                        (click)="closeModal()"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                </form>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Render audio -->
+                    <div *ngIf="note.type === 'audio'">
+                      <audio controls class="note-audio">
+                        <source [src]="note.file?.url" type="audio/mpeg" />
+                        Your browser does not support the audio element.
+                      </audio>
+                    </div>
+                  </div>
+                </ng-container>
+              </div>
             </div>
           </div>
         </div>
