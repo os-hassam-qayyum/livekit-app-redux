@@ -9,7 +9,10 @@ import { StoreModule } from '@ngrx/store';
 import { StoreDevtoolsModule } from '@ngrx/store-devtools';
 import { liveKitRoomReducer } from './+state/livekit/livekit-room.reducer';
 import { ErrorDialogComponent } from './error-dialog/error-dialog.component';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import {
+  BrowserAnimationsModule,
+  NoopAnimationsModule,
+} from '@angular/platform-browser/animations';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule } from '@angular/material/dialog';
@@ -25,6 +28,7 @@ import { DragDropModule } from '@angular/cdk/drag-drop';
 import { VideoPlayerComponent } from './video-player/video-player.component';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatIconModule } from '@angular/material/icon';
+import { MeetingNotesComponent } from './meeting-notes/meeting-notes.component';
 
 @NgModule({
   declarations: [
@@ -32,6 +36,7 @@ import { MatIconModule } from '@angular/material/icon';
     ErrorDialogComponent,
     LivekitRoomComponent,
     VideoPlayerComponent,
+    MeetingNotesComponent,
   ],
   imports: [
     BrowserModule,
@@ -56,6 +61,7 @@ import { MatIconModule } from '@angular/material/icon';
     HttpClientModule,
     MatProgressSpinnerModule,
     DragDropModule,
+    NoopAnimationsModule,
   ],
   providers: [],
   bootstrap: [AppComponent],
