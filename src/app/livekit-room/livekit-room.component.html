@@ -23,12 +23,35 @@
     *ngIf="!liveKitViewState.isMeetingStarted && isInitialMeetingStarted"
     data-test="meetingForm"
   >
+    <div class="start-container">
+      <img src="../assets/faviconV2.png" width="50" height="50" alt="" />
+      <div class="getting-started">
+        <h2>Getting Started</h2>
+        <p>Setup your audio and video before joining</p>
+      </div>
+      <div class="join">You are the first to join</div>
+    </div>
+
     <div>
       <div class="video-preview">
         <div class="user-icon">
+          <p class="your-name">You</p>
+          <p class="preview-screen-mic">
+            <i
+              class="fas"
+              [ngClass]="{
+                'fa-microphone': liveKitViewState.isMicOn,
+                'fa-microphone-slash': !liveKitViewState.isMicOn
+              }"
+            >
+              <!-- <span *ngIf="liveKitViewState.isMicOn"></span> -->
+              <span *ngIf="isSpeaking"></span>
+            </i>
+          </p>
           <ng-container *ngIf="!isVideoOn">
             <span class="icon-placeholder">
-              <img src="../assets/avatar.png" />
+              <!-- <img src="../assets/avatar.png" /> -->
+              <i class="far fa-user"></i>
             </span>
           </ng-container>
           <video
@@ -69,7 +92,6 @@
                   }"
                 ></i>
               </ng-template>
-              Camera
             </button>
 
             <!-- Dropdown for selecting video devices -->
@@ -78,7 +100,7 @@
               [disabled]="liveKitViewState.isVideoLoading"
               (click)="toggleVideoDropdown()"
             >
-              <i class="fas fa-caret-down"></i>
+              <i class="fa fa-ellipsis-v"></i>
             </button>
             <ul class="mic-toggle-dropdown" *ngIf="isVideoDropdownOpen">
               <li
@@ -117,7 +139,6 @@
                   <span *ngIf="isSpeaking"></span>
                 </i>
               </ng-template>
-              Microphone
             </button>
 
             <button
@@ -125,7 +146,7 @@
               [disabled]="liveKitViewState.isMicLoading"
               (click)="toggleMicDropdown()"
             >
-              <i class="fas fa-caret-down"></i>
+              <i class="fa fa-ellipsis-v"></i>
             </button>
             <ul *ngIf="isMicDropdownOpen" class="mic-toggle-dropdown">
               <li class="dropdown-heading">Select a Microphone</li>
@@ -165,7 +186,6 @@
           data-cy="submit"
           type="submit"
           class="startBtn"
-          [disabled]="!participantName"
         >
           Join Room
         </button>
@@ -218,7 +238,13 @@
         </div>
       </div>
     </div>
-    <div class="os-main-content" data-test="meetingStarted">
+    <div
+      class="os-main-content"
+      [ngClass]="{
+        'os-main-speaker': livekitService.speakerModeLayout
+      }"
+      data-test="meetingStarted"
+    >
       <!-- header showing when meeting get started  -->
       <header class="header">
         <div class="left-header" data-test="left-header">
@@ -1161,218 +1187,7 @@
             </div>
             <div class="os-content-card-body">
               <div #notesContainer class="os-content-body">
-                <ng-container *ngFor="let note of notesList">
-                  <div class="note-container">
-                    <h3
-                      *ngIf="note.file?.title || note.content"
-                      class="note-title"
-                    >
-                      {{ note.file?.title || note.content }}
-                    </h3>
-
-                    <!-- Render text notes -->
-                    <p *ngIf="note.type === 'text'" class="note-text">
-                      {{ note.content }}
-                    </p>
-
-                    <!-- Render images -->
-                    <div *ngIf="note.type === 'img'">
-                      <img
-                        [src]="note.file?.url"
-                        [alt]="note.file?.title"
-                        class="note-image"
-                      />
-                    </div>
-
-                    <!-- Render videos -->
-                    <div *ngIf="note.type === 'video'">
-                      <div class="video-container">
-                        <div class="video-wrapper">
-                          <div class="bookmark-wrapper">
-                            <div class="vid-width">
-                              <app-video-player
-                                [videoSrc]="note.file.url"
-                                [showVideoControls]="true"
-                                [bookMarks]="note.bookmarks"
-                                [activeBookmark]="activeBookmark"
-                                (currentTimeChange)="updateCurrentTime($event)"
-                                [enforceBookmarks]="enforceBookmarks"
-                              ></app-video-player>
-                            </div>
-                            <div class="bookmark-btns">
-                              <div
-                                *ngFor="
-                                  let bookmark of note.bookmarks;
-                                  let i = index
-                                "
-                                class="bookmark-btn-wrapper"
-                              >
-                                <button
-                                  (click)="selectBookmark(bookmark)"
-                                  [ngClass]="{
-                                    'active-btn': bookmark === activeBookmark,
-                                    'inactive-btn': bookmark !== activeBookmark
-                                  }"
-                                  [disabled]="!note.enforceBookmarks[i]"
-                                >
-                                  <span class="description">{{
-                                    formatBookmarkDescription(bookmark)
-                                  }}</span>
-
-                                  <span
-                                    *ngIf="bookmark === activeBookmark"
-                                    class="tick-icon"
-                                  >
-                                    <mat-icon>check</mat-icon>
-                                    <!-- <i class="fa fa-check "></i> -->
-                                  </span>
-                                  <!-- <button class="remove-btn" (click)="removeBookmark(i)">
-                                    <mat-icon>close</mat-icon>
-                                  </button> -->
-                                </button>
-                                <!-- Cross icon to remove bookmark -->
-                              </div>
-                              <!-- Button to trigger the Add Bookmark Modal -->
-                              <button
-                                style="
-                                  border-radius: 50%;
-                                  width: 30px;
-                                  height: 30px;
-                                  padding: 10px;
-                                  display: flex;
-                                  align-items: center;
-                                  justify-content: center;
-                                  margin-top: 12px;
-                                "
-                                matTooltip="Add Bookmark"
-                                class="add-bookmark-btn"
-                                (click)="openAddBookmarkModal()"
-                              >
-                                <i class="fas fa-plus"></i>
-                              </button>
-                            </div>
-
-                            <div
-                              class="modal-overlay"
-                              *ngIf="isModalOpen"
-                              (click)="closeModal()"
-                            ></div>
-                            <!-- Modal for Adding a Bookmark -->
-                            <div *ngIf="isModalOpen" class="bookmark-modal">
-                              <div class="modal-content">
-                                <div class="modal-header">
-                                  <h2>Add Bookmark</h2>
-                                  <button
-                                    class="close-button"
-                                    (click)="closeModal()"
-                                  >
-                                    &times;
-                                  </button>
-                                </div>
-                                <form
-                                  [formGroup]="bookmarkForm"
-                                  (ngSubmit)="addBookmark(note)"
-                                >
-                                  <div class="modal-body">
-                                    <label for="description"
-                                      >Description:</label
-                                    >
-                                    <input
-                                      type="text"
-                                      id="description"
-                                      formControlName="description"
-                                      [class.invalid]="
-                                        bookmarkForm.get('description')
-                                          ?.invalid &&
-                                        bookmarkForm.get('description')?.touched
-                                      "
-                                    />
-                                    <div
-                                      *ngIf="
-                                        bookmarkForm.get('description')
-                                          ?.invalid &&
-                                        bookmarkForm.get('description')?.touched
-                                      "
-                                    >
-                                      Description is required.
-                                    </div>
-
-                                    <label for="from"
-                                      >Start Time (seconds):</label
-                                    >
-                                    <input
-                                      type="number"
-                                      id="from"
-                                      formControlName="from"
-                                      [class.invalid]="
-                                        bookmarkForm.get('from')?.invalid &&
-                                        bookmarkForm.get('from')?.touched
-                                      "
-                                    />
-                                    <div
-                                      *ngIf="
-                                        bookmarkForm.get('from')?.invalid &&
-                                        bookmarkForm.get('from')?.touched
-                                      "
-                                    >
-                                      Start time is required and must be a
-                                      non-negative number.
-                                    </div>
-
-                                    <label for="to">End Time (seconds):</label>
-                                    <input
-                                      type="number"
-                                      id="to"
-                                      formControlName="to"
-                                      [class.invalid]="
-                                        bookmarkForm.get('to')?.invalid &&
-                                        bookmarkForm.get('to')?.touched
-                                      "
-                                    />
-                                    <div
-                                      *ngIf="
-                                        bookmarkForm.get('to')?.invalid &&
-                                        bookmarkForm.get('to')?.touched
-                                      "
-                                    >
-                                      End time is required and must be a
-                                      non-negative number.
-                                    </div>
-
-                                    <div class="btns">
-                                      <button
-                                        class="button-3"
-                                        type="submit"
-                                        [disabled]="bookmarkForm.invalid"
-                                      >
-                                        Submit
-                                      </button>
-                                      <button
-                                        class="button-2"
-                                        type="button"
-                                        (click)="closeModal()"
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  </div>
-                                </form>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Render audio -->
-                    <div *ngIf="note.type === 'audio'">
-                      <audio controls class="note-audio">
-                        <source [src]="note.file?.url" type="audio/mpeg" />
-                        Your browser does not support the audio element.
-                      </audio>
-                    </div>
-                  </div>
-                </ng-container>
+                <app-meeting-notes></app-meeting-notes>
               </div>
             </div>
           </div>
@@ -1380,66 +1195,68 @@
       </div>
     </div>
 
-    <!-- <ng-container *ngIf="pipMode === true">
-        <div class="pip-container" #pipContainer id="pipHeader">
-          <button
-            data-test="video-test"
-            matTooltip="Video"
-            class="video"
-            (click)="toggleVideo()"
-          >
-            <i
-              class="fas"
-              [ngClass]="{
-                'fa-video': liveKitViewState.isVideoOn,
-                'fa-video-slash': !liveKitViewState.isVideoOn
-              }"
-            ></i>
+    <!-- ///////////////////////////////////    -->
+
+    <ng-container *ngIf="pipMode === true">
+      <div class="pip-container" #pipContainer id="pipHeader">
+        <button
+          data-test="video-test"
+          matTooltip="Video"
+          class="video"
+          (click)="toggleVideo()"
+        >
+          <i
+            class="fas"
+            [ngClass]="{
+              'fa-video': liveKitViewState.isVideoOn,
+              'fa-video-slash': !liveKitViewState.isVideoOn
+            }"
+          ></i>
+        </button>
+        <button class="mic" matTooltip="Mic" (click)="toggleMic()">
+          <i
+            class="fas"
+            [ngClass]="{
+              'fa-microphone': liveKitViewState.isMicOn,
+              'fa-microphone-slash': !liveKitViewState.isMicOn
+            }"
+          ></i>
+        </button>
+        <button
+          data-cy="raise-hand"
+          *ngIf="localParticipant.isLocal"
+          (click)="toggleRaiseHand()"
+          matTooltip="Raise Hand"
+        >
+          <i
+            class="fas fa-hand-paper"
+            [ngClass]="{ 'hand-raised': localParticipant.handRaised }"
+          ></i>
+        </button>
+        <button class="more" matTooltip="More">
+          <i class="fas fa-ellipsis-h"></i>
+        </button>
+        <button
+          class="leave-btn"
+          matTooltip="Leave_Meeting"
+          (click)="leaveMeetingRoom()"
+        >
+          <span class="material-symbols-outlined"> call_end </span>
+        </button>
+      </div>
+      <div #pipModal class="pip-modal" *ngIf="showModal">
+        <div class="pip-modal-content">
+          <h2>Picture-in-Picture Mode</h2>
+          <p>Allow video feeds to play in Picture-in-Picture mode?</p>
+          <button id="allowButton" class="allow-btn" (click)="allowPiP()">
+            Allow
           </button>
-          <button class="mic" matTooltip="Mic" (click)="toggleMic()">
-            <i
-              class="fas"
-              [ngClass]="{
-                'fa-microphone': liveKitViewState.isMicOn,
-                'fa-microphone-slash': !liveKitViewState.isMicOn
-              }"
-            ></i>
-          </button>
-          <button
-            data-cy="raise-hand"
-            *ngIf="localParticipant.isLocal"
-            (click)="toggleRaiseHand()"
-            matTooltip="Raise Hand"
-          >
-            <i
-              class="fas fa-hand-paper"
-              [ngClass]="{ 'hand-raised': localParticipant.handRaised }"
-            ></i>
-          </button>
-          <button class="more" matTooltip="More">
-            <i class="fas fa-ellipsis-h"></i>
-          </button>
-          <button
-            class="leave-btn"
-            matTooltip="Leave_Meeting"
-            (click)="leaveBtn()"
-          >
-            <span class="material-symbols-outlined"> call_end </span>
+          <button id="cancelButton" class="cancel-btn" (click)="cancelPiP()">
+            Cancel
           </button>
         </div>
-        <div #pipModal class="pip-modal" *ngIf="showModal">
-          <div class="pip-modal-content">
-            <h2>Picture-in-Picture Mode</h2>
-            <p>Allow video feeds to play in Picture-in-Picture mode?</p>
-            <button id="allowButton" class="allow-btn" (click)="allowPiP()">
-              Allow
-            </button>
-            <button id="cancelButton" class="cancel-btn" (click)="cancelPiP()">
-              Cancel
-            </button>
-          </div>
-        </div>
-      </ng-container> -->
+      </div>
+    </ng-container>
   </ng-container>
 
   <!-- Breakout Room Modal which is sent to participants for invitation -->

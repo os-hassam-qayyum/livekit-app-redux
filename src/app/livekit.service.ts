@@ -1510,13 +1510,21 @@ export class LivekitService {
         console.log('Video is off');
         // const container = document.querySelector('.lk-participant-tile');
         const containerById = document.getElementById(`${participant.sid}`);
-        const imgElement = document.createElement('img');
-        imgElement.setAttribute('src', '../assets/avatar.png');
-        imgElement.setAttribute(
+        // const imgElement = document.createElement('img');
+        // imgElement.setAttribute('src', '../assets/avatar.png');
+        const iconPlaceholder = document.createElement('span');
+        iconPlaceholder.classList.add('icon-placeholder');
+        iconPlaceholder.setAttribute(
           'style',
-          'position:absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; border-radius: 50%; object-fit: cover; object-position: center;'
+          'width: 90px; height: 90px; background-color: #009d99; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);'
         );
-        containerById?.appendChild(imgElement);
+        const imgElement = document.createElement('i');
+        imgElement.classList.add('far', 'fa-user');
+        imgElement.setAttribute('style', 'font-size: 50px; color: white;');
+        // containerById?.appendChild(imgElement);
+
+        iconPlaceholder.appendChild(imgElement);
+        containerById.appendChild(iconPlaceholder);
       } else {
         // Handle logic for when video is unmuted
         console.log('Video is on');
@@ -1913,6 +1921,118 @@ export class LivekitService {
    *
    * @returns {void}
    */
+  // createAvatar(participant: Participant) {
+  //   const el2 = document.createElement('div');
+  //   el2.setAttribute('class', 'lk-participant-tile');
+  //   el2.setAttribute('id', `${participant.sid}`);
+  //   el2.setAttribute(
+  //     'style',
+  //     `
+  //      position: relative;
+  //      display: flex;
+  //      flex-direction: column;
+  //      gap: 0.375rem;
+  //      border-radius: 0.5rem;
+  //      background-color: #000;
+  //      min-width: 280px;
+  //      max-width:100%;
+  //          min-height: 25%;
+  //    `
+  //   );
+  //   setTimeout(() => {
+  //     const container = document.querySelector('.lk-grid-layout');
+  //     if (container) {
+  //       // Create metadata container
+  //       const el3 = document.createElement('div');
+  //       el3.setAttribute('class', 'lk-participant-metadata');
+  //       el3.setAttribute(
+  //         'style',
+  //         `
+  //          position: absolute;
+  //          right: 0.25rem;
+  //          bottom: 0.25rem;
+  //          left: 0.25rem;
+  //          display: flex;
+  //          flex-direction: row;
+  //          align-items: center;
+  //          justify-content: space-between;
+  //          gap: 0.5rem;
+  //          line-height: 1;
+  //        `
+  //       );
+  //       // Create metadata item
+  //       const el4 = document.createElement('div');
+  //       el4.setAttribute('class', 'lk-participant-metadata-item');
+  //       el4.setAttribute(
+  //         'style',
+  //         `
+  //          display: flex;
+  //          align-items: center;
+  //          padding: 0.25rem;
+  //          background-color: rgba(0, 0, 0, 0.5);
+  //          border-radius: calc(var(--lk-border-radius) / 2);
+  //        `
+  //       );
+  //       // Create participant name element
+  //       const el5 = document.createElement('span');
+  //       el5.setAttribute('class', 'lk-participant-name');
+  //       el5.setAttribute(
+  //         'style',
+  //         `
+  //           font-size: 0.875rem;
+  //           color: white;
+  //         `
+  //       );
+  //       el5.innerText = participant.identity;
+  //       // Append elements
+  //       el4.appendChild(el5);
+  //       el3.appendChild(el4);
+  //       el2.appendChild(el3);
+  //       // Create avatar image
+  //       // const imgElement = document.createElement('i');
+  //       // imgElement.classList.add('far', 'fa-user');
+  //       // imgElement.style.cssText = `
+  //       //   position: absolute;
+  //       //   top: 50%;
+  //       //   left: 50%;
+  //       //   transform: translate(-50%, -50%);
+  //       //   width: 60px;
+  //       //   height: 60px;
+  //       //   border-radius: 50%;
+  //       //   object-fit: cover;
+  //       //   color: white;
+  //       //   object-position: center;
+  //       // `;
+  //       const iconPlaceholder = document.createElement('span');
+  //       iconPlaceholder.classList.add('icon-placeholder');
+  //       iconPlaceholder.setAttribute(
+  //         'style',
+  //         'width: 90px; height: 90px; background-color: #009d99; border-radius: 50%; display: flex; justify-content: center; align-items: center; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);'
+  //       );
+  //       const imgElement = document.createElement('i');
+  //       imgElement.classList.add('far', 'fa-user');
+  //       imgElement.setAttribute('style', 'font-size: 50px; color: white;');
+  //       // containerById?.appendChild(imgElement);
+
+  //       // containerById.appendChild(iconPlaceholder);
+
+  //       const audioElement = document.createElement('span');
+  //       audioElement.setAttribute('class', 'lk-participant-name');
+  //       audioElement.setAttribute(
+  //         'style',
+  //         `
+  //           font-size: 0.875rem;
+  //           color: white;
+  //         `
+  //       );
+  //       audioElement.innerText = participant.identity;
+  //       iconPlaceholder.appendChild(imgElement);
+  //       el2.appendChild(iconPlaceholder);
+  //       // Append participant tile to container
+  //       container.appendChild(el2);
+  //     }
+  //   }, 100);
+  // }
   createAvatar(participant: Participant) {
     const el2 = document.createElement('div');
     el2.setAttribute('class', 'lk-participant-tile');
@@ -1925,11 +2045,13 @@ export class LivekitService {
        flex-direction: column;
        gap: 0.375rem;
        border-radius: 0.5rem;
-       width: 100%;
-       min-height: 25%;
        background-color: #000;
+       min-width: 280px;
+       max-width:100%;
+           min-height: 25%;
      `
     );
+
     setTimeout(() => {
       const container = document.querySelector('.lk-grid-layout');
       if (container) {
@@ -1951,6 +2073,7 @@ export class LivekitService {
            line-height: 1;
          `
         );
+
         // Create metadata item
         const el4 = document.createElement('div');
         el4.setAttribute('class', 'lk-participant-metadata-item');
@@ -1964,6 +2087,7 @@ export class LivekitService {
            border-radius: calc(var(--lk-border-radius) / 2);
          `
         );
+
         // Create participant name element
         const el5 = document.createElement('span');
         el5.setAttribute('class', 'lk-participant-name');
@@ -1975,14 +2099,17 @@ export class LivekitService {
           `
         );
         el5.innerText = participant.identity;
+
         // Append elements
         el4.appendChild(el5);
         el3.appendChild(el4);
         el2.appendChild(el3);
-        // Create avatar image
-        const imgElement = document.createElement('img');
-        imgElement.setAttribute('src', '../assets/avatar.png');
-        imgElement.style.cssText = `
+
+        // Create initials element
+        const initialsContainer = document.createElement('div');
+        initialsContainer.setAttribute('class', 'participant-initials');
+
+        initialsContainer.style.cssText = `
           position: absolute;
           top: 50%;
           left: 50%;
@@ -1990,24 +2117,36 @@ export class LivekitService {
           width: 60px;
           height: 60px;
           border-radius: 50%;
-          object-fit: cover;
-          object-position: center;
+          background-color: #009d99;
+          color: #ffffff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.5rem;
+          font-weight: bold;
+          text-transform: uppercase;
         `;
-        const audioElement = document.createElement('span');
-        audioElement.setAttribute('class', 'lk-participant-name');
-        audioElement.setAttribute(
-          'style',
-          `
-            font-size: 0.875rem;
-            color: white;
-          `
-        );
-        audioElement.innerText = participant.identity;
-        el2.appendChild(imgElement);
+
+        // Extract initials from the participant's identity
+        const initials = this.getInitials(participant.identity);
+        initialsContainer.innerText = initials;
+
+        // Append initials container to the participant tile
+        el2.appendChild(initialsContainer);
+
         // Append participant tile to container
         container.appendChild(el2);
       }
     }, 100);
+  }
+
+  // Function to extract initials from a full name
+  getInitials(name: string): string {
+    const nameParts = name.trim().split(' ');
+    if (nameParts.length > 1) {
+      return nameParts[0][0] + nameParts[1][0]; // First letter of first & last name
+    }
+    return nameParts[0][0]; // Single letter if only one name
   }
 
   toggleExpand(element: any, participantId: any) {
@@ -2378,7 +2517,7 @@ export class LivekitService {
       participantTile.style.height = '100%';
     } else {
       if (gridLayout.contains(participantTile)) {
-        participantTile.style.height = '40%';
+        participantTile.style.height = '100%';
       }
     }
 
